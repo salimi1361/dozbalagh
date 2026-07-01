@@ -1,0 +1,31 @@
+select.select2-hidden-accessible {
+    border: 0 !important; clip: rect(0 0 0 0) !important; height: 1px !important;
+    margin: -1px !important; overflow: hidden !important; padding: 0 !important;
+    position: absolute !important; width: 1px !important;
+}
+.select2-container { width: 100% !important; direction: rtl !important; text-align: right !important; }
+.select2-container .select2-selection--single {
+    height: 48px !important; border: 1px solid #cbd5e1 !important; border-radius: 0.75rem !important;
+    background-color: #fff !important; outline: none !important; transition: all 0.2s ease-in-out;
+    display: flex !important; align-items: center !important;
+}
+.select2-container .select2-selection--single:focus, .select2-container--open .select2-selection--single {
+    border-color: #10b981 !important; box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2) !important;
+}
+.select2-container .select2-selection--single .select2-selection__rendered {
+    width: 100%; padding-right: 1rem !important; padding-left: 2rem !important;
+    color: #334155 !important; font-size: 0.875rem !important; font-weight: 700 !important;
+}
+.select2-container .select2-selection--single .select2-selection__arrow {
+    position: absolute !important; height: 100% !important; left: 10px !important; right: auto !important; top: 0 !important; display: flex !important; align-items: center !important;
+}
+.select2-dropdown {
+    border: 1px solid #cbd5e1 !important; border-radius: 0.75rem !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important; overflow: hidden !important; z-index: 9999 !important;
+}
+.select2-search__field {
+    border: 1px solid #cbd5e1 !important; border-radius: 0.5rem !important; padding: 8px 12px !important; outline: none !important; direction: rtl !important;
+}
+.select2-search__field:focus { border-color: #10b981 !important; }
+.select2-results__option { padding: 10px 16px !important; font-size: 0.875rem !important; font-weight: 600 !important; color: #475569 !important; text-align: right !important; }
+.select2-container--default .select2-results__option--highlighted[aria-selected] { background-color: #10b981 !important; color: white !important; }

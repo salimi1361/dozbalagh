@@ -1,0 +1,538 @@
+const API_BASE = '/api/v1/driver';
+let watchId = null;
+let currentTab = 'home';
+let permitsCache = [];
+
+document.addEventListener('DOMContentLoaded', initApp);
+
+function initApp() {
+    const token = localStorage.getItem('driver_token');
+    const main = document.getElementById('main-content');
+    main.classList.add('is-centered');
+
+    if (!token) {
+        document.getElementById('bottom-navigation').classList.add('hidden');
+        renderLoginScreen();
+        return;
+    }
+
+    document.getElementById('bottom-navigation').classList.remove('hidden');
+    main.classList.remove('is-centered');
+    renderDashboard();
+}
+
+function switchTab(tab) {
+    currentTab = tab;
+    ['home', 'fleet', 'company', 'profile'].forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        if (el) el.classList.toggle('is-active', t === tab);
+    });
+    renderDashboard();
+}
+
+function getDriver() {
+    try {
+        return JSON.parse(localStorage.getItem('driver_info')) || {};
+    } catch {
+        return {};
+    }
+}
+
+function authHeaders() {
+    return {
+        'Authorization': `Bearer ${localStorage.getItem('driver_token')}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    };
+}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast toast--${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3200);
+}
+
+function closeModal() {
+    document.getElementById('modal-container').innerHTML = '';
+}
+
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>'"]/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    }[ch]));
+}
+
+function toEnglishDigits(value) {
+    const fa = '۰۱۲۳۴۵۶۷۸۹';
+    const ar = '٠١٢٣٤٥٦٧٨٩';
+    return String(value ?? '').replace(/[۰-۹٠-٩]/g, d => {
+        const faIndex = fa.indexOf(d);
+        if (faIndex >= 0) return String(faIndex);
+        const arIndex = ar.indexOf(d);
+        return arIndex >= 0 ? String(arIndex) : d;
+    });
+}
+
+function renderPlate(plateStr) {
+    if (!plateStr || String(plateStr).includes('ثبت نشده')) {
+        return '<span class="badge badge--used">پلاک ثبت نشده</span>';
+    }
+
+    const normalized = toEnglishDigits(plateStr).replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+    const cityMatch = normalized.match(/(?:-|ایران|IRAN|\s)(\d{2})\s*$/i);
+    const cityCode = cityMatch ? cityMatch[1] : '—';
+    const mainPart = cityMatch ? normalized.slice(0, cityMatch.index).trim() : normalized;
+    const alphaMatch = mainPart.match(/[آ-یA-Za-z]/);
+    const alpha = alphaMatch ? alphaMatch[0] : 'ع';
+    const digits = mainPart.replace(/[^0-9]/g, '');
+    const num1 = digits.substring(0, 2) || '—';
+    const num2 = digits.substring(2, 5) || '—';
+
+    return `
+        <div class="iran-plate" aria-label="پلاک ${escapeHtml(plateStr)}">
+            <div class="iran-plate__flag">
+                <span style="font-size:7px;line-height:1;font-weight:900">I.R.</span>
+                <span style="font-size:6px;line-height:1;font-weight:900">IRAN</span>
+            </div>
+            <div class="iran-plate__digits">
+                <span>${escapeHtml(num1)}</span>
+                <span class="iran-plate__alpha">${escapeHtml(alpha)}</span>
+                <span>${escapeHtml(num2)}</span>
+            </div>
+            <div class="iran-plate__city">
+                <span style="font-weight:900;color:#475569">ایران</span>
+                <span style="font-weight:900">${escapeHtml(cityCode)}</span>
+            </div>
+        </div>`;
+}
+
+function statusBadgeClass(statusKey) {
+    const map = {
+        issued: 'badge--active',
+        started_trip: 'badge--transit',
+        in_transit: 'badge--transit',
+        at_border_out: 'badge--transit',
+        at_destination: 'badge--used',
+        used: 'badge--used',
+        expired: 'badge--expired',
+    };
+    return map[statusKey] || 'badge--active';
+}
+
+function renderDashboard() {
+    const main = document.getElementById('main-content');
+    const driver = getDriver();
+
+    if (currentTab === 'home') renderHomeTab(main, driver);
+    else if (currentTab === 'fleet') renderFleetTab(main, driver);
+    else if (currentTab === 'company') renderCompanyTab(main, driver);
+    else if (currentTab === 'profile') renderProfileTab(main, driver);
+}
+
+function renderHomeTab(main, driver) {
+    main.innerHTML = `
+        <div class="stack">
+            <div class="card card--hero">
+                <div class="label">خوش آمدید</div>
+                <div class="name">${driver.name || 'راننده'}</div>
+                <div class="meta">${driver.company_name || 'شرکت حمل و نقل'}</div>
+            </div>
+
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <div class="metric-card__icon metric-card__icon--blue">
+                        <i class="fa-solid fa-file-lines"></i>
+                    </div>
+                    <div>
+                        <span class="metric-card__label">پروانه‌های فعال</span>
+                        <div class="metric-card__value" id="home-active-badge">—</div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-card__icon metric-card__icon--teal">
+                        <i class="fa-solid fa-location-dot"></i>
+                    </div>
+                    <div>
+                        <span class="metric-card__label">وضعیت GPS</span>
+                        <div class="metric-card__value" id="home-gps-badge">${localStorage.getItem('is_on_trip') === 'true' ? 'فعال' : 'غیرفعال'}</div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" onclick="toggleTripState()" id="btn-trip-state" class="btn btn--success">
+                <i class="fa-solid fa-location-arrow"></i>
+                <span>شروع ارسال موقعیت مکانی</span>
+            </button>
+
+            <div>
+                <div class="section-title">پروانه‌های دوزبلاغ</div>
+                <div id="permits-container" class="stack-sm">
+                    <div class="loader-wrap"><div class="loader"></div></div>
+                </div>
+            </div>
+        </div>`;
+
+    updateTripButtonUI();
+    fetchPermits();
+}
+
+function renderFleetTab(main, driver) {
+    main.innerHTML = `
+        <div class="stack">
+            <div class="card card--hero">
+                <div class="label">ناوگان متصل به راننده</div>
+                <div class="name">${driver.truck_type || 'خودرو باری'}</div>
+                <div class="meta">کارت هوشمند: ${driver.truck_smart_card || 'ثبت نشده'}</div>
+            </div>
+
+            <div class="card info-card">
+                <div class="info-card__title">
+                    <span><i class="fa-solid fa-truck" style="color:#0369a1"></i> مشخصات ناوگان</span>
+                </div>
+                <div class="fleet-plate-wrap">
+                    ${renderPlate(driver.truck_plate)}
+                </div>
+                <div class="fleet-summary">
+                    <div class="fleet-mini-card">
+                        <span>کارت هوشمند خودرو</span>
+                        <b>${driver.truck_smart_card || '—'}</b>
+                    </div>
+                    <div class="fleet-mini-card">
+                        <span>نوع خودرو</span>
+                        <b>${driver.truck_type || '—'}</b>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+}
+
+function renderCompanyTab(main, driver) {
+    main.innerHTML = `
+        <div class="stack">
+            <div class="card info-card">
+                <div class="info-card__title">
+                    <i class="fa-solid fa-building" style="color:#0d9488"></i>
+                    شرکت کارفرما
+                </div>
+                <div class="info-block" style="margin-bottom:10px">
+                    <span class="info-block__label">نام شرکت</span>
+                    <span class="info-block__value">${driver.company_name || '—'}</span>
+                </div>
+                <div class="info-row">
+                    <span>مدیر / نماینده</span>
+                    <b>${driver.company_manager || '—'}</b>
+                </div>
+                <div class="info-row">
+                    <span>آدرس</span>
+                    <b style="max-width:55%;text-align:left;line-height:1.5">${driver.company_address || '—'}</b>
+                </div>
+            </div>
+        </div>`;
+}
+
+function renderProfileTab(main, driver) {
+    main.innerHTML = `
+        <div class="stack">
+            <div class="card profile-card">
+                <div class="profile-avatar"><i class="fa-solid fa-user"></i></div>
+                <div class="profile-name">${driver.name || 'راننده'}</div>
+                <div class="profile-meta">کد ملی: ${driver.national_code || '—'}</div>
+                <div style="margin-top:24px">
+                    <button type="button" onclick="logout()" class="btn btn--ghost">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        <span>خروج از حساب</span>
+                    </button>
+                </div>
+            </div>
+        </div>`;
+}
+
+function fetchPermits() {
+    const container = document.getElementById('permits-container');
+    if (!container) return;
+
+    fetch(`${API_BASE}/permits`, { headers: authHeaders() })
+        .then(res => {
+            if (res.status === 401) { logout(); throw new Error('unauthorized'); }
+            return res.json();
+        })
+        .then(data => {
+            const badge = document.getElementById('home-active-badge');
+            if (!data || data.status !== 'success') {
+                if (badge) badge.textContent = '۰';
+                container.innerHTML = emptyPermitsHtml();
+                return;
+            }
+
+            permitsCache = data.data || [];
+            if (badge) badge.textContent = permitsCache.length.toLocaleString('fa-IR');
+
+            if (permitsCache.length === 0) {
+                container.innerHTML = emptyPermitsHtml();
+                return;
+            }
+
+            container.innerHTML = permitsCache.map(p => `
+                <div class="card permit-card" onclick="showPermitDetail(${p.id})">
+                    <div class="permit-card__header">
+                        <div>
+                            <span class="permit-card__serial-label">شماره سریال</span>
+                            <div class="permit-card__serial">${p.serial_number}</div>
+                        </div>
+                        <span class="badge ${statusBadgeClass(p.status_key)}">${p.status_label}</span>
+                    </div>
+                    <div class="permit-card__row">
+                        <span><i class="fa-solid fa-earth-americas" style="margin-left:4px;color:#0369a1"></i>مقصد: <b>${p.country_name}</b></span>
+                    </div>
+                    <div class="permit-card__row">
+                        <span>شرکت: <b>${p.company_name}</b></span>
+                        <span>صدور: <b>${p.issue_date}</b></span>
+                    </div>
+                </div>
+            `).join('');
+        })
+        .catch(() => {
+            const badge = document.getElementById('home-active-badge');
+            if (badge) badge.textContent = '—';
+            container.innerHTML = `
+                <div class="card empty-state">
+                    <i class="fa-solid fa-wifi-slash"></i>
+                    <p>خطا در دریافت پروانه‌ها. اتصال را بررسی کنید.</p>
+                </div>`;
+            setConnectionStatus(false);
+        });
+}
+
+function emptyPermitsHtml() {
+    return `
+        <div class="card empty-state">
+            <i class="fa-solid fa-folder-open"></i>
+            <p>پروانه فعالی برای شما ثبت نشده است.</p>
+        </div>`;
+}
+
+function showPermitDetail(id) {
+    fetch(`${API_BASE}/permits/${id}`, { headers: authHeaders() })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status !== 'success') {
+                showToast('جزئیات پروانه یافت نشد.', 'error');
+                return;
+            }
+            const p = data.data;
+            const events = (p.events || []).map(e => `
+                <div class="info-row">
+                    <span>${e.status_label || e.event_type}</span>
+                    <b>${e.created_at}</b>
+                </div>
+            `).join('') || '<p style="font-size:10px;color:#94a3b8;text-align:center">رویدادی ثبت نشده</p>';
+
+            document.getElementById('modal-container').innerHTML = `
+                <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+                    <div class="modal-sheet">
+                        <div class="modal-handle"></div>
+                        <div class="modal-title">جزئیات پروانه</div>
+                        <div class="stack-sm">
+                            <div class="info-block">
+                                <span class="info-block__label">شماره سریال</span>
+                                <span class="info-block__value">${p.serial_number}</span>
+                            </div>
+                            <div class="info-row"><span>وضعیت</span><b>${p.status_label}</b></div>
+                            <div class="info-row"><span>کشور مقصد</span><b>${p.country_name}</b></div>
+                            <div class="info-row"><span>شرکت</span><b>${p.company_name}</b></div>
+                            <div class="info-row"><span>تاریخ صدور</span><b>${p.issue_date}</b></div>
+                            <div class="section-title" style="margin-top:8px">تاریخچه رویدادها</div>
+                            ${events}
+                            <button type="button" onclick="selectPermitForTrip(${p.id}); closeModal();" class="btn btn--outline" style="margin-top:8px">
+                                <i class="fa-solid fa-check"></i>
+                                انتخاب برای ردیابی GPS
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+        })
+        .catch(() => showToast('خطا در بارگذاری جزئیات.', 'error'));
+}
+
+function selectPermitForTrip(id) {
+    localStorage.setItem('active_permit_id', id);
+    showToast('پروانه برای ردیابی انتخاب شد.', 'success');
+}
+
+function toggleTripState() {
+    if (localStorage.getItem('is_on_trip') === 'true') {
+        if (watchId) navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+        localStorage.removeItem('is_on_trip');
+        showToast('ارسال موقعیت متوقف شد.', 'info');
+    } else {
+        const permitId = localStorage.getItem('active_permit_id') || (permitsCache[0] && permitsCache[0].id);
+        if (!permitId) {
+            showToast('ابتدا یک پروانه انتخاب کنید.', 'error');
+            return;
+        }
+        if (!navigator.geolocation) {
+            showToast('GPS در این دستگاه پشتیبانی نمی‌شود.', 'error');
+            return;
+        }
+        localStorage.setItem('active_permit_id', permitId);
+        localStorage.setItem('is_on_trip', 'true');
+        showToast('ارسال موقعیت آغاز شد.', 'success');
+        watchId = navigator.geolocation.watchPosition(
+            pos => sendLocation(pos.coords.latitude, pos.coords.longitude, permitId),
+            () => showToast('دسترسی به GPS رد شد.', 'error'),
+            { enableHighAccuracy: true, maximumAge: 10000 }
+        );
+    }
+    updateTripButtonUI();
+    const gpsBadge = document.getElementById('home-gps-badge');
+    if (gpsBadge) gpsBadge.textContent = localStorage.getItem('is_on_trip') === 'true' ? 'فعال' : 'غیرفعال';
+}
+
+function updateTripButtonUI() {
+    const btn = document.getElementById('btn-trip-state');
+    if (!btn) return;
+    const onTrip = localStorage.getItem('is_on_trip') === 'true';
+    btn.className = onTrip ? 'btn btn--danger' : 'btn btn--success';
+    btn.innerHTML = onTrip
+        ? '<i class="fa-solid fa-stop"></i><span>توقف ارسال موقعیت</span>'
+        : '<i class="fa-solid fa-location-arrow"></i><span>شروع ارسال موقعیت مکانی</span>';
+}
+
+function sendLocation(lat, lng, permitId) {
+    fetch(`${API_BASE}/location/sync`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+            dozbalagh_item_id: parseInt(permitId, 10),
+            latitude: lat,
+            longitude: lng,
+        }),
+    }).catch(() => {});
+}
+
+function setConnectionStatus(online) {
+    const el = document.getElementById('connection-status');
+    if (!el) return;
+    el.textContent = online ? 'متصل' : 'آفلاین';
+    el.classList.toggle('is-offline', !online);
+}
+
+function logout() {
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+    localStorage.clear();
+    location.reload();
+}
+
+function renderLoginScreen() {
+    document.getElementById('main-content').innerHTML = `
+        <div class="auth-wrap">
+            <div class="auth-icon"><i class="fa-solid fa-truck"></i></div>
+            <h1 class="auth-title">ورود رانندگان</h1>
+            <p class="auth-subtitle">کد یکبار مصرف به موبایل ثبت‌شده ارسال می‌شود</p>
+            <div class="card auth-card">
+                <div class="form-group">
+                    <label class="input-label" for="driver-mobile">شماره موبایل</label>
+                    <input type="tel" id="driver-mobile" class="input-field" placeholder="۰۹۱۲۳۴۵۶۷۸۹" maxlength="11" inputmode="numeric">
+                </div>
+                <button type="button" onclick="handleRequestOtp()" id="btn-submit" class="btn btn--primary" style="margin-top:20px">
+                    <i class="fa-solid fa-paper-plane"></i>
+                    <span>دریافت کد تأیید</span>
+                </button>
+            </div>
+        </div>`;
+}
+
+function handleRequestOtp() {
+    const mobile = document.getElementById('driver-mobile').value.trim();
+    if (!/^09[0-9]{9}$/.test(mobile)) {
+        showToast('شماره موبایل معتبر وارد کنید.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btn-submit');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="loader" style="width:18px;height:18px;border-width:2px"></div>';
+
+    fetch(`${API_BASE}/auth/request-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ mobile }),
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                renderOtpScreen(mobile);
+                showToast('کد تأیید ارسال شد.', 'success');
+            } else {
+                showToast(data.message || 'خطا در ارسال کد.', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span>دریافت کد تأیید</span>';
+            }
+        })
+        .catch(() => {
+            showToast('خطا در ارتباط با سرور.', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span>دریافت کد تأیید</span>';
+        });
+}
+
+function renderOtpScreen(mobile) {
+    document.getElementById('main-content').innerHTML = `
+        <div class="auth-wrap">
+            <div class="auth-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <h1 class="auth-title">تأیید کد</h1>
+            <p class="auth-subtitle">کد ۵ رقمی ارسال‌شده به ${mobile} را وارد کنید</p>
+            <div class="card auth-card">
+                <div class="form-group">
+                    <label class="input-label" for="otp-code">کد یکبار مصرف</label>
+                    <input type="number" id="otp-code" class="input-field" placeholder="· · · · ·" inputmode="numeric">
+                </div>
+                <button type="button" onclick="handleVerifyOtp('${mobile}')" id="btn-verify" class="btn btn--primary" style="margin-top:20px">
+                    <i class="fa-solid fa-right-to-bracket"></i>
+                    <span>ورود به کارتابل</span>
+                </button>
+                <button type="button" onclick="renderLoginScreen()" class="btn btn--outline" style="margin-top:10px">
+                    تغییر شماره موبایل
+                </button>
+            </div>
+        </div>`;
+}
+
+function handleVerifyOtp(mobile) {
+    const code = document.getElementById('otp-code').value.trim();
+    if (code.length !== 5) {
+        showToast('کد ۵ رقمی را کامل وارد کنید.', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('btn-verify');
+    btn.disabled = true;
+
+    fetch(`${API_BASE}/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ mobile, code }),
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                localStorage.setItem('driver_token', data.token);
+                localStorage.setItem('driver_info', JSON.stringify(data.driver));
+                document.getElementById('bottom-navigation').classList.remove('hidden');
+                document.getElementById('main-content').classList.remove('is-centered');
+                showToast('ورود موفق.', 'success');
+                renderDashboard();
+            } else {
+                showToast(data.message || 'کد اشتباه است.', 'error');
+                btn.disabled = false;
+            }
+        })
+        .catch(() => {
+            showToast('خطا در تأیید کد.', 'error');
+            btn.disabled = false;
+        });
+}

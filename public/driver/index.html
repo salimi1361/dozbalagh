@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>دوزوله | کارتابل راننده</title>
+
+    <link rel="manifest" href="manifest.json?v=5.0">
+    <meta name="theme-color" content="#0c4a6e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="assets/css/app.css?v=5.0">
+</head>
+<body>
+
+    <div id="app" class="app-shell">
+
+        <header class="app-header">
+            <div class="app-header__brand">
+                <div class="app-header__logo">
+                    <i class="fa-solid fa-route"></i>
+                </div>
+                <div>
+                    <div class="app-header__title">سامانه دوزبلاغ</div>
+                    <div class="app-header__subtitle">کارتابل رانندگان ترانزیت</div>
+                </div>
+            </div>
+            <div id="connection-status" class="status-pill">متصل</div>
+        </header>
+
+        <main id="main-content" class="app-main is-centered">
+            <div class="loader-wrap"><div class="loader"></div></div>
+        </main>
+
+        <nav id="bottom-navigation" class="bottom-nav hidden">
+            <button type="button" onclick="switchTab('home')" id="tab-home" class="bottom-nav__item is-active">
+                <i class="fa-solid fa-house"></i>
+                <span>خانه</span>
+            </button>
+            <button type="button" onclick="switchTab('fleet')" id="tab-fleet" class="bottom-nav__item">
+                <i class="fa-solid fa-truck"></i>
+                <span>ناوگان</span>
+            </button>
+            <button type="button" onclick="switchTab('company')" id="tab-company" class="bottom-nav__item">
+                <i class="fa-solid fa-building"></i>
+                <span>شرکت</span>
+            </button>
+            <button type="button" onclick="switchTab('profile')" id="tab-profile" class="bottom-nav__item">
+                <i class="fa-solid fa-user"></i>
+                <span>پروفایل</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <div id="toast-container"></div>
+    <div id="modal-container"></div>
+
+    <script src="assets/js/app.js?v=5.0"></script>
+</body>
+</html>
