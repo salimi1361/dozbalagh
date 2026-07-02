@@ -123,7 +123,6 @@ Route::middleware(['auth'])->namespace('App\Http\Controllers\Company')->group(fu
     // ✅ روت‌های جدید ویزاردی دوزبلاغ
     Route::get('/dozbalagh', 'DozbalaghController@index')->name('dozbalagh.index'); 
     Route::get('/dozbalagh/create', 'DozbalaghController@create')->name('dozbalagh.create');
-    Route::get('/dozbalagh/renewable-list', 'DozbalaghController@renewableList')->name('dozbalagh.renewable_list');
     Route::post('/dozbalagh/store', 'DozbalaghController@store')->name('dozbalagh.store');
     Route::post('/dozbalagh/check-fleet', 'DozbalaghController@checkFleetStatus')->name('dozbalagh.check_fleet');
 

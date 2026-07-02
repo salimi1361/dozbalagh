@@ -154,48 +154,25 @@
     </div>
 </div> 
 
-{{-- 💡 کادر انتخاب دوزبلاغ مرجع برای تمدید --}}
+{{-- 💡 کادر ورود اطلاعات تمدید --}}
 <div id="renewal_smart_box" class="hidden mt-5 p-4 bg-blue-50/80 border border-blue-200 rounded-2xl">
     <div class="flex items-start gap-3">
         <span class="text-blue-500 text-2xl leading-none mt-0.5">🔄</span>
         <div class="flex-1">
             <h4 class="font-black text-blue-900 text-sm mb-0.5">اطلاعات پرونده مرجع (تمدید)</h4>
-            <p class="text-xs text-blue-800/90 mb-3 font-medium">
-                دوزبلاغ قبلی را از لیست انتخاب کنید. لیست بر اساس راننده و ناوگان انتخاب‌شده فیلتر می‌شود.
-            </p>
-
-            <input type="hidden" id="previous_dozouleh_number" name="previous_dozouleh_number">
-
-            <div class="p-3 bg-white rounded-xl border border-blue-100">
-                <div class="flex flex-col sm:flex-row items-center gap-3 mb-3">
-                    <div class="flex-1 w-full flex flex-col">
-                        <label class="text-[10px] font-bold text-slate-500 mb-1">انتخاب دوزبلاغ قبلی <span class="text-rose-500">*</span></label>
-                        <select id="previous_dozouleh_select" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-blue-500 transition-colors bg-white">
-                            <option value="">ابتدا راننده و ناوگان را انتخاب کنید...</option>
-                        </select>
-                    </div>
-
-                    <button type="button" id="refresh_renewal_list" class="w-full sm:w-auto px-4 py-2 rounded-lg bg-slate-800 text-white text-[11px] font-black hover:bg-slate-700 transition">
-                        بروزرسانی لیست
-                    </button>
+            <p class="text-xs text-blue-800/90 mb-3 font-medium">شماره دوزوله قبلی جهت تمدید (سیستم در صورت یافتن پرونده، فیلد را قفل می‌کند).</p>
+            
+            <div class="p-3 bg-white rounded-xl border border-blue-100 flex flex-col sm:flex-row items-center gap-3">
+                <div class="flex-1 w-full flex flex-col">
+                    <label class="text-[10px] font-bold text-slate-500 mb-1">شماره دوزوله مرجع <span class="text-rose-500">*</span></label>
+                    <input type="text" id="previous_dozouleh_number" name="previous_dozouleh_number" 
+                           placeholder="مثال: ۱۲۳۴۵..."
+                           class="border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-mono font-black text-slate-800 w-full outline-none focus:border-blue-500 transition-colors">
                 </div>
-
-                <div id="renewal_loading" class="hidden text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-                    در حال دریافت دوزبلاغ‌های قبلی...
-                </div>
-
-                <div id="renewal_empty" class="hidden text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                    برای این راننده و ناوگان، دوزبلاغ قبلی قابل تمدید پیدا نشد.
-                </div>
-
-                <div id="renewal_preview" class="hidden mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 space-y-1">
-                    <div class="flex items-center justify-between gap-3">
-                        <span class="font-black">✅ دوزبلاغ مرجع انتخاب شد</span>
-                        <span id="renewal_selected_code" class="font-mono font-black text-emerald-800"></span>
-                    </div>
-                    <div>راننده: <span id="renewal_selected_driver" class="font-bold"></span></div>
-                    <div>ناوگان: <span id="renewal_selected_fleet" class="font-bold"></span></div>
-                    <div>مقاصد: <span id="renewal_selected_countries" class="font-bold"></span></div>
+                
+                <div id="renewal_status_badge" class="hidden flex items-center gap-1.5 bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-200 w-full sm:w-auto mt-2 sm:mt-0">
+                     <span class="text-emerald-500 text-sm">✅</span>
+                     <span class="text-[11px] font-bold text-emerald-800">یافت و قفل شد</span>
                 </div>
             </div>
         </div>
@@ -230,68 +207,25 @@
         }
     }
 
-    function loadRenewableDozbalaghs() {
-        let requestType = jQuery('input[name="request_type"]:checked').val();
-        if (requestType !== 'renewal') return;
-
-        let driverId = jQuery('#driver_id').val();
-        let fleetId = jQuery('#fleet_id').val();
-        let select = jQuery('#previous_dozouleh_select');
-
-        jQuery('#renewal_loading').removeClass('hidden');
-        jQuery('#renewal_empty').addClass('hidden');
-        jQuery('#renewal_preview').addClass('hidden');
-        jQuery('#previous_dozouleh_number').val('');
-        select.html('<option value="">در حال دریافت لیست...</option>');
-
-        jQuery.ajax({
-            url: "{{ route('dozbalagh.renewable_list') }}",
-            type: 'GET',
-            data: {
-                driver_id: driverId,
-                fleet_id: fleetId
-            },
-            success: function(res) {
-                jQuery('#renewal_loading').addClass('hidden');
-                select.html('<option value="">انتخاب کنید...</option>');
-
-                if (!res.success || !res.items || res.items.length === 0) {
-                    jQuery('#renewal_empty').removeClass('hidden');
-                    return;
-                }
-
-                res.items.forEach(function(item) {
-                    let title = item.d_code + ' | ' + item.driver + ' | ' + item.fleet + ' | ' + item.created_at;
-                    select.append(
-                        jQuery('<option>', {
-                            value: item.d_code,
-                            text: title,
-                            'data-driver': item.driver,
-                            'data-fleet': item.fleet,
-                            'data-countries': item.countries,
-                            'data-code': item.d_code
-                        })
-                    );
-                });
-            },
-            error: function() {
-                jQuery('#renewal_loading').addClass('hidden');
-                select.html('<option value="">خطا در دریافت لیست دوزبلاغ‌ها</option>');
-            }
-        });
-    }
-
     function triggerRenewalBoxLogic() {
         let requestType = jQuery('input[name="request_type"]:checked').val();
-
+        let driverOpt = jQuery('#driver_id option:selected');
+        let fleetOpt = jQuery('#fleet_id option:selected');
+        
         if (requestType === 'renewal') {
             jQuery('#renewal_smart_box').slideDown(250);
-            loadRenewableDozbalaghs();
+            let oldNum = driverOpt.attr('data-dozouleh') || fleetOpt.attr('data-dozouleh');
+            
+            if (oldNum && oldNum.trim() !== '') {
+                jQuery('#previous_dozouleh_number').val(oldNum).prop('readonly', true).removeClass('bg-white cursor-text').addClass('bg-slate-100 cursor-not-allowed text-slate-500 border-slate-200');
+                jQuery('#renewal_status_badge').removeClass('hidden').addClass('flex');
+            } else {
+                jQuery('#previous_dozouleh_number').val('').prop('readonly', false).removeClass('bg-slate-100 cursor-not-allowed text-slate-500 border-slate-200').addClass('bg-white cursor-text text-slate-800 border-slate-300');
+                jQuery('#renewal_status_badge').addClass('hidden').removeClass('flex');
+            }
         } else {
             jQuery('#renewal_smart_box').slideUp(200);
             jQuery('#previous_dozouleh_number').val('');
-            jQuery('#previous_dozouleh_select').val('');
-            jQuery('#renewal_preview').addClass('hidden');
         }
     }
 
@@ -360,46 +294,12 @@
                 triggerRenewalBoxLogic();
                 checkActiveDozoulehProtection();
             });
-
-            jQuery('#refresh_renewal_list').on('click', function() {
-                loadRenewableDozbalaghs();
-            });
-
-            jQuery('#previous_dozouleh_select').on('change', function() {
-                let opt = jQuery(this).find('option:selected');
-                let val = opt.val();
-                jQuery('#previous_dozouleh_number').val(val || '');
-
-                if (val) {
-                    jQuery('#renewal_selected_code').text(opt.attr('data-code'));
-                    jQuery('#renewal_selected_driver').text(opt.attr('data-driver'));
-                    jQuery('#renewal_selected_fleet').text(opt.attr('data-fleet'));
-                    jQuery('#renewal_selected_countries').text(opt.attr('data-countries'));
-                    jQuery('#renewal_preview').removeClass('hidden');
-                } else {
-                    jQuery('#renewal_preview').addClass('hidden');
-                }
-            });
         }, 800);
     });
 
     // 🔐 شنود دکمه مرحله بعد برای قفل کامل فرانت
     jQuery(document).ready(function() {
         jQuery('#nextBtn').on('click', function(e) {
-            let requestType = jQuery('input[name="request_type"]:checked').val();
-            if (requestType === 'renewal' && !jQuery('#previous_dozouleh_number').val()) {
-                e.preventDefault();
-                e.stopPropagation();
-                Swal.fire({
-                    title: 'دوزبلاغ مرجع انتخاب نشده',
-                    text: 'برای تمدید باید یکی از دوزبلاغ‌های قبلی را از لیست انتخاب کنید.',
-                    icon: 'warning',
-                    confirmButtonText: 'متوجه شدم',
-                    confirmButtonColor: '#1e293b'
-                });
-                return false;
-            }
-
             if (!checkActiveDozoulehProtection()) {
                 e.preventDefault();
                 e.stopPropagation();

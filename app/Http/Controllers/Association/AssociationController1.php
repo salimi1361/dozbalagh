@@ -258,65 +258,15 @@ class AssociationController
     }
 
     /**
-     * کسر قطعی برگه خام از انبار دوزبلاغ با امکان درج دستی سریال توسط اپراتور انجمن
+     * کسر قطعی و اتوماتیک برگه خام از انبار دوزبلاغ به همراه تسویه حساب مالی شرکت
      */
     public function assignPermitSerial(Request $request, $id)
     {
         DB::beginTransaction();
         try {
-            $manualSerial = trim((string) $request->input('serial_number', ''));
-            $validityDaysInput = trim((string) $request->input('validity_days', ''));
-
-            if ($manualSerial === '') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'لطفاً شماره سریال دوزبلاغ کشور را وارد کنید.'
-                ], 422);
-            }
-
-            if (!preg_match('/^[0-9]+$/', $manualSerial)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'شماره سریال باید فقط عدد باشد.'
-                ], 422);
-            }
-
-            if ($validityDaysInput === '') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'لطفاً تعداد روز اعتبار دوزبلاغ را وارد کنید.'
-                ], 422);
-            }
-
-            if (!preg_match('/^[0-9]+$/', $validityDaysInput) || (int) $validityDaysInput < 1) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'تعداد روز اعتبار باید عددی و بزرگتر از صفر باشد.'
-                ], 422);
-            }
-
-            $validityDays = (int) $validityDaysInput;
-            if ($validityDays > 3650) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'تعداد روز اعتبار بیش از حد مجاز است.'
-                ], 422);
-            }
-
-            // تاریخ پایان اعتبار بر اساس تعداد روز واردشده از تاریخ صدور محاسبه می‌شود.
-            $issuedAt = now();
-            $validUntil = $issuedAt->copy()->startOfDay()->addDays($validityDays);
-
-            $permit = DB::table('permit_requests')->where('id', $id)->lockForUpdate()->first();
+            $permit = DB::table('permit_requests')->where('id', $id)->first();
             if (!$permit) {
                 return response()->json(['success' => false, 'message' => 'درخواست یافت نشد.'], 404);
-            }
-
-            if (!empty($permit->serial_number)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'برای این پرونده قبلاً سریال ثبت شده است.'
-                ], 422);
             }
 
             // ۱. پیدا کردن کشور مقصد پروانه
@@ -325,27 +275,23 @@ class AssociationController
                 return response()->json(['success' => false, 'message' => 'مسیر سفر و کشور مقصد پرونده یافت نشد.']);
             }
 
-            // ۲. بررسی اینکه سریال دستی واردشده واقعاً در انبار خام همان کشور وجود داشته باشد
+            // ۲. 🎫 رزرو و کسر اولین شماره سریال خام واقعی از انبار اختصاصی آن کشور
             $warehouseItem = DB::table('dozbalagh_items')
                 ->join('dozbalagh_batches', 'dozbalagh_items.batch_id', '=', 'dozbalagh_batches.id')
                 ->where('dozbalagh_batches.country_id', $destination->country_id)
-                ->where('dozbalagh_items.serial_number', $manualSerial)
                 ->where('dozbalagh_items.lifecycle_status', 'raw')
+                ->orderBy('dozbalagh_items.serial_number', 'asc')
                 ->select('dozbalagh_items.id', 'dozbalagh_items.serial_number')
-                ->lockForUpdate()
                 ->first();
 
             if (!$warehouseItem) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'این شماره سریال برای کشور مقصد این پرونده در انبار خام موجود نیست، قبلاً مصرف شده یا متعلق به کشور دیگری است.'
-                ], 422);
+                return response()->json(['success' => false, 'message' => 'موجودی برگه خام دوزبِلاغ برای این کشور در انبار کل به اتمام رسیده است!']);
             }
 
             $allocatedSerial = $warehouseItem->serial_number;
             $now = now();
 
-            // ۳. آپدیت وضعیت برگه در انبار کل به مصرف شده (consumed)
+            // ۳. آپدیت وضعیت وضعیت برگه در انبار کل به مصرف شده (consumed)
             DB::table('dozbalagh_items')->where('id', $warehouseItem->id)->update([
                 'lifecycle_status' => 'consumed',
                 'updated_at' => $now
@@ -355,36 +301,30 @@ class AssociationController
             $wallet = DB::table('wallets')->where('company_id', $permit->company_id)->first();
             if ($wallet) {
                 DB::table('wallets')->where('id', $wallet->id)->update([
-                    'blocked_balance' => max(0, $wallet->blocked_balance - $permit->total_amount),
+                    'blocked_balance' => $wallet->blocked_balance - $permit->total_amount,
                     'updated_at' => $now
                 ]);
             }
 
             // ۵. آپدیت نهایی پرونده دوزبلاغ و فرستادن راننده به وضعیت تردد (issued)
-            // permit_valid_until برای نمایش روزهای باقی‌مانده در پنل شرکت و ادمین ذخیره می‌شود.
             DB::table('permit_requests')->where('id', $id)->update([
-                'serial_number'       => $allocatedSerial,
-                'issued_at'           => $issuedAt,
-                'validity_days'       => $validityDays,
-                'permit_valid_until'  => $validUntil->toDateString(),
-                'status'              => 'issued',
-                'payment_status'      => 'settled',
-                'updated_at'          => $now
+                'serial_number' => $allocatedSerial,
+                'status'        => 'issued', // در حال تردد تا زمان پس دادن لاشه
+                'payment_status'=> 'settled',
+                'updated_at'    => $now
             ]);
 
             DB::commit();
             return response()->json([
-                'success' => true,
-                'message' => "سریال {$allocatedSerial} با موفقیت ثبت و پرونده صادر شد.",
-                'serial' => $allocatedSerial,
-                'valid_until' => $validUntil->toDateString(),
-                'remaining_days' => $validityDays
+                'success' => true, 
+                'message' => "سریال {$allocatedSerial} با موفقیت اختصاص یافت.",
+                'serial' => $allocatedSerial
             ]);
 
         } catch (Throwable $e) {
             DB::rollBack();
             Log::error('Assign Permit Serial Error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'خطای دیتابیس در ثبت سریال دستی و صدور پروانه: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'خطای دیتابیس در کسر از انبار آیتم‌ها: ' . $e->getMessage()], 500);
         }
     }
 

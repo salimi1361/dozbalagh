@@ -103,72 +103,6 @@ class DozbalaghController extends Controller
         return view('company.dozbalagh.create', compact('drivers', 'fleets', 'countries', 'cargoRules', 'wallet', 'newDCode', 'balance', 'allWorldCountries'));
     }
 
-
-    /**
-     * لیست دوزبلاغ‌های قبلی شرکت برای انتخاب در حالت تمدید
-     */
-    public function renewableList(Request $request)
-    {
-        $user = auth()->user();
-        $companyId = optional($user->company)->id ?? $user->company_id ?? null;
-
-        if (!$companyId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'حساب کاربری شما به شرکتی متصل نیست.',
-                'items' => []
-            ], 200);
-        }
-
-        $query = PermitRequest::where('company_id', $companyId)
-            ->with(['driver', 'fleet'])
-            ->whereNotIn('status', ['draft', 'pending', 'rejected'])
-            ->orderByDesc('id');
-
-        if ($request->filled('driver_id')) {
-            $query->where('driver_id', $request->driver_id);
-        }
-
-        if ($request->filled('fleet_id')) {
-            $query->where('fleet_id', $request->fleet_id);
-        }
-
-        $requests = $query->limit(30)->get();
-
-        $items = $requests->map(function ($permit) {
-            $countries = DB::table('permit_request_items')
-                ->join('countries', 'permit_request_items.country_id', '=', 'countries.id')
-                ->where('permit_request_items.permit_request_id', $permit->id)
-                ->select('countries.name_fa', 'permit_request_items.permit_type', 'permit_request_items.d_serial_number')
-                ->get()
-                ->map(function ($item) {
-                    $serial = $item->d_serial_number ? ' / سریال: ' . $item->d_serial_number : '';
-                    return trim(($item->name_fa ?? 'کشور نامشخص') . ' - ' . ($item->permit_type ?? 'مجوز') . $serial);
-                })
-                ->implode('، ');
-
-            $driverName = trim(($permit->driver->first_name_fa ?? '') . ' ' . ($permit->driver->last_name_fa ?? ''));
-
-            return [
-                'id' => $permit->id,
-                'd_code' => $permit->d_code,
-                'serial_number' => $permit->serial_number,
-                'status' => $permit->status,
-                'created_at' => optional($permit->created_at)->format('Y/m/d'),
-                'driver' => $driverName ?: 'راننده نامشخص',
-                'fleet' => $permit->fleet->transit_plate ?? $permit->fleet->plate_number ?? 'ناوگان نامشخص',
-                'countries' => $countries ?: 'بدون مقصد ثبت‌شده',
-                'total_amount' => number_format((int) $permit->total_amount),
-            ];
-        })->values();
-
-        return response()->json([
-            'success' => true,
-            'items' => $items,
-            'message' => $items->count() ? 'لیست دوزبلاغ‌های قبلی دریافت شد.' : 'دوزبلاغ قبلی برای تمدید یافت نشد.'
-        ], 200);
-    }
-
     public function store(Request $request)
     {
         if ($request->filled('receipt_amount')) {
@@ -180,7 +114,6 @@ class DozbalaghController extends Controller
             'driver_id' => 'required|exists:drivers,id',
             'fleet_id' => 'required|exists:fleets,id',
             'request_type' => 'required|in:new,renewal', 
-            'previous_dozouleh_number' => 'required_if:request_type,renewal|nullable|string',
             'cargo_type' => 'required|string',
             'destinations' => 'required|array|min:1',
         ];
@@ -189,18 +122,6 @@ class DozbalaghController extends Controller
 
         $user = auth()->user();
         $companyId = optional($user->company)->id ?? $user->company_id ?? null;
-
-
-        if ($request->input('request_type') === 'renewal') {
-            $previousPermit = PermitRequest::where('company_id', $companyId)
-                ->where('d_code', $request->previous_dozouleh_number)
-                ->whereNotIn('status', ['draft', 'pending', 'rejected'])
-                ->first();
-
-            if (!$previousPermit) {
-                return back()->withErrors(['previous_dozouleh_number' => 'دوزبلاغ مرجع انتخاب‌شده معتبر نیست یا متعلق به شرکت شما نیست.'])->withInput();
-            }
-        }
 
         // 🛑 لایه امنیتی هاردکد بک‌اند برای جلوگیری از ثبت دوزبلاغ همزمان (به جز درخواست‌های تمدید)
         if ($request->input('request_type') !== 'renewal') {
