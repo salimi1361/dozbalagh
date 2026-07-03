@@ -106,7 +106,8 @@
                             </td>
 
                             <td class="p-4 text-center">
-                                <button type="button" onclick="manualAssignAndPrint(@js($req->id), @js($req->d_code), @js($req->next_serial_in_warehouse))" class="dbz-action-btn px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 mx-auto cursor-pointer">
+                                {{-- 🟢 متغیرهای روز اعتبار و تاریخ پایان هم به صورت هوشمند پاس داده شدند --}}
+                                <button type="button" onclick="manualAssignAndPrint(@js($req->id), @js($req->d_code), @js($req->next_serial_in_warehouse), @js($req->validity_days), @js($req->expire_date_jalali))" class="dbz-action-btn px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 mx-auto cursor-pointer">
                                     ✍️ ثبت سریال و چاپ پروانه
                                 </button>
                             </td>
@@ -615,8 +616,8 @@ function filterTable() {
     }
 }
 
-// 📝 ثبت دستی سریال دوزبلاغ کشور + تعداد روز اعتبار و سپس صدور/چاپ
-function manualAssignAndPrint(id, dCode, nextSerial) {
+// 🟢 ثبت دستی سریال دوزبلاغ کشور (حذف اینپوت روز و استفاده از اطلاعات محاسبه شده بک‌اند)
+function manualAssignAndPrint(id, dCode, nextSerial, validityDays, expireDateFa) {
     const suggestedSerial = (nextSerial && nextSerial !== 'بدون موجودی') ? nextSerial : '';
 
     Swal.fire({
@@ -640,7 +641,7 @@ function manualAssignAndPrint(id, dCode, nextSerial) {
                     <b>${nextSerial || 'بدون موجودی'}</b>
                 </div>
 
-                <div class="serial-fields-grid">
+                <div class="serial-fields-grid" style="grid-template-columns: 1fr;">
                     <div class="serial-field">
                         <label for="manual-serial-input">شماره سریال کشور <em>*</em></label>
                         <div class="serial-input-wrap">
@@ -648,27 +649,19 @@ function manualAssignAndPrint(id, dCode, nextSerial) {
                             <span>▦</span>
                         </div>
                     </div>
-
-                    <div class="serial-field">
-                        <label for="manual-validity-days-input">تعداد روز اعتبار <em>*</em></label>
-                        <div class="serial-input-wrap validity-days-wrap">
-                            <input id="manual-validity-days-input" type="text" inputmode="numeric" dir="ltr" placeholder="30">
-                            <span>📅</span>
-                        </div>
-                    </div>
                 </div>
 
-                <small class="serial-help-line">سریال باید در انبار خام همان کشور موجود باشد؛ تاریخ پایان اعتبار خودکار محاسبه و ذخیره می‌شود.</small>
+                <small class="serial-help-line">سریال باید در انبار خام همان کشور موجود باشد.</small>
 
-                <div class="serial-validity-preview">
-                    <div>
-                        <span>تاریخ پایان اعتبار</span>
-                        <b id="manual-validity-preview-date-fa">---</b>
-                        <small id="manual-validity-preview-date-en" dir="ltr">---</small>
+                <div class="serial-validity-preview" style="flex-direction: row; justify-content: space-between; align-items: center; background: #ecfdf5; border-color: #34d399;">
+                    <div class="serial-validity-days" style="text-align: right;">
+                        <span style="color: #059669; font-weight: bold; font-size: 11px;">اعتبار پروانه</span>
+                        <strong style="color: #047857; font-size: 16px; margin-top: 4px;">( ${validityDays} روز )</strong>
                     </div>
-                    <div class="serial-validity-days">
-                        <strong id="manual-validity-preview-days">( 0 روز )</strong>
-                        <small>از تاریخ صدور</small>
+                    <div style="width: 1px; height: 35px; background: #6ee7b7; opacity: 0.6;"></div>
+                    <div style="text-align: left;">
+                        <span style="color: #059669; font-weight: bold; font-size: 11px;">تاریخ پایان سیستمی</span>
+                        <b style="color: #064e3b; font-size: 20px; font-family: monospace; letter-spacing: 1px;">${expireDateFa}</b>
                     </div>
                 </div>
 
@@ -689,56 +682,10 @@ function manualAssignAndPrint(id, dCode, nextSerial) {
         },
         didOpen: () => {
             const serialInput = document.getElementById('manual-serial-input');
-            const daysInput = document.getElementById('manual-validity-days-input');
-            const datePreviewFa = document.getElementById('manual-validity-preview-date-fa');
-            const datePreviewEn = document.getElementById('manual-validity-preview-date-en');
-            const daysPreview = document.getElementById('manual-validity-preview-days');
-
             if (serialInput) serialInput.focus();
-
-            const faDate = (date) => {
-                try {
-                    return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit'
-                    }).format(date);
-                } catch (e) {
-                    return date.toLocaleDateString('fa-IR');
-                }
-            };
-
-            const enDate = (date) => {
-                const y = date.getFullYear();
-                const m = String(date.getMonth() + 1).padStart(2, '0');
-                const d = String(date.getDate()).padStart(2, '0');
-                return `${y}-${m}-${d}`;
-            };
-
-            if (daysInput) {
-                daysInput.addEventListener('input', function () {
-                    this.value = this.value.replace(/[^0-9]/g, '');
-                    const days = parseInt(this.value, 10);
-
-                    if (!days || days < 1) {
-                        datePreviewFa.innerText = '---';
-                        datePreviewEn.innerText = '---';
-                        daysPreview.innerText = '( 0 روز )';
-                        return;
-                    }
-
-                    const expireDate = new Date();
-                    expireDate.setDate(expireDate.getDate() + days);
-
-                    datePreviewFa.innerText = faDate(expireDate);
-                    datePreviewEn.innerText = enDate(expireDate);
-                    daysPreview.innerText = `( ${days} روز )`;
-                });
-            }
         },
         preConfirm: () => {
             const serial = document.getElementById('manual-serial-input').value.trim();
-            const validityDays = document.getElementById('manual-validity-days-input').value.trim();
 
             if (!serial) {
                 Swal.showValidationMessage('شماره سریال کشور را وارد کنید.');
@@ -750,14 +697,10 @@ function manualAssignAndPrint(id, dCode, nextSerial) {
                 return false;
             }
 
-            if (!validityDays || !/^\d+$/.test(validityDays) || parseInt(validityDays, 10) < 1) {
-                Swal.showValidationMessage('تعداد روز اعتبار را صحیح وارد کنید.');
-                return false;
-            }
-
             return {
                 serial_number: serial,
-                validity_days: parseInt(validityDays, 10)
+                // ارسال متغیر پنهان به بک‌اند جهت سازگاری ۱۰۰٪ با متد قبلی
+                validity_days: validityDays
             };
         }
     }).then((result) => {
@@ -798,6 +741,13 @@ function manualAssignAndPrint(id, dCode, nextSerial) {
 
             const row = document.getElementById('req-row-' + id);
             if (row) row.remove();
+
+            // آپدیت تعداد در هدر
+            const countEl = document.getElementById('request-count');
+            if(countEl) {
+                let count = parseInt(countEl.innerText);
+                if(count > 0) countEl.innerText = count - 1;
+            }
 
             setTimeout(() => {
                 const printWindow = window.open('/web/association/request/print/' + id, '_blank');

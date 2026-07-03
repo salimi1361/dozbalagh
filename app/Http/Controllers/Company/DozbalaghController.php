@@ -65,20 +65,25 @@ class DozbalaghController extends Controller
         $query->orderBy('id', 'desc');
         $requests = $query->paginate(10)->withQueryString();
 
-        return view('company.dozbalagh.index', compact('requests'));
+        // 🟢 محاسبه زنده تعداد اصلاحیه‌ها بر اساس منطق دیتابیس شما (returned = نیاز به اصلاح)
+        $correctionCount = PermitRequest::where('company_id', $companyId)
+            ->where('status', 'returned')
+            ->count();
+
+        return view('company.dozbalagh.index', compact('requests', 'correctionCount'));
     }
 
     public function create()
     {
         $user = auth()->user();
         $companyId = optional($user->company)->id ?? $user->company_id ?? null;
-        $allWorldCountries = WorldCountry::orderBy('name_fa', 'asc')->get();
+        $allWorldCountries = \App\Models\WorldCountry::orderBy('name_fa', 'asc')->get();
 
         if (empty($companyId) || $companyId == 0) {
             return view('company.dozbalagh.create', [
                 'drivers' => collect(), 
                 'fleets' => collect(), 
-                'countries' => Country::where('is_active', 1)->get(), 
+                'countries' => \App\Models\Country::where('is_active', 1)->get(), 
                 'cargoRules' => collect(),
                 'balance' => 0,
                 'wallet' => null,
@@ -87,12 +92,32 @@ class DozbalaghController extends Controller
             ])->with('error', 'حساب کاربری شما به هیچ شرکتی متصل نیست.');
         }
 
-        $drivers = Driver::where('current_company_id', $companyId)->get();
-        $fleets = Fleet::where('company_id', $companyId)->get();
-        $countries = Country::where('is_active', 1)->get(); 
-        $cargoRules = CargoDocumentRule::all()->keyBy('cargo_type');
+        // استخراج دقیق تعداد دوزبلاغ‌های فعال و کد آن‌ها برای "رانندگان"
+        $drivers = \App\Models\Driver::where('current_company_id', $companyId)->get();
+        foreach ($drivers as $driver) {
+            $activeDriverPermit = \App\Models\PermitRequest::where('driver_id', $driver->id)
+                ->whereIn('status', ['pending', 'approved', 'issued', 'صادر شده'])
+                ->orderBy('id', 'desc')
+                ->first();
+            $driver->active_dozbalaghs = $activeDriverPermit ? 1 : 0;
+            $driver->last_active_number = $activeDriverPermit ? $activeDriverPermit->d_code : '';
+        }
+
+        // استخراج دقیق تعداد دوزبلاغ‌های فعال و کد آن‌ها برای "ناوگان"
+        $fleets = \App\Models\Fleet::where('company_id', $companyId)->get();
+        foreach ($fleets as $fleet) {
+            $activeFleetPermit = \App\Models\PermitRequest::where('fleet_id', $fleet->id)
+                ->whereIn('status', ['pending', 'approved', 'issued', 'صادر شده'])
+                ->orderBy('id', 'desc')
+                ->first();
+            $fleet->active_dozbalaghs = $activeFleetPermit ? 1 : 0;
+            $fleet->last_active_number = $activeFleetPermit ? $activeFleetPermit->d_code : '';
+        }
+
+        $countries = \App\Models\Country::where('is_active', 1)->get(); 
+        $cargoRules = \App\Models\CargoDocumentRule::all()->keyBy('cargo_type');
         
-        $wallet = Wallet::firstOrCreate(
+        $wallet = \App\Models\Wallet::firstOrCreate(
             ['company_id' => $companyId],
             ['balance' => 50000000, 'blocked_balance' => 0] 
         );
@@ -103,70 +128,95 @@ class DozbalaghController extends Controller
         return view('company.dozbalagh.create', compact('drivers', 'fleets', 'countries', 'cargoRules', 'wallet', 'newDCode', 'balance', 'allWorldCountries'));
     }
 
-
     /**
-     * لیست دوزبلاغ‌های قبلی شرکت برای انتخاب در حالت تمدید
+     * 🔄 لیست دوزبلاغ‌های باز و قابل تمدید شرکت (هوشمند بر اساس راننده یا ناوگان)
      */
     public function renewableList(Request $request)
     {
-        $user = auth()->user();
-        $companyId = optional($user->company)->id ?? $user->company_id ?? null;
+        try {
+            $user = auth()->user();
+            $companyId = optional($user->company)->id ?? $user->company_id ?? null;
 
-        if (!$companyId) {
+            if (!$companyId) {
+                return response()->json(['success' => false, 'items' => [], 'message' => 'شرکت یافت نشد'], 200);
+            }
+
+            $fleetId = $request->input('fleet_id');
+            $driverId = $request->input('driver_id');
+
+            if (empty($fleetId) && empty($driverId)) {
+                return response()->json(['success' => true, 'items' => [], 'message' => 'ابتدا راننده یا ناوگان را انتخاب کنید.'], 200);
+            }
+
+            $query = DB::table('permit_requests as pr')
+                ->leftJoin('drivers as d', 'pr.driver_id', '=', 'd.id')
+                ->leftJoin('fleets as f', 'pr.fleet_id', '=', 'f.id')
+                ->where('pr.company_id', $companyId);
+
+            // 🟢 جلوگیری از تمدید مجدد پرونده‌هایی که لاشه شده‌اند یا خود در وضعیت اصلاحیه (returned) هستند
+            $query->whereNotIn('pr.status', [
+                'rejected', 
+                'returned', // همان وضعیت نیاز به اصلاح جاری
+                'تحویل داده شده/لاشه', 
+                'lost', 
+                'مفقودی', 
+                'renewed', 
+                'تمدیدی',
+                'returned_for_review'
+            ]);
+
+            if (!empty($fleetId) && !empty($driverId)) {
+                $query->where('pr.fleet_id', $fleetId)->where('pr.driver_id', $driverId);
+            } elseif (!empty($fleetId)) {
+                $query->where('pr.fleet_id', $fleetId);
+            } elseif (!empty($driverId)) {
+                $query->where('pr.driver_id', $driverId);
+            }
+
+            $rows = $query->select([
+                'pr.id as permit_request_id',
+                'pr.d_code',
+                'pr.serial_number',
+                'pr.status',
+                'pr.created_at',
+                'd.first_name_fa',
+                'd.last_name_fa',
+                'f.transit_plate',
+            ])->orderByDesc('pr.id')->limit(30)->get();
+
+            $items = $rows->map(function ($row) {
+                $destinations = DB::table('permit_request_items as pri')
+                    ->leftJoin('countries as c', 'pri.country_id', '=', 'c.id')
+                    ->where('pri.permit_request_id', $row->permit_request_id)
+                    ->select('pri.country_id', 'c.name as country_name', 'pri.permit_type', 'pri.operation_type')
+                    ->get();
+
+                $driverName = trim(($row->first_name_fa ?? '') . ' ' . ($row->last_name_fa ?? ''));
+                $countryNames = $destinations->pluck('country_name')->implode('، ');
+                $jalaliDate = $row->created_at ? \Hekmatinasser\Verta\Verta::instance($row->created_at)->format('Y/m/d') : '---';
+
+                return [
+                    'id' => $row->permit_request_id,
+                    'd_code' => $row->d_code,
+                    'serial_number' => $row->serial_number ?: 'بدون سریال',
+                    'status' => $row->status,
+                    'created_at' => $jalaliDate,
+                    'driver' => $driverName ?: 'راننده نامشخص',
+                    'fleet' => $row->transit_plate ?: 'ناوگان نامشخص',
+                    'countries_text' => $countryNames ?: 'بدون مقصد',
+                    'destinations' => $destinations
+                ];
+            })->values();
+
             return response()->json([
-                'success' => false,
-                'message' => 'حساب کاربری شما به شرکتی متصل نیست.',
-                'items' => []
+                'success' => true,
+                'items' => $items,
+                'message' => $items->count() ? 'دریافت شد' : 'موردی یافت نشد'
             ], 200);
+
+        } catch (\Throwable $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage(), 'items' => []], 200);
         }
-
-        $query = PermitRequest::where('company_id', $companyId)
-            ->with(['driver', 'fleet'])
-            ->whereNotIn('status', ['draft', 'pending', 'rejected'])
-            ->orderByDesc('id');
-
-        if ($request->filled('driver_id')) {
-            $query->where('driver_id', $request->driver_id);
-        }
-
-        if ($request->filled('fleet_id')) {
-            $query->where('fleet_id', $request->fleet_id);
-        }
-
-        $requests = $query->limit(30)->get();
-
-        $items = $requests->map(function ($permit) {
-            $countries = DB::table('permit_request_items')
-                ->join('countries', 'permit_request_items.country_id', '=', 'countries.id')
-                ->where('permit_request_items.permit_request_id', $permit->id)
-                ->select('countries.name_fa', 'permit_request_items.permit_type', 'permit_request_items.d_serial_number')
-                ->get()
-                ->map(function ($item) {
-                    $serial = $item->d_serial_number ? ' / سریال: ' . $item->d_serial_number : '';
-                    return trim(($item->name_fa ?? 'کشور نامشخص') . ' - ' . ($item->permit_type ?? 'مجوز') . $serial);
-                })
-                ->implode('، ');
-
-            $driverName = trim(($permit->driver->first_name_fa ?? '') . ' ' . ($permit->driver->last_name_fa ?? ''));
-
-            return [
-                'id' => $permit->id,
-                'd_code' => $permit->d_code,
-                'serial_number' => $permit->serial_number,
-                'status' => $permit->status,
-                'created_at' => optional($permit->created_at)->format('Y/m/d'),
-                'driver' => $driverName ?: 'راننده نامشخص',
-                'fleet' => $permit->fleet->transit_plate ?? $permit->fleet->plate_number ?? 'ناوگان نامشخص',
-                'countries' => $countries ?: 'بدون مقصد ثبت‌شده',
-                'total_amount' => number_format((int) $permit->total_amount),
-            ];
-        })->values();
-
-        return response()->json([
-            'success' => true,
-            'items' => $items,
-            'message' => $items->count() ? 'لیست دوزبلاغ‌های قبلی دریافت شد.' : 'دوزبلاغ قبلی برای تمدید یافت نشد.'
-        ], 200);
     }
 
     public function store(Request $request)
@@ -190,19 +240,24 @@ class DozbalaghController extends Controller
         $user = auth()->user();
         $companyId = optional($user->company)->id ?? $user->company_id ?? null;
 
-
         if ($request->input('request_type') === 'renewal') {
-            $previousPermit = PermitRequest::where('company_id', $companyId)
-                ->where('d_code', $request->previous_dozouleh_number)
-                ->whereNotIn('status', ['draft', 'pending', 'rejected'])
-                ->first();
+            $previousNumber = $request->previous_dozouleh_number;
 
-            if (!$previousPermit) {
+            $previousPermitExists = DB::table('permit_request_items as pri')
+                ->join('permit_requests as pr', 'pri.permit_request_id', '=', 'pr.id')
+                ->where('pr.company_id', $companyId)
+                ->where(function ($q) use ($previousNumber) {
+                    $q->where('pri.d_serial_number', $previousNumber)
+                      ->orWhere('pr.d_code', $previousNumber)
+                      ->orWhere('pr.serial_number', $previousNumber);
+                })
+                ->exists();
+
+            if (!$previousPermitExists) {
                 return back()->withErrors(['previous_dozouleh_number' => 'دوزبلاغ مرجع انتخاب‌شده معتبر نیست یا متعلق به شرکت شما نیست.'])->withInput();
             }
         }
 
-        // 🛑 لایه امنیتی هاردکد بک‌اند برای جلوگیری از ثبت دوزبلاغ همزمان (به جز درخواست‌های تمدید)
         if ($request->input('request_type') !== 'renewal') {
             $activePermitCheck = PermitRequest::where('fleet_id', $request->fleet_id)
                 ->whereIn('status', ['pending', 'approved', 'issued'])
@@ -262,14 +317,12 @@ class DozbalaghController extends Controller
         }
     }
 
-    /**
-     * 🟢 متد استعلام ناوگان و راننده - اصلاح شده و کاملاً یکپارچه برای نمایش کدهای انبار هر کشور
-     */
     public function checkFleetStatus(Request $request)
     {
         $fleetId = $request->input('fleet_id') ?? $request->input('id');
         $driverId = $request->input('driver_id');
-        $destinations = $request->input('destinations', []); // دریافت داینامیک کشورهای انتخاب شده
+        $requestType = $request->input('request_type'); 
+        $destinations = $request->input('destinations', []);
 
         if (!$fleetId) {
             return response()->json([
@@ -288,33 +341,32 @@ class DozbalaghController extends Controller
                 ], 200);
             }
 
-            // ۱. بررسی دوزبلاغ فعال ناوگان
-            $activeFleetPermit = PermitRequest::where('fleet_id', $fleetId)
-                ->whereIn('status', ['pending', 'approved', 'issued'])
-                ->first();
-
-            if ($activeFleetPermit) {
-                return response()->json([
-                    'success' => false,
-                    'message' => "این ناوگان یک درخواست فعال یا پروانه صادر شده به شماره رهگیری {$activeFleetPermit->d_code} دارد و امکان ثبت درخواست جدید برای آن وجود ندارد."
-                ], 200);
-            }
-
-            // ۲. بررسی دوزبلاغ فعال راننده
-            if ($driverId) {
-                $activeDriverPermit = PermitRequest::where('driver_id', $driverId)
+            if ($requestType !== 'renewal') {
+                $activeFleetPermit = PermitRequest::where('fleet_id', $fleetId)
                     ->whereIn('status', ['pending', 'approved', 'issued'])
                     ->first();
 
-                if ($activeDriverPermit) {
+                if ($activeFleetPermit) {
                     return response()->json([
                         'success' => false,
-                        'message' => "راننده انتخاب شده یک درخواست فعال یا پروانه صادر شده به شماره رهگیری {$activeDriverPermit->d_code} دارد."
+                        'message' => "این ناوگان یک درخواست فعال یا پروانه صادر شده به شماره رهگیری {$activeFleetPermit->d_code} دارد و امکان ثبت درخواست جدید برای آن وجود ندارد."
                     ], 200);
+                }
+
+                if ($driverId) {
+                    $activeDriverPermit = PermitRequest::where('driver_id', $driverId)
+                        ->whereIn('status', ['pending', 'approved', 'issued'])
+                        ->first();
+
+                    if ($activeDriverPermit) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "راننده انتخاب شده یک درخواست فعال یا پروانه صادر شده به شماره رهگیری {$activeDriverPermit->d_code} دارد."
+                        ], 200);
+                    }
                 }
             }
 
-            // ۳. ⚡ محاسبه و یافتن اولین سریال آزاد انبار پارت‌ها به تفکیک کشورهای انتخابی (مثل ترکیه)
             $allocationCodes = [];
             $usedSerials = PermitRequest::whereNotNull('serial_number')->pluck('serial_number')->toArray();
 
@@ -322,7 +374,6 @@ class DozbalaghController extends Controller
                 $countryId = $dest['country_id'] ?? null;
                 if (!$countryId) continue;
 
-                // واکشی پارت‌های انبار مرکزی بر اساس کدهایی که فرستادی
                 $batches = DB::table('dozbalagh_batches')->where('country_id', $countryId)->orderBy('id', 'asc')->get();
                 $allocatedSerial = 'بدون موجودی سریال';
 
@@ -345,7 +396,7 @@ class DozbalaghController extends Controller
                 'data' => [
                     'plate_number' => $fleet->transit_plate ?? $fleet->plate_number,
                     'fleet_type'   => $fleet->truck_type ?? $fleet->fleet_type ?? 'نامشخص',
-                    'allocation_codes' => $allocationCodes // ارسال کدهای اختصاصی انبار هر کشور
+                    'allocation_codes' => $allocationCodes
                 ]
             ]);
 
@@ -354,6 +405,119 @@ class DozbalaghController extends Controller
                 'success' => false,
                 'message' => 'خطای داخلی سرور: ' . $e->getMessage()
             ], 200);
+        }
+    }
+	/**
+     * 🛠️ نمایش فرم ویرایش و اصلاح پروانه‌های برگشت‌خورده
+     */
+    public function edit($id)
+    {
+        $user = auth()->user();
+        $companyId = optional($user->company)->id ?? $user->company_id ?? null;
+
+        // واکشی پرونده با شرط اینکه متعلق به همین شرکت باشد و وضعیت آن returned (نیاز به اصلاح) باشد
+        $permitRequest = PermitRequest::where('id', $id)
+            ->where('company_id', $companyId)
+            ->where('status', 'returned')
+            ->firstOrFail();
+
+        $allWorldCountries = \App\Models\WorldCountry::orderBy('name_fa', 'asc')->get();
+        $drivers = \App\Models\Driver::where('current_company_id', $companyId)->get();
+        $fleets = \App\Models\Fleet::where('company_id', $companyId)->get();
+        $countries = \App\Models\Country::where('is_active', 1)->get(); 
+        $cargoRules = \App\Models\CargoDocumentRule::all()->keyBy('cargo_type');
+        
+        $wallet = \App\Models\Wallet::where('company_id', $companyId)->first();
+        $balance = $wallet ? $wallet->balance : 0;
+
+        // واکشی مقاصد قبلی ثبت شده برای این درخواست جهت Auto-fill شدن در فرم
+        $previousDestinations = DB::table('permit_request_items')
+            ->where('permit_request_id', $id)
+            ->get()
+            ->map(function($item) {
+                return [
+                    'country_id' => $item->country_id,
+                    'permit_type' => $item->permit_type,
+                ];
+            });
+
+        // باز کردن همان فرم ویزارد create اما در حالت ویرایش (با پاس دادن اطلاعات قبلی)
+        return view('company.dozbalagh.create', compact(
+            'permitRequest', 'drivers', 'fleets', 'countries', 
+            'cargoRules', 'wallet', 'balance', 'allWorldCountries', 'previousDestinations'
+        ));
+    }
+
+    /**
+     * 💾 ذخیره و ارسال مجدد پرونده اصلاح‌شده به کارتابل ادمین
+     */
+    public function updateRequest(Request $request, $id)
+    {
+        $request->validate([
+            'cargo_type' => 'required|string',
+            'destinations' => 'required|array|min:1',
+        ]);
+
+        $user = auth()->user();
+        $companyId = optional($user->company)->id ?? $user->company_id ?? null;
+
+        $permitRequest = PermitRequest::where('id', $id)
+            ->where('company_id', $companyId)
+            ->where('status', 'returned')
+            ->firstOrFail();
+
+        DB::beginTransaction();
+        try {
+            // ۱. پاک کردن مقاصد قبلی جهت ثبت مقاصد جدید اصلاح شده
+            DB::table('permit_request_items')->where('permit_request_id', $id)->delete();
+
+            $totalRequestAmount = 0;
+            foreach ($request->destinations as $item) {
+                $countryData = Country::findOrFail($item['country_id']);
+                $totalRequestAmount += ($countryData->price ?? 0);
+
+                DB::table('permit_request_items')->insert([
+                    'permit_request_id'   => $permitRequest->id,
+                    'country_id'          => $item['country_id'],
+                    'permit_type'         => $item['permit_type'],
+                    'operation_type'      => $request->cargo_type ?? '', 
+                    'price'               => $countryData->price ?? 0,
+                    'allocation_status'   => 'pending',
+                    'created_at'          => now(),
+                    'updated_at'          => now(),
+                ]);
+            }
+
+            // موجودی قبلاً کسر و بلوکه شده است، اگر مبالغ مقاصد جدید تغییر کرده تفاضل را اعمال می‌کنیم
+            $diff = $totalRequestAmount - $permitRequest->total_amount;
+            if ($diff > 0) {
+                $wallet = Wallet::where('company_id', $companyId)->first();
+                if (!$wallet || $wallet->balance < $diff) {
+                    DB::rollBack();
+                    return back()->withErrors(['error' => 'موجودی کیف پول برای اعمال تغییرات مقاصد کافی نیست.']);
+                }
+                $wallet->decrement('balance', $diff);
+                $wallet->increment('blocked_balance', $diff);
+            } elseif ($diff < 0) {
+                $wallet = Wallet::where('company_id', $companyId)->first();
+                if ($wallet) {
+                    $wallet->increment('balance', abs($diff));
+                    $wallet->decrement('blocked_balance', abs($diff));
+                }
+            }
+
+            // ۲. تغییر مجدد وضعیت به pending جهت بازگشت به کارتابل بررسی ادمین
+            $permitRequest->update([
+                'status' => 'pending',
+                'total_amount' => $totalRequestAmount,
+                'company_note' => 'اصلاح و ارسال مجدد توسط شرکت در تاریخ ' . \Hekmatinasser\Verta\Verta::now()->format('Y/m/d'),
+            ]);
+
+            DB::commit();
+            return redirect()->route('dozbalagh.index')->with('success', 'اصلاحیه پرونده با موفقیت ثبت و مجدداً برای بررسی ادمین فرستاده شد.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withErrors(['error' => 'خطا در ثبت اصلاحیه: ' . $e->getMessage()]);
         }
     }
 }

@@ -395,4 +395,3 @@ $(document).ready(function() {
     });
 });
 
-}

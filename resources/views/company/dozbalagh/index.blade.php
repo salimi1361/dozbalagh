@@ -32,7 +32,7 @@
     {{-- 🎛️ نوار فیلترهای وضعیت و باکس جستجوی یکپارچه جدول --}}
     <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-5 bg-white p-3 rounded-2xl border border-slate-200/60 shadow-sm">
         
-        {{-- دکمه‌های فیلتر وضعیت به ترتیب درخواستی شما --}}
+        {{-- دکمه‌های فیلتر وضعیت اصلاح شده با دیتابیس ادمین مطابق تصویر ارسالی شما --}}
         <div class="flex flex-wrap gap-1.5 text-xs font-bold">
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => ''])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ !request('status') ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' }}">
@@ -50,8 +50,14 @@
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'rejected' ? 'bg-rose-600 text-white shadow-sm' : 'bg-rose-50/60 text-rose-600 hover:bg-rose-50' }}">
                 ❌ رد شده
             </a>
+            {{-- 🟢 اضافه شدن تب نیاز به اصلاح متصل به وضعیت returned ادمین --}}
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'returned'])) }}" 
-               class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'returned' ? 'bg-amber-600 text-white shadow-sm' : 'bg-amber-50/60 text-amber-700 hover:bg-amber-50' }}">
+               class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'returned' ? 'bg-orange-600 text-white shadow-sm' : 'bg-orange-50/60 text-orange-700 hover:bg-orange-100' }}">
+                🛠️ نیاز به اصلاح
+            </a>
+            {{-- 🟢 اصلاح روت تب لاشه به وضعیت collected ثبت شده در کارتابل نهایی ادمین --}}
+            <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'collected'])) }}" 
+               class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'collected' ? 'bg-amber-600 text-white shadow-sm' : 'bg-amber-50/60 text-amber-700 hover:bg-amber-50' }}">
                 🚚 لاشه تحویل داده شده
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'renewed'])) }}" 
@@ -141,13 +147,16 @@
                             
                             <td class="p-4 font-bold text-slate-900">{{ number_format($item->total_amount) }}</td>
                             
+                            {{-- 🟢 تصحیح مپینگ کلمات کلیدی وضعیت با لاجیک کارتابل ادمین --}}
                             <td class="p-4 whitespace-nowrap">
                                 @if($item->status === 'pending')
                                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100">در حال بررسی</span>
                                 @elseif($item->status === 'approved')
                                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">تایید شده</span>
-                                @elseif($item->status === 'returned')
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-100">🚚 لاشه تحویل شد</span>
+                                @elseif($item->status === 'returned') {{-- کلمه returned یعنی نیاز به اصلاح --}}
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-orange-50 text-orange-700 border border-orange-200">🛠️ نیاز به اصلاح</span>
+                                @elseif($item->status === 'collected' || $item->status === 'archived') {{-- کلماتcollected/archived یعنی تحویل لاشه --}}
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">🚚 لاشه تحویل شد</span>
                                 @elseif($item->status === 'renewed')
                                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">🔄 تمدید شده</span>
                                 @elseif($item->status === 'lost')
@@ -157,11 +166,18 @@
                                 @endif
                             </td>
 
-                            <td class="p-4 text-center whitespace-nowrap">
+                            <td class="p-4 text-center whitespace-nowrap flex items-center justify-center gap-2">
                                 <button onclick="openModal('modal-{{ $item->id }}')" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors shadow-md shadow-indigo-100">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                     مشاهده جزئیات سفر
                                 </button>
+                                
+                                {{-- 🟢 دکمه مستقیم اصلاح در جدول عملیات برای دسترسی سریع بدون نیاز به باز کردن مودال --}}
+                                @if($item->status === 'returned')
+                                    <a href="{{ route('dozbalagh.edit', $item->id) }}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-black transition-colors shadow-md shadow-orange-100">
+                                        ✏️ اصلاح و ارسال مجدد
+                                    </a>
+                                @endif
                             </td>
                         </tr>
 
@@ -295,6 +311,19 @@
                                         </div>
                                     </div>
 
+                                    {{-- نمایش علت عودت یا اصلاحیه در مودال شرکت و اضافه شدن دکمه ویرایش مستقیم در انتهای فیلد --}}
+                                    @if($item->status === 'returned')
+                                        <div class="p-4 bg-orange-50 border border-orange-200 rounded-2xl text-xs text-orange-800 font-medium flex flex-col sm:flex-row sm:items-center justify-between gap-4 leading-relaxed">
+                                            <div>
+                                                📌 <strong>علت نیاز به اصلاح مدارک:</strong> <span class="font-bold text-slate-900">{{ $item->reject_reason ?? 'توسط ادمین توضیحی ثبت نشده است.' }}</span>
+                                            </div>
+                                            {{-- 🟢 دکمه هدایت به صفحه ویرایش از داخل مودال جزئیات سفر --}}
+                                            <a href="{{ route('dozbalagh.edit', $item->id) }}" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-black text-xs rounded-xl shadow-md transition text-center shrink-0">
+                                                ✏️ شروع اصلاح و ویرایش مدارک
+                                            </a>
+                                        </div>
+                                    @endif
+
                                     @if($item->company_note)
                                         <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 font-medium leading-relaxed">
                                             📌 <strong>توضیحات پرونده:</strong> {{ $item->company_note }}
@@ -309,7 +338,7 @@
                                 هیچ درخواست دوزوله‌ای با این مشخصات یافت نشد.
                             </td>
                         </tr>
-                    @endempty
+                    @endforelse
                 </tbody>
             </table>
         </div>

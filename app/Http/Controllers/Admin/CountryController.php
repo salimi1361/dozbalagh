@@ -16,11 +16,12 @@ class CountryController extends Controller
 
     public function store(Request $request)
     {
-        // اعتبارسنجی دقیق برای بررسی تک‌تک مجوزهای ارسالی
+        // اعتبارسنجی دقیق برای بررسی تک‌تک مجوزهای ارسالی و فیلد روز اعتبار
         $request->validate([
             'name'           => 'required|string|max:255|unique:countries,name',
             'code'           => 'nullable|string|max:10',
             'price'          => 'required|numeric|min:0',
+            'validity_days'  => 'required|integer|min:1', // 👈 اضافه شد
             'permit_types'   => 'required|array|min:1',
             'permit_types.*' => 'in:bilateral,transit,bilateral_transit,third_country_transit,third_country',
         ], [
@@ -32,6 +33,7 @@ class CountryController extends Controller
             'name'                 => trim($request->name),
             'code'                 => strtoupper(trim($request->code)),
             'price'                => $request->price,
+            'validity_days'        => $request->validity_days, // 👈 ذخیره در دیتابیس
             'allowed_permit_types' => $request->permit_types,
             'is_active'            => true,
         ]);
@@ -46,6 +48,7 @@ class CountryController extends Controller
             'name'           => 'required|string|max:255|unique:countries,name,' . $id,
             'code'           => 'nullable|string|max:10',
             'price'          => 'required|numeric|min:0',
+            'validity_days'  => 'required|integer|min:1', // 👈 اضافه شد
             'permit_types'   => 'required|array|min:1',
             'permit_types.*' => 'in:bilateral,transit,bilateral_transit,third_country_transit,third_country',
         ], [
@@ -59,6 +62,7 @@ class CountryController extends Controller
             'name'                 => trim($request->name),
             'code'                 => strtoupper(trim($request->code)),
             'price'                => $request->price,
+            'validity_days'        => $request->validity_days, // 👈 آپدیت در دیتابیس
             'allowed_permit_types' => $request->permit_types,
         ]);
 

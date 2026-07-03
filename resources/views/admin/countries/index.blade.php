@@ -48,7 +48,6 @@
                                     <div class="flex flex-wrap justify-center gap-1">
                                         @foreach($country->allowed_permit_types as $permit)
                                             @php
-                                                // نگاشت کلیدهای انگلیسی به عناوین فارسی جهت نمایش در جدول
                                                 $labels = [
                                                     'bilateral' => 'دوجانبه',
                                                     'transit' => 'ترانزیت',
@@ -78,7 +77,7 @@
                             <td class="p-4 text-center flex items-center justify-center gap-2">
                                 <button type="button" 
                                         data-permits="{{ json_encode($country->allowed_permit_types ?? []) }}"
-                                        onclick="openEditCountryModal(this, '{{ $country->id }}', '{{ $country->name }}', '{{ $country->code }}', '{{ $country->price }}')" 
+                                        onclick="openEditCountryModal(this, '{{ $country->id }}', '{{ $country->name }}', '{{ $country->code }}', '{{ $country->price }}', '{{ $country->validity_days ?? 30 }}')" 
                                         class="text-indigo-600 hover:text-indigo-800 font-bold text-xs bg-indigo-50 px-3 py-1.5 rounded-md transition flex items-center gap-1">
                                     ✏️ ویرایش
                                 </button>
@@ -117,24 +116,33 @@
                         <label class="block text-slate-700 font-bold mb-2 text-sm">نام کشور <span class="text-rose-500">*</span></label>
                         <input type="text" name="name" required class="w-full p-3 border border-slate-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="مثال: ترکیه">
                     </div>
-                    <div>
-                        <label class="block text-slate-700 font-bold mb-2 text-sm">کد اختصاری (اختیاری)</label>
-                        <input type="text" name="code" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="مثال: TR" dir="ltr">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-slate-700 font-bold mb-2 text-sm">کد اختصاری (اختیاری)</label>
+                            <input type="text" name="code" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="مثال: TR" dir="ltr">
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-bold mb-2 text-sm">اعتبار پیش‌فرض (روز) <span class="text-rose-500">*</span></label>
+                            <input type="number" name="validity_days" value="30" required min="1" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" dir="ltr">
+                        </div>
                     </div>
                     <div>
                         <label class="block text-slate-700 font-bold mb-2 text-sm">مبلغ هر دوزوله (تومان) <span class="text-rose-500">*</span></label>
-                        <input type="number" name="price" value="{{ old('price', 0) }}" required min="0" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="مثال: 500000" dir="ltr">
+                        <input type="number" name="price" value="{{ old('price', 0) }}" required min="0" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" dir="ltr">
                     </div>
                     <div>
                         <label class="block text-slate-700 font-bold mb-2 text-sm">نوع مجوزهای مجاز <span class="text-rose-500">*</span></label>
                         <div class="grid grid-cols-1 gap-2.5 p-4 border border-slate-200 rounded-xl bg-slate-50">
-                            @foreach([
-                                'bilateral' => 'دوجانبه', 
-                                'transit' => 'ترانزیت', 
-                                'bilateral_transit' => 'دوجانبه ترانزیت',
-                                'third_country_transit' => 'ترانزیت ثالث',
-                                'third_country' => 'ثالث'
-                            ] as $key => $label)
+                            @php
+                                $permitOptions = [
+                                    'bilateral' => 'دوجانبه', 
+                                    'transit' => 'ترانزیت', 
+                                    'bilateral_transit' => 'دوجانبه ترانزیت',
+                                    'third_country_transit' => 'ترانزیت ثالث',
+                                    'third_country' => 'ثالث'
+                                ];
+                            @endphp
+                            @foreach($permitOptions as $key => $label)
                                 <label class="flex items-center gap-2 cursor-pointer text-sm font-bold text-slate-600 hover:text-slate-900 transition">
                                     <input type="checkbox" name="permit_types[]" value="{{ $key }}" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
                                     {{ $label }}
@@ -168,9 +176,15 @@
                         <label class="block text-slate-700 font-bold mb-2 text-sm">نام کشور <span class="text-rose-500">*</span></label>
                         <input type="text" name="name" id="edit_name" required class="w-full p-3 border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
                     </div>
-                    <div>
-                        <label class="block text-slate-700 font-bold mb-2 text-sm">کد اختصاری (اختیاری)</label>
-                        <input type="text" name="code" id="edit_code" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" dir="ltr">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-slate-700 font-bold mb-2 text-sm">کد اختصاری (اختیاری)</label>
+                            <input type="text" name="code" id="edit_code" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" dir="ltr">
+                        </div>
+                        <div>
+                            <label class="block text-slate-700 font-bold mb-2 text-sm">اعتبار (روز) <span class="text-rose-500">*</span></label>
+                            <input type="number" name="validity_days" id="edit_validity_days" required min="1" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" dir="ltr">
+                        </div>
                     </div>
                     <div>
                         <label class="block text-slate-700 font-bold mb-2 text-sm">مبلغ هر دوزوله (تومان) <span class="text-rose-500">*</span></label>
@@ -179,13 +193,16 @@
                     <div>
                         <label class="block text-slate-700 font-bold mb-2 text-sm">نوع مجوزهای مجاز <span class="text-rose-500">*</span></label>
                         <div class="grid grid-cols-1 gap-2.5 p-4 border border-slate-200 rounded-xl bg-slate-50" id="edit_permit_types_container">
-                            @foreach([
-                                'bilateral' => 'دوجانبه', 
-                                'transit' => 'ترانزیت', 
-                                'bilateral_transit' => 'دوجانبه ترانزیت',
-                                'third_country_transit' => 'ترانزیت ثالث',
-                                'third_country' => 'ثالث'
-                            ] as $key => $label)
+                            @php
+                                $editPermitOptions = [
+                                    'bilateral' => 'دوجانبه', 
+                                    'transit' => 'ترانزیت', 
+                                    'bilateral_transit' => 'دوجانبه ترانزیت',
+                                    'third_country_transit' => 'ترانزیت ثالث',
+                                    'third_country' => 'ثالث'
+                                ];
+                            @endphp
+                            @foreach($editPermitOptions as $key => $label)
                                 <label class="flex items-center gap-2 cursor-pointer text-sm font-bold text-slate-600 hover:text-slate-900 transition">
                                     <input type="checkbox" name="permit_types[]" value="{{ $key }}" class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 edit-permit-checkbox">
                                     {{ $label }}
@@ -208,7 +225,6 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    // کنترل مودال افزودن
     function openCountryModal() { 
         $('#country_modal').removeClass('hidden'); 
     }
@@ -216,37 +232,32 @@
         $('#country_modal').addClass('hidden'); 
     }
 
-    // کنترل مودال ویرایش
-    function openEditCountryModal(btnElement, id, name, code, price) {
-        // پر کردن فیلدها
+    function openEditCountryModal(btnElement, id, name, code, price, validity_days) {
         $('#edit_name').val(name);
         $('#edit_code').val(code !== '---' ? code : '');
         $('#edit_price').val(price); 
+        $('#edit_validity_days').val(validity_days); 
         
-        // هندل کردن تیک‌های مجوزها
-        let permits = $(btnElement).data('permits'); // دریافت آرایه مجوزها
-        $('.edit-permit-checkbox').prop('checked', false); // ابتدا همه تیک‌ها را برمی‌داریم
+        let permits = $(btnElement).data('permits');
+        $('.edit-permit-checkbox').prop('checked', false);
         
         if(permits && Array.isArray(permits)) {
             permits.forEach(function(permitValue) {
-                // تیک زدن موردی که مقدارش با دیتابیس می‌خواند
                 $('.edit-permit-checkbox[value="' + permitValue + '"]').prop('checked', true);
             });
         }
         
-        // تنظیم آدرس فرم برای آپدیت
         let updateUrl = "{{ route('admin.countries.update', ':id') }}";
         updateUrl = updateUrl.replace(':id', id);
         $('#edit_country_form').attr('action', updateUrl);
         
-        // نمایش مودال
         $('#edit_country_modal').removeClass('hidden');
     }
+    
     function closeEditCountryModal() { 
         $('#edit_country_modal').addClass('hidden'); 
     }
 
-    // پیام‌های SweetAlert
     @if(session('success'))
         Swal.fire({ icon: 'success', title: 'عملیات موفق', text: @json(session('success')), confirmButtonText: 'باشه' });
     @endif

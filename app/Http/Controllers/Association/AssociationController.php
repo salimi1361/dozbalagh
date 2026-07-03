@@ -16,21 +16,18 @@ class AssociationController
     public function index()
     {
         try {
-            // ✅ اصلاحیه: متد index باید دقیقاً درخواست‌های منتظر بررسی (pending) را نشان دهد
             $requests = DB::table('permit_requests')
                 ->where('status', 'pending')
                 ->orderBy('created_at', 'desc')
                 ->paginate(10);
             
             foreach ($requests as $req) {
-                // 👤 واکشی مشخصات راننده بر اساس ساختار واقعی دیتابیس شما
                 $req->driver = null;
                 if (isset($req->driver_id)) {
                     $req->driver = DB::table('drivers')->where('id', $req->driver_id)->first() 
                                 ?? DB::table('drivers')->where('national_code', $req->driver_id)->first();
                 }
 
-                // 🚛 واکشی مشخصات ناوگان و پلاک ترانزیت
                 $req->fleet = null;
                 if (isset($req->fleet_id)) {
                     $req->fleet = DB::table('fleets')->where('id', $req->fleet_id)->first() 
@@ -38,7 +35,6 @@ class AssociationController
                                ?? DB::table('fleets')->where('smart_card_number', $req->fleet_id)->first();
                 }
                 
-                // 🌍 واکشی لیست کشورهای مقصد از جدول واسط
                 $destinations = DB::table('permit_request_items')
                     ->where('permit_request_id', $req->id)
                     ->get();
@@ -65,7 +61,6 @@ class AssociationController
      */
     public function updateRequestStatus(Request $request, $id)
     {
-        // ۱. اعتبارسنجی منعطف ورودی‌ها جهت پذیرش تصویر لاشه دوزبِلاغ
         $request->validate([
             'status' => 'required|string',
             'reject_reason' => 'nullable|string',
@@ -74,18 +69,15 @@ class AssociationController
 
         DB::beginTransaction();
         try {
-            // دریافت اطلاعات اصلی درخواست جهت دسترسی به مبلغ و آیدی شرکت
             $permit = DB::table('permit_requests')->where('id', $id)->first();
             if (!$permit) {
                 return response()->json(['success' => false, 'message' => 'درخواست یافت نشد.'], 404);
             }
 
-            // زمان جاری و شناسه ادمین لاگین شده برای ثبت سوابق زمان‌بندی فرآیندها
             $now = Carbon::now();
             $userId = auth()->id() ?? null;
             $status = $request->input('status');
 
-            // آرایه پیش‌فرض بروزرسانی فیلدهای عمومی درخواست
             $updateData = [
                 'status' => $status,
                 'reject_reason' => $request->input('reject_reason') ?? null,
@@ -93,21 +85,17 @@ class AssociationController
                 'updated_at' => $now
             ];
 
-            // الف) عملیات مالی در صورت رد کامل درخواست (Rejected)
             if ($status === 'rejected') {
-                // ثبت دقیق فیلد زمان رد پرونده در دیتابیس
                 $updateData['rejected_at'] = $now;
 
                 $wallet = DB::table('wallets')->where('company_id', $permit->company_id)->first();
                 if ($wallet) {
-                    // عودت کل مبلغ بلوکه‌شده به موجودی در دسترس شرکت
                     DB::table('wallets')->where('id', $wallet->id)->update([
                         'blocked_balance' => $wallet->blocked_balance - $permit->total_amount,
                         'balance' => $wallet->balance + $permit->total_amount,
                         'updated_at' => $now
                     ]);
 
-                    // ثبت تراکنش مالی برگشت وجه
                     DB::table('wallet_transactions')->insert([
                         'wallet_id' => $wallet->id,
                         'amount' => $permit->total_amount,
@@ -120,36 +108,24 @@ class AssociationController
                     ]);
                 }
             } 
-            // ب) ثبت زمان تایید اولیه بدون مخدوش کردن سایر فرآیندها
             elseif ($status === 'approved') {
                 $updateData['approved_at'] = $now;
             }
-            // ج) ثبت زمان برگشت جهت اصلاح مدارک به شرکت
             elseif ($status === 'returned') {
                 $updateData['returned_at'] = $now;
             }
-            // د) عملیات آزادسازی راننده/ناوگان در صورت تحویل لاشه (Collected) یا مفقودی (Lost)
             elseif ($status === 'collected' || $status === 'lost' || $status === 'archived') {
                 
-                // 📸 فرآیند اصلی آپلود تصویر فشرده‌شده برگه لاشه
                 if ($request->hasFile('image')) {
                     $file = $request->file('image');
-                    
-                    // نام‌گذاری امن و لوکال: [serial_number]-[d_code].[extension]
                     $serialClean = $permit->serial_number ?? 'serial';
                     $fileName = $serialClean . '-' . $permit->d_code . '.' . $file->getClientOriginalExtension();
-                    
-                    // ذخیره‌سازی محلی در دیسک پابلیک پروژه لاراول
                     $file->storeAs('permits/collected', $fileName, 'public');
-                    
-                    // الصاق مسیر در آرایه بروزرسانی دیتابیس
                     $updateData['collected_image'] = 'permits/collected/' . $fileName;
                 }
 
-                // ثبت تاریخ خاتمه پرونده در ساختار دیتابیس
                 $updateData['closed_at'] = $now;
 
-                // 🔓 آزاد کردن وضعیت مسدودی راننده و ناوگان جهت امکان درخواست مجدد شرکت‌ها
                 if (isset($permit->driver_id)) {
                     DB::table('drivers')->where('id', $permit->driver_id)->orWhere('national_code', $permit->driver_id)->update(['is_blocked' => false]);
                 }
@@ -157,7 +133,6 @@ class AssociationController
                     DB::table('fleets')->where('id', $permit->fleet_id)->orWhere('smart_card_number', $permit->fleet_id)->update(['is_blocked' => false]);
                 }
 
-                // 🎯 بروزرسانی وضعیت برگه در انبار دوزبلاغ (همراه با Try-Catch جهت جلوگیری از وقوع خطای ساختاری کدهای کالا و پارت‌ها)
                 try {
                     if (isset($permit->serial_number)) {
                         DB::table('dozbalagh_items')
@@ -173,7 +148,6 @@ class AssociationController
                 }
             }
 
-            // ۲. به روزرسانی نهایی دیتابیس با سوابق اتمیک تاریخ و ساعت جدید
             DB::table('permit_requests')->where('id', $id)->update($updateData);
 
             DB::commit();
@@ -201,7 +175,6 @@ class AssociationController
     public function associationApprovedPermits()
     {
         try {
-            // ۱. واکشی درخواست‌های تایید اولیه شده بدون سریال
             $requests = DB::table('permit_requests')
                 ->where('status', 'approved')
                 ->whereNull('serial_number')
@@ -209,33 +182,44 @@ class AssociationController
                 ->paginate(10);
 
             foreach ($requests as $req) {
-                // 👤 واکشی راننده
                 $req->driver = null;
                 if (isset($req->driver_id)) {
                     $req->driver = DB::table('drivers')->where('id', $req->driver_id)->first() 
                                 ?? DB::table('drivers')->where('national_code', $req->driver_id)->first();
                 }
 
-                // 🚛 واکشی ناوگان
                 $req->fleet = null;
                 if (isset($req->fleet_id)) {
                     $req->fleet = DB::table('fleets')->where('id', $req->fleet_id)->first() 
                                ?? DB::table('fleets')->where('smart_card_number', $req->fleet_id)->first();
                 }
                 
-                // 🌍 واکشی کشور مقصد از جدول واسط
                 $destination = DB::table('permit_request_items')->where('permit_request_id', $req->id)->first();
                 
                 $req->country_name = 'نامشخص';
                 $req->next_serial_in_warehouse = 'بدون موجودی';
+                
+                // 🟢 متغیرهای جدید برای محاسبه و ارسال اتوماتیک به فرانت‌اِند
+                $req->validity_days = 30; // پیش‌فرض
+                $req->expire_date_jalali = '---';
 
                 if ($destination) {
                     $countryInfo = DB::table('countries')->where('id', $destination->country_id)->first();
                     if ($countryInfo) {
                         $req->country_name = $countryInfo->name;
+                        
+                        // واکشی تعداد روز اعتبار از کشور
+                        $req->validity_days = $countryInfo->validity_days ?? 30;
+                        
+                        // 🟢 محاسبه خودکار تاریخ پایان در بک‌اند برای نمایش به اپراتور
+                        $expireDate = now()->addDays($req->validity_days);
+                        try {
+                            $req->expire_date_jalali = \Morilog\Jalali\Jalalian::fromCarbon($expireDate)->format('Y/m/d');
+                        } catch (\Exception $e) {
+                            $req->expire_date_jalali = $expireDate->format('Y-m-d');
+                        }
                     }
 
-                    // 🎫 استخراج دقیق اولین برگه خام (raw) از انبار پارت‌های دوزبلاغ بر اساس ساختار مدل شما
                     $nextAvailableItem = DB::table('dozbalagh_items')
                         ->join('dozbalagh_batches', 'dozbalagh_items.batch_id', '=', 'dozbalagh_batches.id')
                         ->where('dozbalagh_batches.country_id', $destination->country_id)
@@ -264,68 +248,56 @@ class AssociationController
     {
         DB::beginTransaction();
         try {
-            $manualSerial = trim((string) $request->input('serial_number', ''));
-            $validityDaysInput = trim((string) $request->input('validity_days', ''));
+            // 🟢 تبدیل هوشمند اعداد فارسی کیبورد اپراتور به انگلیسی
+            $persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+            $englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+            $manualSerial = str_replace($persianDigits, $englishDigits, trim((string) $request->input('serial_number', '')));
 
             if ($manualSerial === '') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'لطفاً شماره سریال دوزبلاغ کشور را وارد کنید.'
-                ], 422);
+                return response()->json(['success' => false, 'message' => 'لطفاً شماره سریال دوزبلاغ کشور را وارد کنید.'], 422);
             }
 
             if (!preg_match('/^[0-9]+$/', $manualSerial)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'شماره سریال باید فقط عدد باشد.'
-                ], 422);
+                return response()->json(['success' => false, 'message' => 'شماره سریال باید فقط عدد باشد.'], 422);
             }
-
-            if ($validityDaysInput === '') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'لطفاً تعداد روز اعتبار دوزبلاغ را وارد کنید.'
-                ], 422);
-            }
-
-            if (!preg_match('/^[0-9]+$/', $validityDaysInput) || (int) $validityDaysInput < 1) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'تعداد روز اعتبار باید عددی و بزرگتر از صفر باشد.'
-                ], 422);
-            }
-
-            $validityDays = (int) $validityDaysInput;
-            if ($validityDays > 3650) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'تعداد روز اعتبار بیش از حد مجاز است.'
-                ], 422);
-            }
-
-            // تاریخ پایان اعتبار بر اساس تعداد روز واردشده از تاریخ صدور محاسبه می‌شود.
-            $issuedAt = now();
-            $validUntil = $issuedAt->copy()->startOfDay()->addDays($validityDays);
 
             $permit = DB::table('permit_requests')->where('id', $id)->lockForUpdate()->first();
             if (!$permit) {
+                DB::rollBack();
                 return response()->json(['success' => false, 'message' => 'درخواست یافت نشد.'], 404);
             }
 
             if (!empty($permit->serial_number)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'برای این پرونده قبلاً سریال ثبت شده است.'
-                ], 422);
+                DB::rollBack();
+                return response()->json(['success' => false, 'message' => 'برای این پرونده قبلاً سریال ثبت شده است.'], 422);
             }
 
             // ۱. پیدا کردن کشور مقصد پروانه
             $destination = DB::table('permit_request_items')->where('permit_request_id', $id)->first();
             if (!$destination) {
+                DB::rollBack();
                 return response()->json(['success' => false, 'message' => 'مسیر سفر و کشور مقصد پرونده یافت نشد.']);
             }
 
-            // ۲. بررسی اینکه سریال دستی واردشده واقعاً در انبار خام همان کشور وجود داشته باشد
+            // 🟢 واکشی اتوماتیک تعداد روز اعتبار (برای سازگاری با کدهای فرانت در صورت ارسال)
+            $countryInfo = DB::table('countries')->where('id', $destination->country_id)->first();
+            $validityDaysInput = trim((string) $request->input('validity_days', ''));
+            
+            // اولویت با مقدار ارسالی از فرانت است، در غیر اینصورت از دیتابیس می‌خواند
+            $validityDays = (!empty($validityDaysInput) && is_numeric($validityDaysInput)) 
+                            ? (int)$validityDaysInput 
+                            : ($countryInfo->validity_days ?? 30);
+
+            if ($validityDays > 3650) {
+                DB::rollBack();
+                return response()->json(['success' => false, 'message' => 'تعداد روز اعتبار بیش از حد مجاز است.'], 422);
+            }
+
+            // تاریخ پایان اعتبار به صورت سیستمی محاسبه می‌شود
+            $issuedAt = now();
+            $validUntil = $issuedAt->copy()->startOfDay()->addDays($validityDays);
+
+            // ۲. بررسی موجودی انبار خام
             $warehouseItem = DB::table('dozbalagh_items')
                 ->join('dozbalagh_batches', 'dozbalagh_items.batch_id', '=', 'dozbalagh_batches.id')
                 ->where('dozbalagh_batches.country_id', $destination->country_id)
@@ -336,6 +308,7 @@ class AssociationController
                 ->first();
 
             if (!$warehouseItem) {
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'این شماره سریال برای کشور مقصد این پرونده در انبار خام موجود نیست، قبلاً مصرف شده یا متعلق به کشور دیگری است.'
@@ -343,25 +316,23 @@ class AssociationController
             }
 
             $allocatedSerial = $warehouseItem->serial_number;
-            $now = now();
 
-            // ۳. آپدیت وضعیت برگه در انبار کل به مصرف شده (consumed)
+            // ۳. آپدیت وضعیت برگه در انبار کل
             DB::table('dozbalagh_items')->where('id', $warehouseItem->id)->update([
                 'lifecycle_status' => 'consumed',
-                'updated_at' => $now
+                'updated_at' => $issuedAt
             ]);
 
-            // ۴. تسویه حساب نهایی مالی شرکت: کسر از مبلغ بلوکه شده
+            // ۴. تسویه حساب نهایی مالی شرکت
             $wallet = DB::table('wallets')->where('company_id', $permit->company_id)->first();
             if ($wallet) {
                 DB::table('wallets')->where('id', $wallet->id)->update([
                     'blocked_balance' => max(0, $wallet->blocked_balance - $permit->total_amount),
-                    'updated_at' => $now
+                    'updated_at' => $issuedAt
                 ]);
             }
 
-            // ۵. آپدیت نهایی پرونده دوزبلاغ و فرستادن راننده به وضعیت تردد (issued)
-            // permit_valid_until برای نمایش روزهای باقی‌مانده در پنل شرکت و ادمین ذخیره می‌شود.
+            // ۵. آپدیت نهایی پرونده
             DB::table('permit_requests')->where('id', $id)->update([
                 'serial_number'       => $allocatedSerial,
                 'issued_at'           => $issuedAt,
@@ -369,7 +340,7 @@ class AssociationController
                 'permit_valid_until'  => $validUntil->toDateString(),
                 'status'              => 'issued',
                 'payment_status'      => 'settled',
-                'updated_at'          => $now
+                'updated_at'          => $issuedAt
             ]);
 
             DB::commit();
@@ -377,7 +348,7 @@ class AssociationController
                 'success' => true,
                 'message' => "سریال {$allocatedSerial} با موفقیت ثبت و پرونده صادر شد.",
                 'serial' => $allocatedSerial,
-                'valid_until' => $validUntil->toDateString(),
+                'valid_until' => \Morilog\Jalali\Jalalian::fromCarbon($validUntil)->format('Y/m/d'),
                 'remaining_days' => $validityDays
             ]);
 
@@ -402,28 +373,24 @@ class AssociationController
     public function transitPermits()
     {
         try {
-            // واکشی پرونده‌هایی که صادر شده و در حال تردد هستند
             $requests = DB::table('permit_requests')
                 ->where('status', 'issued')
                 ->orderBy('updated_at', 'desc')
                 ->paginate(10);
 
             foreach ($requests as $req) {
-                // واکشی مشخصات راننده
                 $req->driver = null;
                 if (isset($req->driver_id)) {
                     $req->driver = DB::table('drivers')->where('id', $req->driver_id)->first() 
                                 ?? DB::table('drivers')->where('national_code', $req->driver_id)->first();
                 }
 
-                // واکشی مشخصات ناوگان
                 $req->fleet = null;
                 if (isset($req->fleet_id)) {
                     $req->fleet = DB::table('fleets')->where('id', $req->fleet_id)->first() 
                                ?? DB::table('fleets')->where('smart_card_number', $req->fleet_id)->first();
                 }
 
-                // واکشی کشور مقصد برای نمایش در جدول
                 $destination = DB::table('permit_request_items')->where('permit_request_id', $req->id)->first();
                 $req->country_name = 'نامشخص';
                 if ($destination) {
@@ -446,7 +413,6 @@ class AssociationController
      */
     public function settleTransitPermit(Request $request, $id)
     {
-        // جهت هماهنگی، مستقیم ساختار جامع را صدا می‌زنیم تا دیتابیس مسدود نشود و تصویر لاشه هم در صورت وجود ثبت گردد
         return $this->updateRequestStatus($request, $id);
     }
 
@@ -456,28 +422,24 @@ class AssociationController
     public function archivePermits()
     {
         try {
-            // ✅ اصلاحیه طلایی: واکشی رکوردهایی که در هر یک از این وضعیت‌های نهایی هستند تا لیست هرگز خالی نماند
             $requests = DB::table('permit_requests')
                 ->whereIn('status', ['archived', 'collected', 'lost'])
                 ->orderBy('updated_at', 'desc')
                 ->paginate(10);
 
             foreach ($requests as $req) {
-                // 👤 واکشی مشخصات راننده
                 $req->driver = null;
                 if (isset($req->driver_id)) {
                     $req->driver = DB::table('drivers')->where('id', $req->driver_id)->first() 
                                 ?? DB::table('drivers')->where('national_code', $req->driver_id)->first();
                 }
 
-                // 🚛 واکشی مشخصات ناوگان
                 $req->fleet = null;
                 if (isset($req->fleet_id)) {
                     $req->fleet = DB::table('fleets')->where('id', $req->fleet_id)->first() 
                                ?? DB::table('fleets')->where('smart_card_number', $req->fleet_id)->first();
                 }
 
-                // 🌍 واکشی کشور مقصد
                 $destination = DB::table('permit_request_items')->where('permit_request_id', $req->id)->first();
                 $req->country_name = 'نامشخص';
                 if ($destination) {
@@ -506,30 +468,51 @@ class AssociationController
                 return abort(404, 'پرونده یافت نشد.');
             }
 
-            // واکشی مشخصات راننده و ناوگان
             $driver = DB::table('drivers')->where('id', $permit->driver_id)->orWhere('national_code', $permit->driver_id)->first();
             $fleet = DB::table('fleets')->where('id', $permit->fleet_id)->orWhere('smart_card_number', $permit->fleet_id)->first();
 
-            // پیدا کردن کشور مقصد از روی آیتم‌های پرونده
             $destination = DB::table('permit_request_items')->where('permit_request_id', $id)->first();
             
-            // پیدا کردن مشخصات کامل کشور
             $country = $destination ? DB::table('countries')->where('id', $destination->country_id)->first() : null;
 
-            // استفاده از ID عددی کشور برای نام‌گذاری فایل (طبق ساختار دیتابیس شما)
             $countryId = $country ? $country->id : 'default';
 
-            // چک کردن اینکه آیا فایل چاپ اختصاصی با این آیدی وجود دارد یا خیر؟
             if (view()->exists("association.driver.prints.{$countryId}")) {
                 return view("association.driver.prints.{$countryId}", compact('permit', 'driver', 'fleet', 'country'));
             }
 
-            // اگر فایل اختصاصی وجود نداشت، قالب عمومی را باز کن
             return view('association.driver.print_document', compact('permit', 'driver', 'fleet', 'country'));
             
         } catch (\Throwable $e) {
             Log::error('Print Permit Error: ' . $e->getMessage());
             return abort(500, 'خطا در لود صفحه چاپ: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * عودت پرونده به شرکت جهت اصلاح مدارک
+     */
+    public function returnToCompany(Request $request, $id)
+    {
+        $request->validate([
+            'reject_reason' => 'required|string|max:500'
+        ]);
+
+        try {
+            $permit = DB::table('permit_requests')->where('id', $id)->first();
+            if (!$permit || $permit->status !== 'pending') {
+                return response()->json(['success' => false, 'message' => 'پرونده معتبر یافت نشد.']);
+            }
+
+            DB::table('permit_requests')->where('id', $id)->update([
+                'status' => 'returned',
+                'reject_reason' => $request->reject_reason,
+                'updated_at' => now()
+            ]);
+
+            return response()->json(['success' => true, 'message' => 'پرونده جهت اصلاح مدارک به شرکت عودت داده شد.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
         }
     }
 }
