@@ -1,27 +1,27 @@
-﻿@extends('layouts.app')
+@extends('layouts.app')
 
 @section('header_title')
-    ظ…ط¯غŒط±غŒطھ ظ¾ط±ظˆط§ظ†ظ‡â€Œظ‡ط§ / <span class="text-slate-600 font-black">ظ„غŒط³طھ ط¯ط±ط®ظˆط§ط³طھâ€Œظ‡ط§غŒ ط¯ظˆط²ظˆظ„ظ‡</span>
+    مدیریت پروانه‌ها / <span class="text-slate-600 font-black">لیست درخواست‌های دوزوله</span>
 @endsection
 
 @section('content')
 <div class="max-w-7xl mx-auto">
     
-    {{-- ظ‡ط¯ط± ط³ط±ظ…ظ‡â€Œط§غŒ/ظ…ط´ع©غŒ ط´غŒع© --}}
+    {{-- هدر سرمه‌ای/مشکی شیک --}}
     <div class="bg-slate-950 rounded-3xl p-6 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-slate-800 shadow-lg relative overflow-hidden">
         <div class="absolute left-0 top-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none"></div>
         <div class="z-10">
-            <h1 class="text-xl font-black text-white">طھط§ط±غŒط®ع†ظ‡ ط¯ط±ط®ظˆط§ط³طھâ€Œظ‡ط§غŒ ط¯ظˆط²ظˆظ„ظ‡</h1>
-            <p class="text-xs text-slate-400 font-medium mt-1.5">ظ„غŒط³طھ طھظ…ط§ظ… ظ…ط¬ظˆط²ظ‡ط§غŒ ط«ط¨طھ ط´ط¯ظ‡ ط¨ظ‡ ظ‡ظ…ط±ط§ظ‡ ط¢ط®ط±غŒظ† ظˆط¶ط¹غŒطھ ط¨ط±ط±ط³غŒ ظˆ طھط®طµغŒطµ</p>
+            <h1 class="text-xl font-black text-white">تاریخچه درخواست‌های دوزوله</h1>
+            <p class="text-xs text-slate-400 font-medium mt-1.5">لیست تمام مجوزهای ثبت شده به همراه آخرین وضعیت بررسی و تخصیص</p>
         </div>
         
         <a href="{{ route('dozbalagh.create') }}" class="z-10 flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-900/20 transition shrink-0">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-            ط«ط¨طھ ط¯ط±ط®ظˆط§ط³طھ ط¬ط¯غŒط¯
+            ثبت درخواست جدید
         </a>
     </div>
 
-    {{-- ظ†ظ…ط§غŒط´ ظ¾غŒط§ظ… ظ…ظˆظپظ‚غŒطھ ط³غŒط³طھظ… --}}
+    {{-- نمایش پیام موفقیت سیستم --}}
     @if(session('success'))
         <div class="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-bold flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -29,22 +29,22 @@
         </div>
     @endif
 
-    {{-- ًںژ›ï¸ڈ ظ†ظˆط§ط± ظپغŒظ„طھط±ظ‡ط§غŒ ظˆط¶ط¹غŒطھ ظˆ ط¨ط§ع©ط³ ط¬ط³طھط¬ظˆغŒ غŒع©ظ¾ط§ط±ع†ظ‡ ط¬ط¯ظˆظ„ --}}
+    {{-- ًںژ›ï¸ڈ نوار فیلترهای وضعیت و باکس جستجوی یکپارچه جدول --}}
     <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-5 bg-white p-3 rounded-2xl border border-slate-200/60 shadow-sm">
         
-        {{-- ط¯ع©ظ…ظ‡â€Œظ‡ط§غŒ ظپغŒظ„طھط± ظˆط¶ط¹غŒطھ ط¨ظ‡ طھط±طھغŒط¨ ط¯ط±ط®ظˆط§ط³طھغŒ ط´ظ…ط§ --}}
+        {{-- دکمه‌های فیلتر وضعیت به ترتیب درخواستی شما --}}
         <div class="flex flex-wrap gap-1.5 text-xs font-bold">
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => ''])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ !request('status') ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' }}">
-                ظ‡ظ…ظ‡ ط¯ط±ط®ظˆط§ط³طھâ€Œظ‡ط§
+                همه درخواست‌ها
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'pending'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'pending' ? 'bg-blue-600 text-white shadow-sm' : 'bg-blue-50/60 text-blue-600 hover:bg-blue-50' }}">
-                âڈ³ ط¯ط± ط­ط§ظ„ ط¨ط±ط±ط³غŒ
+                âڈ³ در حال بررسی
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'approved'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'approved' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-emerald-50/60 text-emerald-600 hover:bg-emerald-50' }}">
-                âœ… طھط§غŒغŒط¯ ط´ط¯ظ‡
+                âœ… تایید شده
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'issued'])) }}"
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'issued' ? 'bg-sky-600 text-white shadow-sm' : 'bg-sky-50/60 text-sky-600 hover:bg-sky-50' }}">
@@ -52,7 +52,7 @@
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'rejected'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'rejected' ? 'bg-rose-600 text-white shadow-sm' : 'bg-rose-50/60 text-rose-600 hover:bg-rose-50' }}">
-                â‌Œ ط±ط¯ ط´ط¯ظ‡
+                â‌Œ رد شده
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'returned'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'returned' ? 'bg-amber-600 text-white shadow-sm' : 'bg-amber-50/60 text-amber-700 hover:bg-amber-50' }}">
@@ -68,21 +68,21 @@
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'renewal'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'renewal' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-indigo-50/60 text-indigo-600 hover:bg-indigo-50' }}">
-                ًں”„ طھظ…ط¯غŒط¯ظ‡ط§
+                ًں”„ تمدیدها
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'lost'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'lost' ? 'bg-slate-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
-                âڑ ï¸ڈ ظ…ظپظ‚ظˆط¯غŒ
+                âڑ ï¸ڈ مفقودی
             </a>
         </div>
 
-        {{-- ع©ط§ط¯ط± ط¬ط³طھط¬ظˆغŒ ظ…طھظ†غŒ ظ…طھطµظ„ ط¨ظ‡ ظپغŒظ„طھط± ظˆط¶ط¹غŒطھ --}}
+        {{-- کادر جستجوی متنی متصل به فیلتر وضعیت --}}
         <form action="{{ route('dozbalagh.index') }}" method="GET" class="relative w-full lg:w-72">
             @if(request('status'))
                 <input type="hidden" name="status" value="{{ request('status') }}">
             @endif
             <span class="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none text-base">ًں”چ</span>
-            <input type="text" name="search" id="tableSearchInput" value="{{ request('search') }}" placeholder="ط¬ط³طھط¬ظˆ ط¯ط± ط§غŒظ† ظˆط¶ط¹غŒطھ..." class="w-full pr-10 pl-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+            <input type="text" name="search" id="tableSearchInput" value="{{ request('search') }}" placeholder="جستجو در این وضعیت..." class="w-full pr-10 pl-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
             @if(request('search'))
                 <a href="{{ route('dozbalagh.index', request()->except('search')) }}" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-rose-500 transition-colors p-1 rounded-full hover:bg-slate-200">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -91,51 +91,51 @@
         </form>
     </div>
 
-    {{-- ط¨ط§ع©ط³ ط§طµظ„غŒ ط¬ط¯ظˆظ„ ط¯ط§ط¯ظ‡â€Œظ‡ط§ --}}
+    {{-- باکس اصلی جدول داده‌ها --}}
     <div class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-right border-collapse">
                 <thead>
                     <tr class="bg-slate-50 border-b border-slate-200 text-slate-600 text-xs font-bold whitespace-nowrap">
-                        <th class="p-4">ع©ط¯ ط±ظ‡ع¯غŒط±غŒ</th>
-                        <th class="p-4">ط±ط§ظ†ظ†ط¯ظ‡ ظ…طھظ‚ط§ط¶غŒ</th>
-                        <th class="p-4 text-center">ظ†ط§ظˆع¯ط§ظ† / ظ¾ظ„ط§ع©</th>
-                        <th class="p-4">ظ…ط¬ظ…ظˆط¹ ظ…ط¨ظ„ط؛ (ط±غŒط§ظ„)</th>
-                        <th class="p-4">ظ†ظˆط¹ / ظˆط¶ط¹غŒطھ</th>
-                        <th class="p-4 text-center">ط¹ظ…ظ„غŒط§طھ</th>
+                        <th class="p-4">کد رهگیری</th>
+                        <th class="p-4">راننده متقاضی</th>
+                        <th class="p-4 text-center">ناوگان / پلاک</th>
+                        <th class="p-4">مجموع مبلغ (ریال)</th>
+                        <th class="p-4">نوع / وضعیت</th>
+                        <th class="p-4 text-center">عملیات</th>
                     </tr>
                 </thead>
                 <tbody class="text-slate-700 text-sm divide-y divide-slate-100">
                     @forelse($requests as $item)
                         @php
                             $requestType = $item->request_type ?: 'new';
-                            $requestTypeLabel = $requestType === 'renewal' ? 'ًں”„ طھظ…ط¯غŒط¯' : 'ًں†• ط¯ط±ط®ظˆط§ط³طھ ط¬ط¯غŒط¯';
+                            $requestTypeLabel = $requestType === 'renewal' ? 'ًں”„ تمدید' : 'ًں†• درخواست جدید';
                             $requestTypeClass = $requestType === 'renewal'
                                 ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
                                 : 'bg-slate-50 text-slate-700 border-slate-200';
                             $statusLabels = [
-                                'pending' => ['âڈ³ ط¯ط± ط§ظ†طھط¸ط§ط± ط¨ط±ط±ط³غŒ ط§ظ†ط¬ظ…ظ†', 'bg-amber-50 text-amber-700 border-amber-100'],
-                                'approved' => ['âœ… طھط§غŒغŒط¯ ط§ظˆظ„غŒظ‡ / ط¢ظ…ط§ط¯ظ‡ طµط¯ظˆط±', 'bg-emerald-50 text-emerald-700 border-emerald-100'],
-                                'issued' => ['ًں“„ طµط§ط¯ط± ط´ط¯ظ‡ / ظ…ط¹طھط¨ط±', 'bg-sky-50 text-sky-700 border-sky-100'],
-                                'rejected' => ['â‌Œ ط±ط¯ ط´ط¯ظ‡', 'bg-rose-50 text-rose-700 border-rose-100'],
-                                'returned' => ['ًں› ï¸ڈ ظ†غŒط§ط² ط¨ظ‡ ط§طµظ„ط§ط­', 'bg-orange-50 text-orange-700 border-orange-200'],
-                                'collected' => ['ًںڑڑ ظ„ط§ط´ظ‡ طھط­ظˆغŒظ„ ط´ط¯', 'bg-slate-100 text-slate-700 border-slate-200'],
-                                'archived' => ['ًں—‚ï¸ڈ ط¨ط§غŒع¯ط§ظ†غŒ ط´ط¯', 'bg-slate-100 text-slate-700 border-slate-200'],
-                                'lost' => ['âڑ ï¸ڈ ظ…ظپظ‚ظˆط¯غŒ', 'bg-zinc-100 text-zinc-700 border-zinc-200'],
+                                'pending' => ['âڈ³ در انتظار بررسی انجمن', 'bg-amber-50 text-amber-700 border-amber-100'],
+                                'approved' => ['âœ… تایید اولیه / آماده صدور', 'bg-emerald-50 text-emerald-700 border-emerald-100'],
+                                'issued' => ['ًں“„ صادر شده / معتبر', 'bg-sky-50 text-sky-700 border-sky-100'],
+                                'rejected' => ['â‌Œ رد شده', 'bg-rose-50 text-rose-700 border-rose-100'],
+                                'returned' => ['ًں› ï¸ڈ نیاز به اصلاح', 'bg-orange-50 text-orange-700 border-orange-200'],
+                                'collected' => ['ًںڑڑ لاشه تحویل شد', 'bg-slate-100 text-slate-700 border-slate-200'],
+                                'archived' => ['ًں—‚ï¸ڈ بایگانی شد', 'bg-slate-100 text-slate-700 border-slate-200'],
+                                'lost' => ['âڑ ï¸ڈ مفقودی', 'bg-zinc-100 text-zinc-700 border-zinc-200'],
                             ];
-                            [$statusText, $statusClass] = $statusLabels[$item->status] ?? ['ظ†ط§ظ…ط´ط®طµ: ' . $item->status, 'bg-slate-100 text-slate-700 border-slate-200'];
+                            [$statusText, $statusClass] = $statusLabels[$item->status] ?? ['نامشخص: ' . $item->status, 'bg-slate-100 text-slate-700 border-slate-200'];
                             $associationNote = $item->reject_reason ?: null;
                         @endphp
                         <tr class="hover:bg-slate-50/70 transition-colors">
                             <td class="p-4 font-mono font-bold text-slate-900">
-                                <span onclick="copyToClipboard('{{ $item->d_code }}', this)" class="cursor-pointer bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-indigo-200 transition-all inline-flex items-center gap-1.5 group" title="ع©ظ„غŒع© ط¬ظ‡طھ ع©ظ¾غŒ ع©ط¯ط±ظ‡ع¯غŒط±غŒ">
+                                <span onclick="copyToClipboard('{{ $item->d_code }}', this)" class="cursor-pointer bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-indigo-200 transition-all inline-flex items-center gap-1.5 group" title="کلیک جهت کپی کدرهگیری">
                                     {{ $item->d_code }}
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5" /></svg>
                                 </span>
                             </td>
                             
                             <td class="p-4 font-semibold whitespace-nowrap">
-                                {{ $item->driver ? trim(($item->driver->first_name_fa ?? '') . ' ' . ($item->driver->last_name_fa ?? '')) : 'ظ†ط§ظ…ط´ط®طµ' }}
+                                {{ $item->driver ? trim(($item->driver->first_name_fa ?? '') . ' ' . ($item->driver->last_name_fa ?? '')) : 'نامشخص' }}
                                 <div class="text-[10px] text-slate-400 font-mono mt-0.5">{{ $item->driver->national_code ?? '' }}</div>
                             </td>
                             
@@ -160,13 +160,13 @@
                                             <span>{{ $plateParts[2] }}</span>
                                         </div>
                                         <div class="border-l border-slate-900 flex flex-col items-center justify-center bg-[#fab800] text-slate-950 font-bold text-center" style="width: 32px; min-width: 32px; line-height: 1;">
-                                            <span class="text-[7px]">ط§غŒط±ط§ظ†</span>
+                                            <span class="text-[7px]">ایران</span>
                                             <div class="w-full border-t border-slate-900 my-px"></div>
                                             <span class="text-[10px] font-mono">{{ $plateParts[3] }}</span>
                                         </div>
                                     </div>
                                 @else
-                                    <span class="bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg text-xs font-bold">{{ $rawPlate ?: 'ط¨ط¯ظˆظ† ظ¾ظ„ط§ع©' }}</span>
+                                    <span class="bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg text-xs font-bold">{{ $rawPlate ?: 'بدون پلاک' }}</span>
                                 @endif
                             </td>
                             
@@ -182,7 +182,7 @@
                                         </span>
                                     @endif
                                     @if($requestType === 'renewal' && !empty($item->previous_serial_number))
-                                        <span class="text-[10px] font-mono text-indigo-600">ط´ظ…ط§ط±ظ‡ ظ‚ط¨ظ„غŒ: {{ $item->previous_serial_number }}</span>
+                                        <span class="text-[10px] font-mono text-indigo-600">شماره قبلی: {{ $item->previous_serial_number }}</span>
                                     @endif
                                 </div>
                             </td>
@@ -212,14 +212,14 @@
                             </td>
                         </tr>
 
-                        {{-- ظ…ظˆط¯ط§ظ„ ط´غŒط´ظ‡â€Œط§غŒ ط¬ط²ط¦غŒط§طھ ع©ط§ظ…ظ„ ط³ظپط± --}}
+                        {{-- مودال شیشه‌ای جزئیات کامل سفر --}}
                         <div id="modal-{{ $item->id }}" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 sm:p-6 opacity-0 transition-opacity duration-300">
                             <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-md" onclick="closeModal('modal-{{ $item->id }}')"></div>
                             
                             <div class="relative w-full max-w-3xl bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden transform scale-95 transition-transform duration-300" id="modal-content-{{ $item->id }}">
                                 <div class="bg-slate-50/80 border-b border-slate-200/60 p-5 flex justify-between items-center">
                                     <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
-                                        <span class="bg-indigo-100 p-1.5 rounded-lg text-sm">ًں“‹</span> ط¬ط²ط¦غŒط§طھ ع©ط§ظ…ظ„ ط³ظپط± ظ¾ط±ظˆظ†ط¯ظ‡ {{ $item->d_code }}
+                                        <span class="bg-indigo-100 p-1.5 rounded-lg text-sm">ًں“‹</span> جزئیات کامل سفر پرونده {{ $item->d_code }}
                                     </h3>
                                     <button onclick="closeModal('modal-{{ $item->id }}')" class="p-2 bg-white rounded-full hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors shadow-sm">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -233,18 +233,18 @@
                                                 <h4 class="font-black text-slate-800 text-base">
                                                     {{ $item->driver ? trim(($item->driver->first_name_fa ?? '') . ' ' . ($item->driver->last_name_fa ?? '')) : '---' }}
                                                 </h4>
-                                                <p class="text-xs font-bold text-slate-500 mt-1">(ع©ط¯ ظ…ظ„غŒ: {{ $item->driver->national_code ?? '---' }})</p>
+                                                <p class="text-xs font-bold text-slate-500 mt-1">(کد ملی: {{ $item->driver->national_code ?? '---' }})</p>
                                             </div>
                                             <div class="border-t border-slate-200/60 pt-3 mt-4 flex flex-col gap-1 text-xs text-slate-600 font-bold">
-                                                <p>ًں‘¤ ظ†ط§ظ… ظ„ط§طھغŒظ†: <span class="font-mono uppercase tracking-wider text-slate-700">{{ $item->driver ? trim(($item->driver->first_name_en ?? '') . ' ' . ($item->driver->last_name_en ?? '')) : '---' }}</span></p>
-                                                <p>ًںھھ ط´ظ…ط§ط±ظ‡ ع¯ط°ط±ظ†ط§ظ…ظ‡: <span class="text-slate-700 font-mono">{{ $item->driver->passport_number ?? '---' }}</span></p>
+                                                <p>ًں‘¤ نام لاتین: <span class="font-mono uppercase tracking-wider text-slate-700">{{ $item->driver ? trim(($item->driver->first_name_en ?? '') . ' ' . ($item->driver->last_name_en ?? '')) : '---' }}</span></p>
+                                                <p>ًںھھ شماره گذرنامه: <span class="text-slate-700 font-mono">{{ $item->driver->passport_number ?? '---' }}</span></p>
                                             </div>
                                         </div>
 
                                         <div class="border border-slate-200/60 bg-slate-50/50 rounded-2xl p-4 flex flex-col justify-between min-h-[140px]">
                                             <div class="flex justify-between items-start text-xs text-slate-600 font-bold">
-                                                <p>ًںڑ› ظ†ظˆط¹: <span class="text-slate-800">{{ optional($item->fleet)->truck_type ?? '---' }}</span></p>
-                                                <p>ًں’³ ع©ط§ط±طھ ظ‡ظˆط´ظ…ظ†ط¯: <span class="text-slate-700 font-mono">{{ optional($item->fleet)->smart_card_number ?? '---' }}</span></p>
+                                                <p>ًںڑ› نوع: <span class="text-slate-800">{{ optional($item->fleet)->truck_type ?? '---' }}</span></p>
+                                                <p>ًں’³ کارت هوشمند: <span class="text-slate-700 font-mono">{{ optional($item->fleet)->smart_card_number ?? '---' }}</span></p>
                                             </div>
 
                                             <div class="flex justify-center my-2">
@@ -264,7 +264,7 @@
                                                             <span>{{ $plateParts[2] }}</span>
                                                         </div>
                                                         <div class="border-l border-slate-900 flex flex-col items-center justify-center bg-[#fab800] text-slate-950 font-bold text-center" style="width: 44px; min-width: 44px; line-height: 1.1;">
-                                                            <span class="text-[9px] text-slate-800">ط§غŒط±ط§ظ†</span>
+                                                            <span class="text-[9px] text-slate-800">ایران</span>
                                                             <div class="w-full border-t border-slate-900 my-0.5"></div>
                                                             <span class="text-sm font-mono tracking-tight">{{ $plateParts[3] }}</span>
                                                         </div>
@@ -275,17 +275,17 @@
                                             </div>
 
                                             <div class="flex justify-between border-t border-slate-200/60 pt-2 text-[10px] font-bold text-slate-500">
-                                                <span>ط§ط³ط¨: <strong class="font-mono text-indigo-600">{{ optional($item->fleet)->transit_horse ?? '---' }}</strong></span>
-                                                <span>غŒط¯ع©: <strong class="font-mono text-indigo-600">{{ optional($item->fleet)->transit_trailer ?? '---' }}</strong></span>
+                                                <span>اسب: <strong class="font-mono text-indigo-600">{{ optional($item->fleet)->transit_horse ?? '---' }}</strong></span>
+                                                <span>یدک: <strong class="font-mono text-indigo-600">{{ optional($item->fleet)->transit_trailer ?? '---' }}</strong></span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    {{-- ظ…ظ‚ط§طµط¯ ط³ظپط± ظˆ ظپط§غŒظ„â€Œظ‡ط§غŒ ظ¾غŒظˆط³طھ ط¨ط§ط±ع¯ط°ط§ط±غŒâ€Œط´ط¯ظ‡ --}}
+                                    {{-- مقاصد سفر و فایل‌های پیوست بارگذاری‌شده --}}
                                     <div class="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
                                         <p class="text-xs text-slate-700 font-black mb-3 flex items-center gap-1.5">
                                             <span class="w-1.5 h-3 bg-emerald-500 rounded-full"></span> 
-                                            ع©ط´ظˆط±ظ‡ط§غŒ ظ…ظ‚طµط¯ ط³ظپط± ظˆ ظ…ط¯ط§ط±ع© ظ¾غŒظˆط³طھغŒ
+                                            کشورهای مقصد سفر و مدارک پیوستی
                                         </p>
                                         
                                         <div class="space-y-3">
@@ -301,50 +301,50 @@
                                                 @endphp
                                                 <div class="flex justify-between items-center text-xs bg-slate-50 border border-slate-100 p-3 rounded-xl shadow-inner font-bold">
                                                     <span class="text-slate-700 flex items-center gap-1">
-                                                        ًں“چ {{ $countryInfo->name ?? 'ع©ط´ظˆط± ظ…ظ‚طµط¯' }} 
+                                                        ًں“چ {{ $countryInfo->name ?? 'کشور مقصد' }} 
                                                         <span class="text-slate-400 text-[10px]">[{{ str_replace('_', '-', $subItem->permit_type) }}]</span>
                                                     </span>
                                                     
                                                     @if(!empty($subItem->document_path) || !empty($subItem->document))
                                                         <a href="{{ asset('storage/' . ($subItem->document_path ?? $subItem->document)) }}" target="_blank" class="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg border border-emerald-200 transition-colors">
-                                                            ًں“ژ ظ…ط´ط§ظ‡ط¯ظ‡ ظ…ط¯ط±ع© ظ¾غŒظˆط³طھ
+                                                            ًں“ژ مشاهده مدرک پیوست
                                                         </a>
                                                     @else
-                                                        <span class="text-slate-400 font-medium text-[11px]">ط¨ط¯ظˆظ† ظپط§غŒظ„ ظ¾غŒظˆط³طھ</span>
+                                                        <span class="text-slate-400 font-medium text-[11px]">بدون فایل پیوست</span>
                                                     @endif
                                                 </div>
                                             @empty
-                                                <p class="text-center text-xs text-slate-400 py-2">ظ‡غŒع† ظ…ط³غŒط± ط³ظپط±غŒ ط¨ط±ط§غŒ ط§غŒظ† ظ¾ط±ظˆظ†ط¯ظ‡ ط«ط¨طھ ظ†ط´ط¯ظ‡ ط§ط³طھ.</p>
+                                                <p class="text-center text-xs text-slate-400 py-2">هیچ مسیر سفری برای این پرونده ثبت نشده است.</p>
                                             @endforelse
                                         </div>
                                     </div>
 
-                                    {{-- ط¨ط§ع©ط³ ظˆط¶ط¹غŒطھ ظ…ط§ظ„غŒ ظˆ ط²ظ…ط§ظ† ط¯ط±ط®ظˆط§ط³طھ --}}
+                                    {{-- باکس وضعیت مالی و زمان درخواست --}}
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-                                            <span class="text-xs text-slate-400 font-bold block mb-1">ظˆط¶ط¹غŒطھ ظ¾ط±ط¯ط§ط®طھ طھط±ط§ع©ظ†ط´</span>
+                                            <span class="text-xs text-slate-400 font-bold block mb-1">وضعیت پرداخت تراکنش</span>
                                             <div class="flex justify-between items-center mt-2">
-                                                <span class="text-base font-black text-slate-800 font-mono">{{ number_format($item->total_amount) }} ط±غŒط§ظ„</span>
+                                                <span class="text-base font-black text-slate-800 font-mono">{{ number_format($item->total_amount) }} ریال</span>
                                                 @if($item->payment_status === 'reserved')
-                                                    <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-bold">ظ…ط¨ظ„ط؛ ط¨ظ„ظˆع©ظ‡ ط´ط¯ظ‡</span>
+                                                    <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-bold">مبلغ بلوکه شده</span>
                                                 @else
-                                                    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-bold">طھط³ظˆغŒظ‡ ظ†ظ‡ط§غŒغŒ</span>
+                                                    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-bold">تسویه نهایی</span>
                                                 @endif
                                             </div>
                                         </div>
                                         <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-                                            <span class="text-xs text-slate-400 font-bold block mb-1">ط²ظ…ط§ظ† ط¯ظ‚غŒظ‚ ط«ط¨طھ ط¯ط±ط®ظˆط§ط³طھ</span>
+                                            <span class="text-xs text-slate-400 font-bold block mb-1">زمان دقیق ثبت درخواست</span>
                                             <div class="text-sm font-bold text-slate-700 mt-2">
-                                                ًں“† طھط§ط±غŒط®: {{ \Hekmatinasser\Verta\Verta::instance($item->created_at)->format('Y/m/d') }}
+                                                ًں“† تاریخ: {{ \Hekmatinasser\Verta\Verta::instance($item->created_at)->format('Y/m/d') }}
                                                 <span class="text-slate-400 px-1">|</span>
-                                                âڈ° ط³ط§ط¹طھ: {{ \Hekmatinasser\Verta\Verta::instance($item->created_at)->format('H:i') }}
+                                                âڈ° ساعت: {{ \Hekmatinasser\Verta\Verta::instance($item->created_at)->format('H:i') }}
                                             </div>
                                         </div>
                                     </div>
 
                                     @if($item->company_note)
                                         <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 font-medium leading-relaxed">
-                                            ًں“Œ <strong>طھظˆط¶غŒط­ط§طھ ظ¾ط±ظˆظ†ط¯ظ‡:</strong> {{ $item->company_note }}
+                                            ًں“Œ <strong>توضیحات پرونده:</strong> {{ $item->company_note }}
                                         </div>
                                     @endif
                                     @if(in_array($item->status, ['rejected', 'returned']) && $associationNote)
@@ -368,7 +368,7 @@
                     @empty
                         <tr>
                             <td colspan="6" class="text-center p-12 text-slate-400 font-medium">
-                                ظ‡غŒع† ط¯ط±ط®ظˆط§ط³طھ ط¯ظˆط²ظˆظ„ظ‡â€Œط§غŒ ط¨ط§ ط§غŒظ† ظ…ط´ط®طµط§طھ غŒط§ظپطھ ظ†ط´ط¯.
+                                هیچ درخواست دوزوله‌ای با این مشخصات یافت نشد.
                             </td>
                         </tr>
                     @endforelse
@@ -376,7 +376,7 @@
             </table>
         </div>
 
-        {{-- ظ¾ط¬غŒظ†غŒط´ظ† ظ‡ط± غ±غ° طھط§ ط¯ط±ط®ظˆط§ط³طھ ظپغŒع©ط³ ط¨ط§ ظپغŒظ„طھط±ظ‡ط§ --}}
+        {{-- پجینیشن هر ۱۰ تا درخواست فیکس با فیلترها --}}
         @if($requests->hasPages())
             <div class="p-4 bg-slate-50 border-t border-slate-100">
                 {{ $requests->links() }}
@@ -385,9 +385,9 @@
     </div>
 </div>
 
-{{-- طھظˆط³طھ ط§ط·ظ„ط§ط¹â€Œط±ط³ط§ظ†غŒ ع©ظ¾غŒ ع©ط¯ ط±ظ‡ع¯غŒط±غŒ --}}
+{{-- توست اطلاع‌رسانی کپی کد رهگیری --}}
 <div id="copy-toast" class="fixed top-5 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-2xl transition-all duration-300 opacity-0 pointer-events-none z-[200] flex items-center gap-2">
-    <span>ًں“‹</span> ع©ط¯ ط±ظ‡ع¯غŒط±غŒ ط¨ط§ ظ…ظˆظپظ‚غŒطھ ع©ظ¾غŒ ط´ط¯.
+    <span>ًں“‹</span> کد رهگیری با موفقیت کپی شد.
 </div>
 
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
@@ -407,7 +407,7 @@
                 element.className = originalBg;
             }, 2000);
         }).catch(function(err) {
-            console.error('ط®ط·ط§ ط¯ط± ع©ظ¾غŒ: ', err);
+            console.error('خطا در کپی: ', err);
         });
     }
 
