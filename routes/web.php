@@ -13,17 +13,6 @@ use App\Http\Controllers\Admin\{
     FinancialController
 };
 use App\Http\Controllers\Association\AssociationController;
-// 🟢 ایمپورت کنترلرهای بخش شرکت برای سازگاری کامل با لاراول ۱۱
-use App\Http\Controllers\Company\{
-    ProfileController,
-    DozbalaghController,
-    DashboardController,
-    DriverController as CompanyDriverController,
-    FleetController as CompanyFleetController,
-    ReportController,
-    WalletController
-};
-
 // ==========================================
 // روت اصلی
 // ==========================================
@@ -126,59 +115,6 @@ Route::middleware(['auth'])->group(function () {
     
     // روت نمایش صفحه چاپ واقعی برگه دوزبلاغ
     Route::get('/web/association/request/print/{id}', [AssociationController::class, 'printPermit'])->name('association.permit.print');
-});
-
-// ==========================================
-// 🏢 روت‌های بخش شرکت
-// ==========================================
-Route::middleware(['auth'])->group(function () {
-    
-    // 🟢 روت‌های آزاد شرکت
-    Route::get('/web/company/profile', [ProfileController::class, 'edit'])->name('company.profile.edit');
-    Route::put('/web/company/profile', [ProfileController::class, 'update'])->name('company.profile.update');
-    Route::put('/web/company/password', [ProfileController::class, 'updatePassword'])->name('company.password.update');
-    
-    // ✅ روت‌های جدید ویزاردی دوزبلاغ
-    Route::get('/dozbalagh', [DozbalaghController::class, 'index'])->name('dozbalagh.index'); 
-    Route::get('/dozbalagh/create', [DozbalaghController::class, 'create'])->name('dozbalagh.create');
-    Route::get('/dozbalagh/renewable-list', [DozbalaghController::class, 'renewableList'])->name('dozbalagh.renewable_list');
-    Route::post('/dozbalagh/store', [DozbalaghController::class, 'store'])->name('dozbalagh.store');
-    
-    // 🟢 روت‌های ویرایش پرونده‌های برگشت خورده
-    Route::get('/dozbalagh/{id}/edit', [DozbalaghController::class, 'edit'])->name('dozbalagh.edit');
-    Route::put('/dozbalagh/{id}/update', [DozbalaghController::class, 'update'])->name('dozbalagh.update');
-
-    Route::post('/dozbalagh/check-fleet', [DozbalaghController::class, 'checkFleetStatus'])->name('dozbalagh.check_fleet');
-
-    // 🔴 اعمال میدل‌ویر قفل‌کننده روی کل سیستم شرکت
-    Route::middleware([\App\Http\Middleware\CheckCompanyApproval::class])->group(function () {
-        
-        // داشبورد شرکت
-        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-        
-        // مدیریت رانندگان شرکت
-        Route::get('/web/company/driver/index', [CompanyDriverController::class, 'index'])->name('web.company.driver.index');
-        Route::post('/web/company/driver/inquire', [CompanyDriverController::class, 'inquireApi'])->name('web.company.driver.inquire');
-        Route::post('/web/company/driver/store', [CompanyDriverController::class, 'store'])->name('web.company.driver.store');
-        Route::post('/web/company/driver/delete', [CompanyDriverController::class, 'destroy'])->name('web.company.driver.delete');
-        
-        // مدیریت ناوگان شرکت
-        Route::get('/web/company/fleet/index', [CompanyFleetController::class, 'index'])->name('web.company.fleet.index');
-        Route::post('/web/company/fleet/inquire', [CompanyFleetController::class, 'inquireApi'])->name('web.company.fleet.inquire');
-        Route::post('/web/company/fleet/store', [CompanyFleetController::class, 'store'])->name('web.company.fleet.store');
-        Route::post('/web/company/fleet/release', [CompanyFleetController::class, 'release'])->name('web.company.fleet.release');
-        
-        // تمدید و گزارشات
-        Route::post('/web/dozbalagh/{id}/renew', [DozbalaghController::class, 'renew'])->name('web.dozbalagh.renew');
-        Route::get('/web/company/report/index', [ReportController::class, 'index'])->name('report.index');
-
-        // 💰 روت‌های جدید کیف پول شرکت
-        Route::get('/wallet', [WalletController::class, 'index'])->name('company.wallet.index');
-        Route::post('/wallet/charge', [WalletController::class, 'charge'])->name('company.wallet.charge');
-        Route::get('/wallet/verify', [WalletController::class, 'verify'])->name('company.wallet.verify');
-        Route::post('/wallet/export', [WalletController::class, 'exportExcel'])->name('company.wallet.export');
-        
-    });
 });
 
 // ==========================================

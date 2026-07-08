@@ -11,6 +11,10 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php', // 👈 این خط با موفقیت اضافه شد تا فایل روت‌های API لود شود
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        then: function () {
+            \Illuminate\Support\Facades\Route::middleware('web')
+                ->group(__DIR__.'/../routes/company.php');
+        },
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([

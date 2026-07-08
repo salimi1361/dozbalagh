@@ -25,7 +25,21 @@ class PermitRequest extends Model
         'waybill_file',
         'status',
         'reject_reason',
+        'company_note',
         'description',
+        'company_return_image',
+        'courier_name',
+        'courier_mobile',
+        'courier_national_code',
+        'courier_vehicle_plate',
+        'courier_delivery_code',
+        'courier_code_sent_at',
+        'company_return_submitted_at',
+        'courier_received_at',
+        'courier_received_by_user_id',
+        'lost_reported_at',
+        'lost_reason',
+        'closed_at',
     ];
 
     // ارتباط با شرکت ثبت‌کننده

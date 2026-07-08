@@ -61,6 +61,8 @@ class DashboardController extends Controller
                 'permit_requests.d_code',
                 'permit_requests.status',
                 'permit_requests.request_type',
+                'permit_requests.reject_reason',
+                'permit_requests.company_note',
                 'permit_requests.total_amount',
                 'permit_requests.created_at',
                 'drivers.first_name_fa',
@@ -77,7 +79,7 @@ class DashboardController extends Controller
                 : '---';
         }
 
-        return view('dashboard', compact(
+        return view('company.dashboard', compact(
             'company', 
             'user', 
             'walletBalance', 

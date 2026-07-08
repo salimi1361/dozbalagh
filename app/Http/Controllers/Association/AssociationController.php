@@ -152,6 +152,7 @@ class AssociationController
         $request->validate([
             'status' => 'required|string',
             'reject_reason' => 'nullable|string',
+            'courier_code' => 'nullable|string',
             'image' => 'nullable|image|max:5120'
         ]);
 
@@ -206,6 +207,27 @@ class AssociationController
                 $updateData['approved_at'] = $now;
             }
             elseif ($status === 'collected' || $status === 'lost' || $status === 'archived') {
+                if ($status === 'collected') {
+                    if (empty($permit->company_return_image) || empty($permit->courier_delivery_code)) {
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'شرکت هنوز لاشه و مشخصات پیک را برای این پرونده ثبت نکرده است.'
+                        ], 422);
+                    }
+
+                    if (trim((string) $request->input('courier_code')) !== trim((string) $permit->courier_delivery_code)) {
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'کد تحویل پیک صحیح نیست.'
+                        ], 422);
+                    }
+
+                    $updateData['courier_received_at'] = $now;
+                    $updateData['courier_received_by_user_id'] = $userId;
+                    $updateData['collected_image'] = $permit->company_return_image;
+                }
                 
                 if ($request->hasFile('image')) {
                     $file = $request->file('image');

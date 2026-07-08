@@ -1,0 +1,50 @@
+<?php
+
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Company\{
+    ProfileController,
+    DozbalaghController,
+    DashboardController,
+    DriverController as CompanyDriverController,
+    FleetController as CompanyFleetController,
+    ReportController,
+    WalletController
+};
+
+Route::middleware(['auth'])->group(function () {
+    Route::get('/web/company/profile', [ProfileController::class, 'edit'])->name('company.profile.edit');
+    Route::put('/web/company/profile', [ProfileController::class, 'update'])->name('company.profile.update');
+    Route::put('/web/company/password', [ProfileController::class, 'updatePassword'])->name('company.password.update');
+
+    Route::get('/dozbalagh', [DozbalaghController::class, 'index'])->name('dozbalagh.index');
+    Route::get('/dozbalagh/create', [DozbalaghController::class, 'create'])->name('dozbalagh.create');
+    Route::get('/dozbalagh/renewable-list', [DozbalaghController::class, 'renewableList'])->name('dozbalagh.renewable_list');
+    Route::post('/dozbalagh/store', [DozbalaghController::class, 'store'])->name('dozbalagh.store');
+    Route::get('/dozbalagh/{id}/edit', [DozbalaghController::class, 'edit'])->name('dozbalagh.edit');
+    Route::put('/dozbalagh/{id}/update', [DozbalaghController::class, 'update'])->name('dozbalagh.update');
+    Route::post('/dozbalagh/check-fleet', [DozbalaghController::class, 'checkFleetStatus'])->name('dozbalagh.check_fleet');
+
+    Route::middleware([\App\Http\Middleware\CheckCompanyApproval::class])->group(function () {
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('/web/company/driver/index', [CompanyDriverController::class, 'index'])->name('web.company.driver.index');
+        Route::post('/web/company/driver/inquire', [CompanyDriverController::class, 'inquireApi'])->name('web.company.driver.inquire');
+        Route::post('/web/company/driver/store', [CompanyDriverController::class, 'store'])->name('web.company.driver.store');
+        Route::post('/web/company/driver/delete', [CompanyDriverController::class, 'destroy'])->name('web.company.driver.delete');
+
+        Route::get('/web/company/fleet/index', [CompanyFleetController::class, 'index'])->name('web.company.fleet.index');
+        Route::post('/web/company/fleet/inquire', [CompanyFleetController::class, 'inquireApi'])->name('web.company.fleet.inquire');
+        Route::post('/web/company/fleet/store', [CompanyFleetController::class, 'store'])->name('web.company.fleet.store');
+        Route::post('/web/company/fleet/release', [CompanyFleetController::class, 'release'])->name('web.company.fleet.release');
+
+        Route::post('/web/dozbalagh/{id}/renew', [DozbalaghController::class, 'renew'])->name('web.dozbalagh.renew');
+        Route::post('/web/company/dozbalagh/{id}/return-lash', [DozbalaghController::class, 'submitReturnLash'])->name('company.dozbalagh.return_lash');
+        Route::post('/web/company/dozbalagh/{id}/report-lost', [DozbalaghController::class, 'reportLost'])->name('company.dozbalagh.report_lost');
+        Route::get('/web/company/report/index', [ReportController::class, 'index'])->name('report.index');
+
+        Route::get('/wallet', [WalletController::class, 'index'])->name('company.wallet.index');
+        Route::post('/wallet/charge', [WalletController::class, 'charge'])->name('company.wallet.charge');
+        Route::get('/wallet/verify', [WalletController::class, 'verify'])->name('company.wallet.verify');
+        Route::post('/wallet/export', [WalletController::class, 'exportExcel'])->name('company.wallet.export');
+    });
+});

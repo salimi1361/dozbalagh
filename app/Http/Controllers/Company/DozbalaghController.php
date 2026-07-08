@@ -800,4 +800,108 @@ public function store(Request $request)
             return back()->withErrors(['error' => 'خطا در ثبت اصلاحیه: ' . $e->getMessage()]);
         }
     }
+
+    public function submitReturnLash(Request $request, $id)
+    {
+        $request->validate([
+            'return_image' => 'required|image|max:5120',
+            'courier_name' => 'required|string|max:255',
+            'courier_mobile' => 'required|string|max:30',
+            'courier_national_code' => 'nullable|string|max:30',
+            'courier_vehicle_plate' => 'nullable|string|max:100',
+        ]);
+
+        $user = auth()->user();
+        $companyId = optional($user->company)->id ?? $user->company_id ?? null;
+
+        $permitRequest = PermitRequest::where('id', $id)
+            ->where('company_id', $companyId)
+            ->where('status', 'issued')
+            ->firstOrFail();
+
+        $file = $request->file('return_image');
+        $fileName = ($permitRequest->serial_number ?: $permitRequest->d_code) . '-company-return-' . time() . '.' . $file->getClientOriginalExtension();
+        $imagePath = $file->storeAs('permits/company-returns', $fileName, 'public');
+        $deliveryCode = (string) random_int(100000, 999999);
+
+        $permitRequest->update([
+            'company_return_image' => $imagePath,
+            'courier_name' => $request->courier_name,
+            'courier_mobile' => $request->courier_mobile,
+            'courier_national_code' => $request->courier_national_code,
+            'courier_vehicle_plate' => $request->courier_vehicle_plate,
+            'courier_delivery_code' => $deliveryCode,
+            'courier_code_sent_at' => now(),
+            'company_return_submitted_at' => now(),
+            'company_note' => 'لاشه توسط شرکت ثبت و برای تحویل به انجمن به پیک سپرده شد.',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'لاشه با موفقیت ثبت شد. کد تحویل برای پیک ساخته شد.',
+            'delivery_code' => $deliveryCode,
+        ]);
+    }
+
+    public function reportLost(Request $request, $id)
+    {
+        $request->validate([
+            'lost_reason' => 'nullable|string|max:1000',
+        ]);
+
+        $user = auth()->user();
+        $companyId = optional($user->company)->id ?? $user->company_id ?? null;
+
+        $permitRequest = PermitRequest::where('id', $id)
+            ->where('company_id', $companyId)
+            ->where('status', 'issued')
+            ->firstOrFail();
+
+        DB::beginTransaction();
+        try {
+            $permitRequest->update([
+                'status' => 'lost',
+                'lost_reported_at' => now(),
+                'lost_reason' => $request->lost_reason,
+                'closed_at' => now(),
+                'company_note' => 'مفقودی لاشه توسط شرکت ثبت شد.',
+            ]);
+
+            if ($permitRequest->driver_id) {
+                DB::table('drivers')
+                    ->where('id', $permitRequest->driver_id)
+                    ->orWhere('national_code', $permitRequest->driver_id)
+                    ->update(['is_blocked' => false]);
+            }
+
+            if ($permitRequest->fleet_id) {
+                DB::table('fleets')
+                    ->where('id', $permitRequest->fleet_id)
+                    ->orWhere('smart_card_number', $permitRequest->fleet_id)
+                    ->update(['is_blocked' => false]);
+            }
+
+            if (!empty($permitRequest->serial_number)) {
+                DB::table('dozbalagh_items')
+                    ->where('serial_number', $permitRequest->serial_number)
+                    ->update([
+                        'lifecycle_status' => 'lost',
+                        'returned_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'مفقودی لاشه ثبت شد و پرونده از چرخه تردد خارج شد.',
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'خطا در ثبت مفقودی: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }
