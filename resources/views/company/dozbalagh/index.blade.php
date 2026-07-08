@@ -32,7 +32,7 @@
     {{-- 🎛️ نوار فیلترهای وضعیت و باکس جستجوی یکپارچه جدول --}}
     <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-5 bg-white p-3 rounded-2xl border border-slate-200/60 shadow-sm">
         
-        {{-- دکمه‌های فیلتر وضعیت اصلاح شده با دیتابیس ادمین مطابق تصویر ارسالی شما --}}
+        {{-- دکمه‌های فیلتر وضعیت به ترتیب درخواستی شما --}}
         <div class="flex flex-wrap gap-1.5 text-xs font-bold">
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => ''])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ !request('status') ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' }}">
@@ -50,19 +50,13 @@
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'rejected' ? 'bg-rose-600 text-white shadow-sm' : 'bg-rose-50/60 text-rose-600 hover:bg-rose-50' }}">
                 ❌ رد شده
             </a>
-            {{-- 🟢 اضافه شدن تب نیاز به اصلاح متصل به وضعیت returned ادمین --}}
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'returned'])) }}" 
-               class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'returned' ? 'bg-orange-600 text-white shadow-sm' : 'bg-orange-50/60 text-orange-700 hover:bg-orange-100' }}">
-                🛠️ نیاز به اصلاح
-            </a>
-            {{-- 🟢 اصلاح روت تب لاشه به وضعیت collected ثبت شده در کارتابل نهایی ادمین --}}
-            <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'collected'])) }}" 
-               class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'collected' ? 'bg-amber-600 text-white shadow-sm' : 'bg-amber-50/60 text-amber-700 hover:bg-amber-50' }}">
+               class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'returned' ? 'bg-amber-600 text-white shadow-sm' : 'bg-amber-50/60 text-amber-700 hover:bg-amber-50' }}">
                 🚚 لاشه تحویل داده شده
             </a>
-            <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'renewed'])) }}" 
-               class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'renewed' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-indigo-50/60 text-indigo-600 hover:bg-indigo-50' }}">
-                🔄 تمدید شده
+            <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'renewal'])) }}" 
+               class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'renewal' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-indigo-50/60 text-indigo-600 hover:bg-indigo-50' }}">
+                🔄 تمدیدها
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'lost'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'lost' ? 'bg-slate-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
@@ -95,12 +89,30 @@
                         <th class="p-4">راننده متقاضی</th>
                         <th class="p-4 text-center">ناوگان / پلاک</th>
                         <th class="p-4">مجموع مبلغ (ریال)</th>
-                        <th class="p-4">وضعیت بررسی</th>
+                        <th class="p-4">نوع / وضعیت</th>
                         <th class="p-4 text-center">عملیات</th>
                     </tr>
                 </thead>
                 <tbody class="text-slate-700 text-sm divide-y divide-slate-100">
                     @forelse($requests as $item)
+                        @php
+                            $requestType = $item->request_type ?: 'new';
+                            $requestTypeLabel = $requestType === 'renewal' ? '🔄 تمدید' : '🆕 درخواست جدید';
+                            $requestTypeClass = $requestType === 'renewal'
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                : 'bg-slate-50 text-slate-700 border-slate-200';
+                            $statusLabels = [
+                                'pending' => ['⏳ در انتظار بررسی انجمن', 'bg-amber-50 text-amber-700 border-amber-100'],
+                                'approved' => ['✅ تایید اولیه / آماده صدور', 'bg-emerald-50 text-emerald-700 border-emerald-100'],
+                                'issued' => ['📄 صادر شده / معتبر', 'bg-sky-50 text-sky-700 border-sky-100'],
+                                'rejected' => ['❌ رد شده', 'bg-rose-50 text-rose-700 border-rose-100'],
+                                'returned' => ['🛠️ نیاز به اصلاح', 'bg-orange-50 text-orange-700 border-orange-200'],
+                                'collected' => ['🚚 لاشه تحویل شد', 'bg-slate-100 text-slate-700 border-slate-200'],
+                                'archived' => ['🗂️ بایگانی شد', 'bg-slate-100 text-slate-700 border-slate-200'],
+                                'lost' => ['⚠️ مفقودی', 'bg-zinc-100 text-zinc-700 border-zinc-200'],
+                            ];
+                            [$statusText, $statusClass] = $statusLabels[$item->status] ?? ['نامشخص: ' . $item->status, 'bg-slate-100 text-slate-700 border-slate-200'];
+                        @endphp
                         <tr class="hover:bg-slate-50/70 transition-colors">
                             <td class="p-4 font-mono font-bold text-slate-900">
                                 <span onclick="copyToClipboard('{{ $item->d_code }}', this)" class="cursor-pointer bg-slate-50 hover:bg-indigo-50 text-slate-700 hover:text-indigo-600 px-2.5 py-1.5 rounded-lg border border-slate-200 hover:border-indigo-200 transition-all inline-flex items-center gap-1.5 group" title="کلیک جهت کپی کدرهگیری">
@@ -147,37 +159,21 @@
                             
                             <td class="p-4 font-bold text-slate-900">{{ number_format($item->total_amount) }}</td>
                             
-                            {{-- 🟢 تصحیح مپینگ کلمات کلیدی وضعیت با لاجیک کارتابل ادمین --}}
                             <td class="p-4 whitespace-nowrap">
-                                @if($item->status === 'pending')
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 text-blue-600 border border-blue-100">در حال بررسی</span>
-                                @elseif($item->status === 'approved')
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">تایید شده</span>
-                                @elseif($item->status === 'returned') {{-- کلمه returned یعنی نیاز به اصلاح --}}
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-orange-50 text-orange-700 border border-orange-200">🛠️ نیاز به اصلاح</span>
-                                @elseif($item->status === 'collected' || $item->status === 'archived') {{-- کلماتcollected/archived یعنی تحویل لاشه --}}
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">🚚 لاشه تحویل شد</span>
-                                @elseif($item->status === 'renewed')
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-600 border border-indigo-100">🔄 تمدید شده</span>
-                                @elseif($item->status === 'lost')
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">⚠️ مفقودی</span>
-                                @else
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-600 border border-rose-100">رد شده</span>
-                                @endif
+                                <div class="flex flex-col gap-1.5">
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black border {{ $requestTypeClass }}">{{ $requestTypeLabel }}</span>
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border {{ $statusClass }}">{{ $statusText }}</span>
+                                    @if($requestType === 'renewal' && !empty($item->previous_serial_number))
+                                        <span class="text-[10px] font-mono text-indigo-600">شماره قبلی: {{ $item->previous_serial_number }}</span>
+                                    @endif
+                                </div>
                             </td>
 
-                            <td class="p-4 text-center whitespace-nowrap flex items-center justify-center gap-2">
+                            <td class="p-4 text-center whitespace-nowrap">
                                 <button onclick="openModal('modal-{{ $item->id }}')" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors shadow-md shadow-indigo-100">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                     مشاهده جزئیات سفر
                                 </button>
-                                
-                                {{-- 🟢 دکمه مستقیم اصلاح در جدول عملیات برای دسترسی سریع بدون نیاز به باز کردن مودال --}}
-                                @if($item->status === 'returned')
-                                    <a href="{{ route('dozbalagh.edit', $item->id) }}" class="inline-flex items-center gap-1 px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-xs font-black transition-colors shadow-md shadow-orange-100">
-                                        ✏️ اصلاح و ارسال مجدد
-                                    </a>
-                                @endif
                             </td>
                         </tr>
 
@@ -311,19 +307,6 @@
                                         </div>
                                     </div>
 
-                                    {{-- نمایش علت عودت یا اصلاحیه در مودال شرکت و اضافه شدن دکمه ویرایش مستقیم در انتهای فیلد --}}
-                                    @if($item->status === 'returned')
-                                        <div class="p-4 bg-orange-50 border border-orange-200 rounded-2xl text-xs text-orange-800 font-medium flex flex-col sm:flex-row sm:items-center justify-between gap-4 leading-relaxed">
-                                            <div>
-                                                📌 <strong>علت نیاز به اصلاح مدارک:</strong> <span class="font-bold text-slate-900">{{ $item->reject_reason ?? 'توسط ادمین توضیحی ثبت نشده است.' }}</span>
-                                            </div>
-                                            {{-- 🟢 دکمه هدایت به صفحه ویرایش از داخل مودال جزئیات سفر --}}
-                                            <a href="{{ route('dozbalagh.edit', $item->id) }}" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-black text-xs rounded-xl shadow-md transition text-center shrink-0">
-                                                ✏️ شروع اصلاح و ویرایش مدارک
-                                            </a>
-                                        </div>
-                                    @endif
-
                                     @if($item->company_note)
                                         <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 font-medium leading-relaxed">
                                             📌 <strong>توضیحات پرونده:</strong> {{ $item->company_note }}
@@ -338,7 +321,7 @@
                                 هیچ درخواست دوزوله‌ای با این مشخصات یافت نشد.
                             </td>
                         </tr>
-                    @endforelse
+                    @endempty
                 </tbody>
             </table>
         </div>

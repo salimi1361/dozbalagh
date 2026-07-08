@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('header_title', 'مدیریت تردد دوزبِلاغ')
+@section('header_title', 'مدیریت تردد دوزوله')
 
 @section('content')
 <div class="space-y-6">

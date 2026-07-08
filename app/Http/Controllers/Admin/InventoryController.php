@@ -24,10 +24,14 @@ class InventoryController extends Controller
             ->orderBy('id', 'desc')
             ->get();
 
-        // محاسبه آمار مصرف برای هر پارت به صورت جداگانه
+        // محاسبه دقیق و هوشمند آمار مصرف و مانده انبار
         foreach ($batches as $batch) {
-            $batch->remaining_count = $batch->items()->where('lifecycle_status', 'raw')->count();
-            $batch->consumed_count = $batch->items()->where('lifecycle_status', 'consumed')->count();
+            $batch->consumed_count = DB::table('dozbalagh_items')
+                ->where('batch_id', $batch->id)
+                ->whereIn('lifecycle_status', ['consumed', 'issued', 'collected', 'lost', 'archived'])
+                ->count();
+
+            $batch->remaining_count = max(0, $batch->total_quantity - $batch->consumed_count);
         }
 
         // آمار کلی انبار برای کارت‌های بالای صفحه
@@ -38,6 +42,32 @@ class InventoryController extends Controller
         $countries = Country::where('is_active', true)->get();
         
         return view('admin.inventory.index', compact('batches', 'countries', 'stats', 'search'));
+    }
+
+    // 🟢 متد جدید: دریافت لیست شماره سریال‌های مصرف نشده یک پارت به صورت Ajax
+    public function getAvailableSerials($id)
+    {
+        try {
+            $serials = DB::table('dozbalagh_items')
+                ->where('batch_id', $id)
+                ->where(function($query) {
+                    $query->whereNull('lifecycle_status')
+                          ->orWhere('lifecycle_status', 'raw')
+                          ->orWhereNotIn('lifecycle_status', ['consumed', 'issued', 'collected', 'archived', 'lost']);
+                })
+                ->orderBy('serial_number', 'asc')
+                ->pluck('serial_number');
+
+            return response()->json([
+                'success' => true,
+                'serials' => $serials
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'خطا در دریافت اطلاعات: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     // ۲. تولید انبوه سریال‌ها
@@ -94,13 +124,12 @@ class InventoryController extends Controller
         }
     }
 
-    // ۳. حذف پارت (فقط در صورتی که هیچ دوزبلاغی مصرف یا توزیع نشده باشد)
+    // ۳. حذف پارت
     public function destroy($id)
     {
         $batch = DozbalaghBatch::findOrFail($id);
 
-        // بررسی امنیتی: آیا از این پارت دوزبلاغی از حالت "خام" (raw) خارج شده است؟
-        $usedItemsCount = $batch->items()->where('lifecycle_status', '!=', 'raw')->count();
+        $usedItemsCount = DB::table('dozbalagh_items')->where('batch_id', $batch->id)->where('lifecycle_status', '!=', 'raw')->count();
 
         if ($usedItemsCount > 0) {
             return back()->withErrors(['error' => 'خطا: از این پارت ' . $usedItemsCount . ' عدد دوزبلاغ به انجمن تخصیص داده شده یا مصرف شده است. امکان حذف وجود ندارد!']);
@@ -108,10 +137,7 @@ class InventoryController extends Controller
 
         DB::beginTransaction();
         try {
-            // ۱. اول تمام سریال‌های زیرمجموعه در جدول items پاک می‌شوند
-            $batch->items()->delete();
-            
-            // ۲. سپس خود شناسنامه پارت پاک می‌شود
+            DB::table('dozbalagh_items')->where('batch_id', $batch->id)->delete();
             $batch->delete();
 
             DB::commit();

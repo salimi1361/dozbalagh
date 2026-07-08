@@ -3,6 +3,7 @@
     .swal2-container { z-index: 1000 !important; }
     .select2-container--open, .select2-dropdown { z-index: 1005 !important; }
     .form-step, form, .main-content, .bg-white, .shadow-sm { overflow: visible !important; }
+    select.select2-hidden-accessible { display: none !important; }
 </style>
 
 <h2 class="text-lg font-black text-slate-800 mb-5 flex items-center gap-2">
@@ -40,7 +41,7 @@
     </div>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+<div id="driver_fleet_selection_box" class="grid grid-cols-1 md:grid-cols-2 gap-5">
     <div>
         <label class="block text-xs font-bold text-slate-600 mb-1.5">راننده متقاضی <span class="text-rose-500">*</span></label>
         <select name="driver_id" id="driver_id" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm outline-none bg-white focus:border-blue-500 transition-colors">
@@ -68,6 +69,10 @@
         <div id="driver_info_box" class="mt-2.5 p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-[11px] text-slate-600 hidden space-y-1">
             <p>👤 نام لاتین: <span id="info_driver_en" class="font-bold text-slate-800 uppercase"></span></p>
             <p>🪪 کد ملی: <span id="info_driver_national" class="font-mono font-bold"></span> | گذرنامه: <span id="info_driver_passport" class="font-mono font-bold"></span></p>
+        </div>
+
+        <div id="driver_active_warning" class="hidden mt-2 p-2.5 bg-amber-50 border border-amber-200 text-amber-800 text-[10.5px] rounded-xl font-bold shadow-sm">
+            ⚠️ <strong>توجه:</strong> این راننده یک پروانه باز یا تسویه‌نشده (کد: <span id="driver_active_code" class="font-mono text-amber-900 font-black"></span>) در سیستم دارد.
         </div>
     </div>
 
@@ -130,42 +135,99 @@
     </div>
 </div> 
 
-{{-- 💡 کادر انتخاب دوزبلاغ مرجع برای تمدید --}}
 <div id="renewal_smart_box" class="hidden mt-5 p-4 bg-blue-50/80 border border-blue-200 rounded-2xl">
     <div class="flex items-start gap-3">
         <span class="text-blue-500 text-2xl leading-none mt-0.5">🔄</span>
         <div class="flex-1">
-            <h4 class="font-black text-blue-900 text-sm mb-0.5">اطلاعات پرونده مرجع (تمدید)</h4>
+            <h4 class="font-black text-blue-900 text-sm mb-0.5">تمدید دوزوله با کد رهگیری</h4>
             <p class="text-xs text-blue-800/90 mb-3 font-medium">
-                دوزبلاغ قبلی را از لیست انتخاب کنید. لیست بر اساس راننده یا ناوگان انتخاب‌شده فیلتر می‌شود.
+                فقط کد رهگیری پرونده قبلی یا شماره دوزوله را وارد کنید. بعد از تأیید، اطلاعات پرونده قبلی در مرحله بعد برای ویرایش بارگذاری می‌شود.
             </p>
 
-            <input type="hidden" id="previous_dozouleh_number" name="previous_dozouleh_number">
-
             <div class="p-3 bg-white rounded-xl border border-blue-100">
-                <div class="mb-3">
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1">انتخاب دوزبلاغ قبلی <span class="text-rose-500">*</span></label>
-                    <select id="previous_dozouleh_select" name="previous_dozouleh_select_validation" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-blue-500 transition-colors bg-white">
-                        <option value="">ابتدا راننده یا ناوگان را انتخاب کنید...</option>
-                    </select>
+                <label class="block text-[10px] font-bold text-slate-500 mb-1">
+                    کد رهگیری / شماره دوزوله قبلی <span class="text-rose-500">*</span>
+                </label>
+
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input
+                        type="text"
+                        id="previous_dozouleh_number"
+                        name="previous_dozouleh_number"
+                        class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-blue-500 transition-colors bg-white font-mono"
+                        placeholder="مثلاً D1405... یا شماره دوزوله قبلی"
+                        autocomplete="off"
+                    >
+                    <button type="button" id="check_renewal_code_btn" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition">
+                        بررسی پرونده
+                    </button>
                 </div>
 
-                <div id="renewal_loading" class="hidden text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
-                    در حال دریافت دوزبلاغ‌های قبلی...
+                <div id="renewal_loading" class="hidden mt-3 text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                    در حال بررسی پرونده تمدید...
                 </div>
 
-                <div id="renewal_empty" class="hidden text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                    با این مشخصات دوزبلاغ قابل تمدیدی پیدا نشد.
+                <div id="renewal_empty" class="hidden mt-3 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                    در حال حاضر امکان ثبت درخواست تمدید برای این دوزبلاغ وجود ندارد.
                 </div>
 
                 <div id="renewal_preview" class="hidden mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 space-y-1">
                     <div class="flex items-center justify-between gap-3">
-                        <span class="font-black">✅ دوزبلاغ مرجع انتخاب شد</span>
+                        <span class="font-black">✅ پرونده مرجع تمدید پیدا شد</span>
                         <span id="renewal_selected_code" class="font-mono font-black text-emerald-800"></span>
                     </div>
-                    <div>راننده: <span id="renewal_selected_driver" class="font-bold"></span></div>
-                    <div>ناوگان: <span id="renewal_selected_fleet" class="font-bold"></span></div>
-                    <div>مقاصد: <span id="renewal_selected_countries" class="font-bold"></span></div>
+                    <div>راننده پرونده: <span id="renewal_selected_driver" class="font-bold"></span></div>
+                    <div>ناوگان پرونده: <span id="renewal_selected_fleet" class="font-bold"></span></div>
+                    <div>مقاصد پرونده: <span id="renewal_selected_countries" class="font-bold"></span></div>
+                </div>
+
+                <div id="renewal_detail_box" class="hidden mt-3 rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
+                    <div class="px-3 py-2 bg-slate-100 border-b border-slate-200 text-xs font-black text-slate-700">
+                        اطلاعات خوانده‌شده از پرونده قبلی
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 p-3 text-[11px] text-slate-700">
+                        <div class="bg-white border border-slate-100 rounded-xl p-2">
+                            <span class="text-slate-400 font-bold">کد پرونده:</span>
+                            <span id="renewal_detail_code" class="font-mono font-black text-slate-900"></span>
+                        </div>
+                        <div class="bg-white border border-slate-100 rounded-xl p-2">
+                            <span class="text-slate-400 font-bold">وضعیت:</span>
+                            <span id="renewal_detail_status" class="font-black text-slate-900"></span>
+                        </div>
+                        <div class="bg-white border border-slate-100 rounded-xl p-2">
+                            <span class="text-slate-400 font-bold">راننده:</span>
+                            <span id="renewal_detail_driver" class="font-black text-slate-900"></span>
+                        </div>
+                        <div class="bg-white border border-slate-100 rounded-xl p-2">
+                            <span class="text-slate-400 font-bold">ناوگان:</span>
+                            <span id="renewal_detail_fleet" class="font-black text-slate-900"></span>
+                        </div>
+                        <div class="bg-white border border-slate-100 rounded-xl p-2">
+                            <span class="text-slate-400 font-bold">نوع بار:</span>
+                            <span id="renewal_detail_cargo" class="font-black text-slate-900"></span>
+                        </div>
+                        <div class="bg-white border border-slate-100 rounded-xl p-2">
+                            <span class="text-slate-400 font-bold">کد CITS:</span>
+                            <span id="renewal_detail_cits" class="font-mono font-black text-slate-900"></span>
+                        </div>
+                        <div class="bg-white border border-slate-100 rounded-xl p-2">
+                            <span class="text-slate-400 font-bold">مبدا:</span>
+                            <span id="renewal_detail_origin" class="font-black text-slate-900"></span>
+                        </div>
+                        <div class="bg-white border border-slate-100 rounded-xl p-2">
+                            <span class="text-slate-400 font-bold">مقصد:</span>
+                            <span id="renewal_detail_destination" class="font-black text-slate-900"></span>
+                        </div>
+                        <div class="md:col-span-2 bg-white border border-slate-100 rounded-xl p-2">
+                            <span class="text-slate-400 font-bold">مقاصد دوزوله:</span>
+                            <span id="renewal_detail_countries" class="font-black text-slate-900"></span>
+                        </div>
+                    </div>
+
+                    <div class="px-3 pb-3 text-[11px] font-bold text-emerald-700">
+                        ✅ اطلاعات پرونده آماده است. با زدن «مرحله بعد»، همین اطلاعات در مرحله دوم برای ویرایش نمایش داده می‌شود.
+                    </div>
                 </div>
             </div>
         </div>
@@ -174,157 +236,78 @@
 
 <script>
     function updateRadioUI(type) {
+        let $jq = typeof jQuery !== 'undefined' ? jQuery : $;
+        let requestType = type === 'new' ? 'new' : 'renewal';
+
+        window.fleetRequestData = window.fleetRequestData || {};
+        window.fleetRequestData.request_type = requestType;
+
         if (type === 'new') {
-            document.getElementById('req_new').checked = true;
-            document.getElementById('box_new').className = "p-3 rounded-xl border border-slate-800 bg-slate-100/80 transition-all flex items-center gap-3 shadow-sm";
-            document.getElementById('outer_new').className = "w-4 h-4 rounded-full border border-slate-800 flex items-center justify-center";
-            document.getElementById('inner_new').style.transform = "scale(1)";
+            $jq('#req_new').prop('checked', true);
+            $jq('#box_new').attr('class', "p-3 rounded-xl border border-slate-800 bg-slate-100/80 transition-all flex items-center gap-3 shadow-sm");
+            $jq('#outer_new').attr('class', "w-4 h-4 rounded-full border border-slate-800 flex items-center justify-center");
+            $jq('#inner_new').css('transform', "scale(1)");
 
-            document.getElementById('box_renewal').className = "p-3 rounded-xl border border-slate-200 bg-white transition-all flex items-center gap-3";
-            document.getElementById('outer_renewal').className = "w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center";
-            document.getElementById('inner_renewal').style.transform = "scale(0)";
+            $jq('#box_renewal').attr('class', "p-3 rounded-xl border border-slate-200 bg-white transition-all flex items-center gap-3");
+            $jq('#outer_renewal').attr('class', "w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center");
+            $jq('#inner_renewal').css('transform', "scale(0)");
         } else {
-            document.getElementById('req_renewal').checked = true;
-            document.getElementById('box_renewal').className = "p-3 rounded-xl border border-slate-800 bg-slate-100/80 transition-all flex items-center gap-3 shadow-sm";
-            document.getElementById('outer_renewal').className = "w-4 h-4 rounded-full border border-slate-800 flex items-center justify-center";
-            document.getElementById('inner_renewal').style.transform = "scale(1)";
+            $jq('#req_renewal').prop('checked', true);
+            $jq('#box_renewal').attr('class', "p-3 rounded-xl border border-slate-800 bg-slate-100/80 transition-all flex items-center gap-3 shadow-sm");
+            $jq('#outer_renewal').attr('class', "w-4 h-4 rounded-full border border-slate-800 flex items-center justify-center");
+            $jq('#inner_renewal').css('transform', "scale(1)");
 
-            document.getElementById('box_new').className = "p-3 rounded-xl border border-slate-200 bg-white transition-all flex items-center gap-3";
-            document.getElementById('outer_new').className = "w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center";
-            document.getElementById('inner_new').style.transform = "scale(0)";
+            $jq('#box_new').attr('class', "p-3 rounded-xl border border-slate-200 bg-white transition-all flex items-center gap-3");
+            $jq('#outer_new').attr('class', "w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center");
+            $jq('#inner_new').css('transform', "scale(0)");
         }
 
-        if (typeof jQuery !== 'undefined' || typeof $ !== 'undefined') {
-            let $jq = typeof jQuery !== 'undefined' ? jQuery : $;
-            triggerRenewalBoxLogic($jq);
-            
-            let fId = $jq('#fleet_id').val();
-            let dId = $jq('#driver_id').val();
-            if (fId || dId) {
-                $jq('#fleet_id').trigger('change');
-            }
-        }
-    }
-
-    function loadRenewableDozbalaghs($jq) {
-        let requestType = $jq('input[name="request_type"]:checked').val();
-        if (requestType !== 'renewal') return;
-
-        let fleetId = $jq('#fleet_id').val();
-        let driverId = $jq('#driver_id').val();
-        let select = $jq('#previous_dozouleh_select');
-
-        // 🟢 شرط اصلاح شد: واکشی انجام می‌شود حتی اگر فقط یکی (راننده یا ناوگان) انتخاب شده باشد
-        if (!fleetId && !driverId) {
-            select.html('<option value="">ابتدا راننده یا ناوگان ملکی را انتخاب کنید...</option>');
-            $jq('#renewal_empty').addClass('hidden');
-            $jq('#renewal_preview').addClass('hidden');
-            return;
-        }
-
-        $jq('#renewal_loading').removeClass('hidden');
-        $jq('#renewal_empty').addClass('hidden');
-        $jq('#renewal_preview').addClass('hidden');
-        $jq('#previous_dozouleh_number').val('');
-        select.html('<option value="">در حال دریافت لیست دوزبلاغ‌ها...</option>');
-
-        $jq.ajax({
-            url: "{{ route('dozbalagh.renewable_list') }}",
-            type: 'GET',
-            data: {
-                fleet_id: fleetId,
-                driver_id: driverId
-            },
-            success: function(res) {
-                $jq('#renewal_loading').addClass('hidden');
-                select.html('<option value="">انتخاب کنید...</option>');
-
-                if (!res.success || !res.items || res.items.length === 0) {
-                    $jq('#renewal_empty').removeClass('hidden');
-                    return;
-                }
-
-                res.items.forEach(function(item) {
-                    let title = item.d_code + ' | مقاصد: ' + item.countries_text + ' | تاریخ: ' + item.created_at;
-                    select.append(
-                        $jq('<option>', {
-                            value: item.d_code,
-                            text: title,
-                            'data-driver': item.driver,
-                            'data-fleet': item.fleet,
-                            'data-countries': item.countries_text,
-                            'data-code': item.d_code,
-                            'data-destinations': JSON.stringify(item.destinations || [])
-                        })
-                    );
-                });
-            },
-            error: function() {
-                $jq('#renewal_loading').addClass('hidden');
-                select.html('<option value="">خطا در دریافت لیست دوزبلاغ‌ها</option>');
-            }
-        });
+        triggerRenewalBoxLogic($jq);
     }
 
     function triggerRenewalBoxLogic($jq) {
         let requestType = $jq('input[name="request_type"]:checked').val();
 
         if (requestType === 'renewal') {
+            $jq('#driver_fleet_selection_box').slideUp(200);
+            $jq('#driver_id, #fleet_id').prop('required', false);
             $jq('#renewal_smart_box').slideDown(250);
-            $jq('#previous_dozouleh_select').prop('required', true);
-            loadRenewableDozbalaghs($jq);
         } else {
+            $jq('#driver_fleet_selection_box').slideDown(200);
+            $jq('#driver_id, #fleet_id').prop('required', true);
             $jq('#renewal_smart_box').slideUp(200);
-            $jq('#previous_dozouleh_number').val('');
-            $jq('#previous_dozouleh_select').val('').prop('required', false);
+            $jq('#previous_dozouleh_number').val('').removeClass('border-rose-500 ring-1 ring-rose-500');
             $jq('#renewal_preview').addClass('hidden');
+            $jq('#renewal_empty').addClass('hidden');
+            $jq('#renewal_detail_box').addClass('hidden');
+            window.renewalReference = null;
+            window.renewalPreviousDestinations = null;
         }
     }
 
     function checkActiveDozoulehProtection($jq) {
+        if (typeof window.DozoulehConfig !== 'undefined' && window.DozoulehConfig.isEditMode) return true;
         let requestType = $jq('input[name="request_type"]:checked').val();
-        
-        if (requestType === 'renewal') {
-            if (typeof Swal !== 'undefined' && Swal.isVisible()) {
-                Swal.close();
-            }
-            return true; 
-        }
+        if (requestType === 'renewal' || window.isApplyingRenewalReference) return true;
 
-        let driverOpt = $jq('#driver_id option:selected');
         let fleetOpt = $jq('#fleet_id option:selected');
-
-        if (driverOpt.val() && parseInt(driverOpt.attr('data-active')) > 0) {
-            let dCode = driverOpt.attr('data-dozouleh') || 'نامشخص';
-            Swal.fire({
-                title: 'خطای راننده متقاضی',
-                text: `راننده انتخاب شده (${driverOpt.attr('data-name-fa')}) یک درخواست فعال یا پروانه تسویه نشده به شماره ${dCode} در سیستم دارد.`,
-                icon: 'error',
-                confirmButtonText: 'متوجه شدم',
-                confirmButtonColor: '#1e293b'
-            });
-            $jq('#driver_id').val('').trigger('change.select2');
-            return false;
-        }
-
         if (fleetOpt.val() && parseInt(fleetOpt.attr('data-active')) > 0) {
             let dCode = fleetOpt.attr('data-dozouleh') || 'نامشخص';
             Swal.fire({
                 title: 'خطای ناوگان ملکی',
-                text: `ناوگان انتخاب شده با پلاک ترانزیت (${fleetOpt.attr('data-plate')}) دارای یک درخواست فعال یا پروانه زنده به شماره ${dCode} در سیستم است.`,
+                text: `ناوگان با پلاک (${fleetOpt.attr('data-plate')}) دارای یک پروانه باز به شماره ${dCode} است. ثبت دوزوله جدید برای این ناوگان مقدور نیست.`,
                 icon: 'error',
                 confirmButtonText: 'متوجه شدم',
                 confirmButtonColor: '#1e293b'
             });
-            $jq('#fleet_id').val('').trigger('change.select2');
+            $jq('#fleet_id').val('').trigger('change.select2').trigger('change');
             return false;
         }
-        
         return true;
     }
 
     function preg_match_plate($jq, plateStr) {
-        let matches = plateStr.match(/(\d+)|([^\d\s]+)/g);
+        let matches = (plateStr || '').match(/(\d+)|([^\d\s]+)/g);
         if (matches && matches.length >= 3) {
             $jq('#plate_part_1').text(matches[0] || '--');
             $jq('#plate_part_2').text(matches[1] || '-');
@@ -338,26 +321,137 @@
         }
     }
 
-    function initStepOneLogic() {
-        let $jq = typeof jQuery !== 'undefined' ? jQuery : $;
+    function fillRenewalReference(item, $jq) {
+        if (!item) return false;
 
-        $jq('#driver_id').parents().removeClass('overflow-hidden').css('overflow', 'visible');
+        $jq('#previous_dozouleh_number').val(item.d_code || item.serial_number || '').removeClass('border-rose-500 ring-1 ring-rose-500');
 
-        $jq('#driver_id, #fleet_id').each(function() {
-            if ($jq(this).hasClass('select2-hidden-accessible')) {
-                $jq(this).select2('destroy');
+        window.isApplyingRenewalReference = true;
+        // در تمدید فقط مقدار پشت‌صحنه ست می‌شود؛ change نمی‌زنیم تا هشدار ناوگان فعال اجرا نشود
+        if (item.driver_id) $jq('#driver_id').val(item.driver_id);
+        if (item.fleet_id) $jq('#fleet_id').val(item.fleet_id);
+        setTimeout(function() { window.isApplyingRenewalReference = false; }, 500);
+
+        $jq('#renewal_selected_code').text(item.d_code || item.serial_number || '');
+        $jq('#renewal_selected_driver').text(item.driver_name || item.driver || '---');
+        $jq('#renewal_selected_fleet').text(item.fleet_plate || item.fleet || '---');
+        $jq('#renewal_selected_countries').text(item.countries_text || '---');
+        $jq('#renewal_preview').removeClass('hidden');
+        $jq('#renewal_empty').addClass('hidden');
+
+        $jq('#renewal_detail_code').text(item.d_code || item.serial_number || '---');
+        $jq('#renewal_detail_status').text(item.status || '---');
+        $jq('#renewal_detail_driver').text(item.driver_name || item.driver || '---');
+        $jq('#renewal_detail_fleet').text(item.fleet_plate || item.fleet || '---');
+        $jq('#renewal_detail_cargo').text(item.cargo_type || '---');
+        $jq('#renewal_detail_cits').text(item.cits_code || '---');
+        $jq('#renewal_detail_origin').text(item.loading_origin || '---');
+        $jq('#renewal_detail_destination').text(item.loading_destination || '---');
+        $jq('#renewal_detail_countries').text(item.countries_text || '---');
+        $jq('#renewal_detail_box').removeClass('hidden');
+
+        window.renewalReference = item;
+        window.renewalPreviousDestinations = item.destinations || [];
+
+        // مقدار تمدید را برای submit نهایی فرم حفظ می‌کنیم
+        let finalType = document.getElementById('final_request_type');
+        let finalPrevious = document.getElementById('final_previous_dozouleh_number');
+        if (finalType) finalType.value = 'renewal';
+        if (finalPrevious) finalPrevious.value = item.d_code || item.serial_number || '';
+
+        if (typeof window.syncRenewalFinalFields === 'function') {
+            window.syncRenewalFinalFields();
+        }
+
+        return true;
+    }
+
+    function lookupRenewalByCode($jq, goNextAfterSuccess) {
+        let code = ($jq('#previous_dozouleh_number').val() || '').trim();
+
+        if (!code) {
+            $jq('#previous_dozouleh_number').addClass('border-rose-500 ring-1 ring-rose-500');
+            Swal.fire({
+                icon: 'warning',
+                title: 'نقص اطلاعات تمدید',
+                text: 'لطفاً کد رهگیری یا شماره دوزوله قبلی را وارد کنید.',
+                confirmButtonText: 'متوجه شدم',
+                confirmButtonColor: '#1e293b'
+            });
+            return false;
+        }
+
+        $jq('#renewal_loading').removeClass('hidden');
+        $jq('#renewal_empty').addClass('hidden');
+
+        $jq.ajax({
+            url: (window.DozoulehConfig && window.DozoulehConfig.renewableListUrl) ? window.DozoulehConfig.renewableListUrl : "{{ route('dozbalagh.renewable_list') }}",
+            type: 'GET',
+            data: { d_code: code },
+            success: function(res) {
+                $jq('#renewal_loading').addClass('hidden');
+
+                if (!res.success || !res.items || res.items.length === 0) {
+                    let msg = res.message || 'در حال حاضر امکان ثبت درخواست تمدید برای این دوزبلاغ وجود ندارد.';
+                    $jq('#renewal_empty').text(msg).removeClass('hidden');
+                    $jq('#renewal_preview').addClass('hidden');
+                    window.renewalReference = null;
+                    window.renewalPreviousDestinations = null;
+                    $jq('#renewal_detail_box').addClass('hidden');
+
+                    let finalType = document.getElementById('final_request_type');
+                    let finalPrevious = document.getElementById('final_previous_dozouleh_number');
+                    if (finalType) finalType.value = 'new';
+                    if (finalPrevious) finalPrevious.value = '';
+
+                    return;
+                }
+
+                let item = res.items[0];
+                fillRenewalReference(item, $jq);
+
+                if (goNextAfterSuccess && typeof window.transitionToStep2 === 'function') {
+                    window.transitionToStep2();
+                }
+            },
+            error: function() {
+                $jq('#renewal_loading').addClass('hidden');
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطای استعلام',
+                    text: 'ارتباط با سرور برای بررسی پرونده تمدید برقرار نشد.',
+                    confirmButtonText: 'متوجه شدم',
+                    confirmButtonColor: '#1e293b'
+                });
             }
         });
 
-        $jq('#driver_id, #fleet_id').select2({
-            dir: "rtl",
-            width: '100%',
-            dropdownParent: $jq('body')
-        });
+        return true;
+    }
+
+    function initStepOneLogic() {
+        let $jq = typeof jQuery !== 'undefined' ? jQuery : $;
+        let initialReqType = $jq('input[name="request_type"]:checked').val() || 'new';
+
+        window.fleetRequestData = window.fleetRequestData || {};
+        window.fleetRequestData.request_type = initialReqType;
+
+        // Select2 ممکن است در بعضی بارگذاری‌ها هنوز آماده نباشد.
+        // اگر آماده نبود، نباید کل منطق مرحله اول بخوابد؛ با select معمولی ادامه می‌دهیم.
+        if ($jq.fn && typeof $jq.fn.select2 === 'function') {
+            $jq('#driver_id, #fleet_id').each(function() {
+                if ($jq(this).hasClass('select2-hidden-accessible')) $jq(this).select2('destroy');
+            });
+
+            $jq('#driver_id, #fleet_id').select2({ dir: "rtl", width: '100%', dropdownParent: $jq('body') });
+        }
 
         $jq('#driver_id, #fleet_id').on('change', function() {
             let requestType = $jq('input[name="request_type"]:checked').val();
             let id = $jq(this).attr('id');
+
+            window.fleetRequestData = window.fleetRequestData || {};
+            window.fleetRequestData.request_type = requestType;
 
             if (id === 'driver_id') {
                 let opt = $jq('#driver_id option:selected');
@@ -366,71 +460,63 @@
                     $jq('#info_driver_national').text(opt.attr('data-national'));
                     $jq('#info_driver_passport').text(opt.attr('data-passport'));
                     $jq('#driver_info_box').removeClass('hidden');
+
+                    if (parseInt(opt.attr('data-active')) > 0) {
+                        $jq('#driver_active_code').text(opt.attr('data-dozouleh') || 'نامشخص');
+                        $jq('#driver_active_warning').removeClass('hidden');
+                    } else {
+                        $jq('#driver_active_warning').addClass('hidden');
+                    }
                 } else {
                     $jq('#driver_info_box').addClass('hidden');
+                    $jq('#driver_active_warning').addClass('hidden');
                 }
-            } else if (id === 'fleet_id') {
+            }
+
+            if (id === 'fleet_id') {
                 let opt = $jq('#fleet_id option:selected');
                 if (opt.val()) {
                     $jq('#info_fleet_type').text(opt.attr('data-type'));
                     $jq('#info_fleet_smart').text(opt.attr('data-smart'));
                     $jq('#info_fleet_horse').text(opt.attr('data-horse'));
                     $jq('#info_fleet_trailer').text(opt.attr('data-trailer'));
-                    
-                    let plate = opt.attr('data-plate') || '---';
-                    preg_match_plate($jq, plate);
+                    preg_match_plate($jq, opt.attr('data-plate') || '---');
                     $jq('#fleet_info_box').removeClass('hidden');
                 } else {
                     $jq('#fleet_info_box').addClass('hidden');
                 }
-            }
 
-            if (typeof window.fleetRequestData === 'object') {
-                window.fleetRequestData.request_type = requestType;
-            }
-
-            if (requestType === 'renewal') {
-                loadRenewableDozbalaghs($jq);
-            } else {
-                checkActiveDozoulehProtection($jq);
+                if (requestType === 'new') checkActiveDozoulehProtection($jq);
             }
         });
 
-        $jq('#previous_dozouleh_select').on('change', function() {
-            let opt = $jq(this).find('option:selected');
-            let val = opt.val();
-            $jq('#previous_dozouleh_number').val(val || '');
+        $jq('#check_renewal_code_btn').on('click', function() {
+            lookupRenewalByCode($jq, false);
+        });
 
-            if (val) {
-                $jq('#renewal_selected_code').text(opt.attr('data-code'));
-                $jq('#renewal_selected_driver').text(opt.attr('data-driver'));
-                $jq('#renewal_selected_fleet').text(opt.attr('data-fleet'));
-                $jq('#renewal_selected_countries').text(opt.attr('data-countries'));
-                $jq('#renewal_preview').removeClass('hidden');
-
-                window.renewalPreviousDestinations = JSON.parse(opt.attr('data-destinations') || '[]');
-            } else {
-                $jq('#renewal_preview').addClass('hidden');
-                window.renewalPreviousDestinations = null;
+        $jq('#previous_dozouleh_number').on('keyup', function(e) {
+            if ($jq(this).val().trim()) $jq(this).removeClass('border-rose-500 ring-1 ring-rose-500');
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                lookupRenewalByCode($jq, false);
             }
         });
+
+        triggerRenewalBoxLogic($jq);
     }
 
     (function checkJQueryReady() {
         if (typeof jQuery !== 'undefined' || typeof $ !== 'undefined') {
             let $jq = typeof jQuery !== 'undefined' ? jQuery : $;
-            
-            if (typeof Swal !== 'undefined') {
-                const originalFire = Swal.fire;
-                Swal.fire = function(...args) {
-                    let requestType = $jq('input[name="request_type"]:checked').val();
-                    if (requestType === 'renewal' && args[0] && (args[0].icon === 'error' || args[0].title === 'غیرمجاز')) {
-                        return Promise.resolve({ isConfirmed: true });
-                    }
-                    return originalFire.apply(this, args);
-                };
-            }
-            
+
+            $jq.ajaxPrefilter(function(options) {
+                if (options.url && options.url.includes('check_fleet')) {
+                    let currentReqType = $jq('input[name="request_type"]:checked').val() || 'new';
+                    let separator = options.url.includes('?') ? '&' : '?';
+                    options.url += separator + 'request_type=' + currentReqType;
+                }
+            });
+
             initStepOneLogic();
         } else {
             setTimeout(checkJQueryReady, 50);

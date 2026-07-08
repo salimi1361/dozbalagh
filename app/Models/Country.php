@@ -17,10 +17,11 @@ class Country extends Model
         'default_quota',
         'reject_message',
         'price',
-        'allowed_permit_types', // 👈 این را اضافه کردیم
+        'validity_days', // 🟢 اجازه دسترسی و ذخیره داینامیک تعداد روزهای اعتبار در دیتابیس
+        'allowed_permit_types',
     ];
 
     protected $casts = [
-        'allowed_permit_types' => 'array', // 👈 این هم برای تبدیل JSON به آرایه
+        'allowed_permit_types' => 'array',
     ];
 }

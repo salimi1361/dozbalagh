@@ -28,24 +28,27 @@ class DashboardController extends Controller
         $driversCount = DB::table('drivers')->where('current_company_id', $companyId)->count();
         $fleetsCount = DB::table('fleets')->where('company_id', $companyId)->count();
 
-        // ۳. آمار جامع وضعیت پروانه‌های دوزبلاغ شرکت (اصلاح شده)
+        // ۳. آمار جامع وضعیت پروانه‌های دوزوله شرکت (اصلاح شده)
         $permitStats = DB::table('permit_requests')
             ->where('company_id', $companyId)
             ->selectRaw("
                 COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-                COUNT(CASE WHEN status IN ('approved', 'issued', 'صادر شده') THEN 1 END) as issued_count,
+                COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_count,
+                COUNT(CASE WHEN status = 'issued' THEN 1 END) as issued_count,
                 COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_count,
                 COUNT(CASE WHEN status = 'returned' THEN 1 END) as returned_count,
                 COUNT(CASE WHEN status IN ('collected', 'archived') THEN 1 END) as collected_count,
-                COUNT(CASE WHEN status = 'renewed' THEN 1 END) as renewed_count,
+                COUNT(CASE WHEN request_type = 'renewal' THEN 1 END) as renewal_count,
+                COUNT(CASE WHEN (request_type IS NULL OR request_type = '' OR request_type = 'new') THEN 1 END) as new_count,
                 COUNT(CASE WHEN status = 'lost' THEN 1 END) as lost_count,
                 COUNT(*) as total_count
             ")
             ->first();
 
         // محاسبه نرخ موفقیت درخواست‌ها (پروانه‌های صادر شده به کل)
+        $successfulCount = ($permitStats->issued_count ?? 0) + ($permitStats->collected_count ?? 0) + ($permitStats->lost_count ?? 0);
         $successRate = $permitStats->total_count > 0 
-            ? round(($permitStats->issued_count / $permitStats->total_count) * 100) 
+            ? round(($successfulCount / $permitStats->total_count) * 100) 
             : 0;
 
         // ۴. آخرین درخواست‌های ثبت شده شرکت با نام راننده و پلاک ناوگان
@@ -57,6 +60,7 @@ class DashboardController extends Controller
                 'permit_requests.id',
                 'permit_requests.d_code',
                 'permit_requests.status',
+                'permit_requests.request_type',
                 'permit_requests.total_amount',
                 'permit_requests.created_at',
                 'drivers.first_name_fa',

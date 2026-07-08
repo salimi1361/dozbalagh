@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('header_title', 'بایگانی کل پروانه‌های دوزبِلاغ')
+@section('header_title', 'بایگانی کل پروانه‌های دوزوله')
 
 @section('content')
 <div class="space-y-6">
@@ -11,7 +11,7 @@
                 🗂️
             </div>
             <div>
-                <h2 class="text-lg font-black tracking-wide">بایگانی کل و سوابق دوزبِلاغ</h2>
+                <h2 class="text-lg font-black tracking-wide">بایگانی کل و سوابق دوزوله</h2>
                 <p class="text-slate-400 text-xs mt-1">بانک اطلاعاتی پروانه‌های ابطال‌شده، تحویل‌گرفته‌شده و مفقودی به همراه گزارش زمان‌بندی فرآیندها.</p>
             </div>
         </div>
@@ -150,7 +150,7 @@
         <!-- 📄 سیستم صفحه‌بندی هوشمند دقیقاً هر ۱۰ تا گزارش برود صفحه بعدی -->
         @if($requests->hasPages())
             <div class="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between font-bold text-xs">
-                <div class="text-slate-500">نمایش ردیف‌های بایگانی کل دوزبِلاغ</div>
+                <div class="text-slate-500">نمایش ردیف‌های بایگانی کل دوزوله</div>
                 <div>{{ $requests->links() }}</div>
             </div>
         @endif
@@ -245,7 +245,7 @@ function showProcessTimeline(req, countryName) {
                     <div class="relative pr-6">
                         <div class="absolute -right-[7px] top-1 w-3 h-3 rounded-full bg-amber-500 border-2 border-white shadow-sm"></div>
                         <div class="flex items-center justify-between">
-                            <span class="font-black text-slate-900">۳. تخصیص برگه فیزیکی و پرینت دوزبِلاغ</span>
+                            <span class="font-black text-slate-900">۳. تخصیص برگه فیزیکی و پرینت دوزوله</span>
                             <span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 text-[10px] font-black border border-amber-100">⚙️ انبار کل</span>
                         </div>
                         <p class="text-slate-500 text-[11px] mt-1 leading-relaxed">کسر قطعی سریال خام از پارت فعال کشور مربوطه، لود و کالیبراسیون مختصات میلی‌متری برگه پرینت و آزادسازی فیزیکی کامیون.</p>

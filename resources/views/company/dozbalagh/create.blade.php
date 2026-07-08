@@ -112,6 +112,10 @@
             @include('company.dozbalagh.partials.step3', ['trackingCode' => isset($permitRequest) ? $permitRequest->d_code : ''])
         </div>
 
+        {{-- فیلدهای قطعی برای ارسال نوع درخواست به store --}}
+        <input type="hidden" id="final_request_type" name="request_type" value="new">
+        <input type="hidden" id="final_previous_dozouleh_number" name="previous_dozouleh_number" value="">
+
         {{-- منوی دکمه‌های فوتر ناوبری فرم --}}
         <div class="bg-slate-50 p-4 sm:p-6 border-t border-slate-200 flex justify-between items-center">
             <button type="button" id="prevBtn" class="hidden px-6 py-2.5 rounded-xl font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 transition" onclick="navigateWizard(-1)">
@@ -149,6 +153,57 @@
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 <script src="{{ asset('assets/js/dozouleh.js') }}?v={{ time() }}"></script>
 <script src="{{ asset('assets/js/dozouleh_wizard.js') }}?v={{ time() }}"></script>
+
+<script>
+    // همگام‌سازی قطعی اطلاعات تمدید قبل از submit
+    (function syncRenewalFieldsBeforeSubmit() {
+        function syncFields() {
+            var finalType = document.getElementById('final_request_type');
+            var finalPrevious = document.getElementById('final_previous_dozouleh_number');
+            var visiblePrevious = document.getElementById('previous_dozouleh_number');
+            var checkedType = document.querySelector('input[name="request_type"]:checked');
+
+            if (!finalType || !finalPrevious) return;
+
+            var previousValue = visiblePrevious ? (visiblePrevious.value || '').trim() : '';
+
+            if (!previousValue && window.renewalReference) {
+                previousValue = (window.renewalReference.d_code || window.renewalReference.serial_number || '').toString().trim();
+            }
+
+            if (previousValue !== '') {
+                finalType.value = 'renewal';
+                finalPrevious.value = previousValue;
+            } else {
+                finalType.value = checkedType && checkedType.value === 'renewal' ? 'renewal' : 'new';
+                finalPrevious.value = '';
+            }
+        }
+
+        window.syncRenewalFinalFields = syncFields;
+
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.id === 'previous_dozouleh_number') syncFields();
+        });
+
+        document.addEventListener('change', function(e) {
+            if (e.target && (e.target.id === 'previous_dozouleh_number' || e.target.name === 'request_type')) syncFields();
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            syncFields();
+            var form = document.getElementById('dozoulehForm');
+            if (form) {
+                form.addEventListener('submit', function() {
+                    syncFields();
+                }, true);
+            }
+        });
+
+        setTimeout(syncFields, 300);
+        setTimeout(syncFields, 1000);
+    })();
+</script>
 
 <script>
     (function waitForJQuery(){

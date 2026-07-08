@@ -66,6 +66,5 @@
     <div class="field passport-code">{{ $driver->passport_number ?? '---' }}</div>
     <div class="field plate-number">{{ $fleet->transit_plate ?? '---' }}</div>
     <div class="field issue-date">{{ \Hekmatinasser\Verta\Verta::instance($permit->updated_at)->format('Y/m/dd') }}</div>
-
 </body>
 </html>

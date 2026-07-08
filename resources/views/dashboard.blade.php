@@ -93,22 +93,19 @@
 
     </div>
 
-    {{-- ردیف دوم: وضعیت‌های تفکیک شده دوزبلاغ با تفکیک نیاز به اصلاح و تحویل لاشه --}}
+    {{-- ردیف دوم: وضعیت‌های تفکیک شده دوزوله با حذف گزینه نیاز به اصلاح --}}
     <div class="space-y-3">
         <h3 class="text-xs font-black text-slate-700 tracking-wide flex items-center gap-1.5">
             <span class="w-2 h-2 bg-slate-800 rounded-full"></span> مانیتورینگ آنلاین وضعیت پروانه‌ها
         </h3>
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             @php
                 $stats = [
                     ['در انتظار بررسی', $permitStats->pending_count ?? 0, 'text-amber-700', 'bg-amber-50/60 border-amber-200/80'],
                     ['صادر شده / معتبر', $permitStats->issued_count ?? 0, 'text-sky-700', 'bg-sky-50/60 border-sky-200/80'],
                     ['رد درخواست', $permitStats->rejected_count ?? 0, 'text-rose-700', 'bg-rose-50/60 border-rose-200/80'],
-                    // 🟢 مپینگ وضعیت returned دیتابیس به بخش نیاز به اصلاح
-                    ['🛠️ نیاز به اصلاح', $permitStats->returned_count ?? 0, 'text-orange-700', 'bg-orange-50/60 border-orange-200/80'],
-                    // 🟢 تفکیک و رندر کانتور لاشه‌های تحویل گرفته شده بر اساس collected ادمین
                     ['🚚 لاشه تحویل شده', $permitStats->collected_count ?? 0, 'text-indigo-700', 'bg-indigo-50/60 border-indigo-200/80'],
-                    ['🔄 تمدید شده', $permitStats->renewed_count ?? 0, 'text-emerald-700', 'bg-emerald-50/60 border-emerald-200/80'],
+                    ['🔄 درخواست تمدید', $permitStats->renewal_count ?? 0, 'text-emerald-700', 'bg-emerald-50/60 border-emerald-200/80'],
                     ['⚠️ مفقودی', $permitStats->lost_count ?? 0, 'text-slate-700', 'bg-slate-50 border-slate-300'],
                 ];
             @endphp
@@ -125,7 +122,7 @@
     {{-- ردیف سوم: جدول تفصیلی فرآیندهای اخیر کاملاً عریض (Full Width) --}}
     <div class="bg-white rounded-2xl border-2 border-slate-100 shadow-sm overflow-hidden">
         <div class="p-5 border-b-2 border-slate-100 flex justify-between items-center bg-slate-50/60">
-            <h3 class="font-black text-slate-800 text-sm flex items-center gap-2">📝 آخرین درخواست‌های دوزبِلاغ صادر شده و معلق</h3>
+            <h3 class="font-black text-slate-800 text-sm flex items-center gap-2">📝 آخرین درخواست‌های دوزوله صادر شده و معلق</h3>
             <a href="{{ route('dozbalagh.index') }}" class="text-xs text-sky-600 font-black hover:underline bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm transition">
                 مشاهده کارتابل جامع پروانه‌ها ←
             </a>
@@ -140,7 +137,7 @@
                         <th class="p-4">ناوگان ملكی (پلاک ترانزیت)</th>
                         <th class="p-4">هزینه کل پروانه</th>
                         <th class="p-4">تاریخ ثبت و فرستش</th>
-                        <th class="p-4 text-center">وضعیت چرخه عمر</th>
+                        <th class="p-4 text-center">نوع / وضعیت چرخه عمر</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 font-bold text-slate-700 text-sm">
@@ -204,21 +201,26 @@
                             <td class="p-4 font-mono font-black text-slate-900 text-xs">{{ number_format($req->total_amount) }} <span class="text-[10px] text-slate-400 font-bold mr-0.5">تومان</span></td>
                             <td class="p-4 text-slate-500 font-mono font-medium text-xs">{{ $req->jalali_date }}</td>
                             
-                            {{-- 🟢 اصلاح کاملاً اختصاصی رندر وضعیت برای مچ شدن و لود تفکیک‌شده نیاز به اصلاح و لاشه --}}
                             <td class="p-4 text-center">
-                                @if($req->status === 'pending')
-                                    <span class="px-3 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 font-black text-[10px]">در انتظار بررسی</span>
-                                @elseif(in_array($req->status, ['approved', 'issued', 'صادر شده']))
-                                    <span class="px-3 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-black text-[10px]">تایید شده / صادر شده</span>
-                                @elseif($req->status === 'returned')
-                                    <span class="px-3 py-1 rounded-lg bg-orange-50 text-orange-700 border border-orange-200 font-black text-[10px]">🛠️ نیاز به اصلاح</span>
-                                @elseif($req->status === 'collected' || $req->status === 'archived')
-                                    <span class="px-3 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-black text-[10px]">🚚 لاشه تحویل شد</span>
-                                @elseif($req->status === 'rejected')
-                                    <span class="px-3 py-1 rounded-lg bg-rose-50 text-rose-800 border border-rose-200 font-black text-[10px]">رد درخواست</span>
-                                @else
-                                    <span class="px-3 py-1 rounded-lg bg-slate-100 text-slate-800 border border-slate-200 font-black text-[10px]">{{ $req->status }}</span>
-                                @endif
+                                @php
+                                    $requestType = $req->request_type ?? 'new';
+                                    $typeText = $requestType === 'renewal' ? '🔄 تمدید' : '🆕 جدید';
+                                    $typeClass = $requestType === 'renewal' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-50 text-slate-700 border-slate-200';
+                                    $statusMap = [
+                                        'pending' => ['⏳ در انتظار بررسی', 'bg-amber-50 text-amber-800 border-amber-200'],
+                                        'approved' => ['✅ آماده صدور', 'bg-emerald-50 text-emerald-800 border-emerald-200'],
+                                        'issued' => ['📄 صادر شده / معتبر', 'bg-sky-50 text-sky-800 border-sky-200'],
+                                        'collected' => ['🚚 لاشه تحویل شد', 'bg-slate-100 text-slate-700 border-slate-200'],
+                                        'archived' => ['🗂️ بایگانی شد', 'bg-slate-100 text-slate-700 border-slate-200'],
+                                        'rejected' => ['❌ رد درخواست', 'bg-rose-50 text-rose-800 border-rose-200'],
+                                        'lost' => ['⚠️ مفقودی', 'bg-zinc-100 text-zinc-700 border-zinc-200'],
+                                    ];
+                                    [$statusText, $statusClass] = $statusMap[$req->status] ?? [$req->status, 'bg-slate-100 text-slate-800 border-slate-200'];
+                                @endphp
+                                <div class="flex flex-col items-center gap-1.5">
+                                    <span class="px-3 py-1 rounded-lg border font-black text-[10px] {{ $typeClass }}">{{ $typeText }}</span>
+                                    <span class="px-3 py-1 rounded-lg border font-black text-[10px] {{ $statusClass }}">{{ $statusText }}</span>
+                                </div>
                             </td>
                         </tr>
                     @empty

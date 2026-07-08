@@ -8,22 +8,27 @@ const totalWizardSteps = 3;
 window.navigateWizard = function(direction) {
     if (direction === 1) {
         if (mohammadWizardStep === 1) {
+            let requestType = jQuery('input[name="request_type"]:checked').val() || 'new';
+
             let driverOpt = jQuery('#driver_id option:selected');
             let fleetOpt = jQuery('#fleet_id option:selected');
-            
+
             let driverId = driverOpt.val();
             let fleetId = fleetOpt.val();
-            
-            if (!driverId || driverId === "") {
-                Swal.fire({ icon: 'error', title: 'خطا', text: 'لطفاً راننده متقاضی را انتخاب کنید.' });
-                return;
-            }
-            if (!fleetId || fleetId === "") {
-                Swal.fire({ icon: 'error', title: 'خطا', text: 'لطفاً ناوگان ملکی را انتخاب کنید.' });
-                return;
-            }
 
-            let requestType = jQuery('input[name="request_type"]:checked').val() || 'new';
+            // در تمدید، راننده و ناوگان مخفی هستند و بعد از بررسی کد رهگیری ست می‌شوند.
+            // پس فقط در ثبت جدید راننده و ناوگان را الزاماً چک می‌کنیم.
+            if (requestType === 'new') {
+                if (!driverId || driverId === "") {
+                    Swal.fire({ icon: 'error', title: 'خطا', text: 'لطفاً راننده متقاضی را انتخاب کنید.' });
+                    return;
+                }
+
+                if (!fleetId || fleetId === "") {
+                    Swal.fire({ icon: 'error', title: 'خطا', text: 'لطفاً ناوگان ملکی را انتخاب کنید.' });
+                    return;
+                }
+            }
 
             if (requestType === 'new') {
                 // 🚀 استعلام زنده و آنی از دیتابیس سرور برای اطمینان ۱۰۰٪ (دژ امنیتی فول‌فولاد)
@@ -37,7 +42,8 @@ window.navigateWizard = function(direction) {
                     data: {
                         _token: window.DozoulehConfig.csrfToken,
                         driver_id: driverId,
-                        fleet_id: fleetId
+                        fleet_id: fleetId,
+                        request_type: 'new'
                     },
                     success: function(response) {
                         if (response.success === false) {
@@ -45,7 +51,7 @@ window.navigateWizard = function(direction) {
                             Swal.fire({
                                 icon: 'error',
                                 title: 'عدم تایید سیستمی',
-                                text: response.message, // این پیام از کنترلر می‌آید
+                                text: response.message, 
                                 confirmButtonText: 'متوجه شدم',
                                 confirmButtonColor: '#1e293b'
                             });
@@ -64,17 +70,71 @@ window.navigateWizard = function(direction) {
                 return; // توقف ناوبری تا زمان دریافت جواب از سرور
                 
             } else if (requestType === 'renewal') {
-                let prevDozouleh = jQuery('#previous_dozouleh_number').val().trim();
-                if (!prevDozouleh || prevDozouleh === "" || prevDozouleh === "در حال خواندن...") {
-                    Swal.fire({ icon: 'warning', title: 'نقص اطلاعات', text: 'لطفاً شماره دوزوله مرجع جهت تمدید را وارد کنید.' });
+                let prevDozouleh = (jQuery('#previous_dozouleh_number').val() || '').trim();
+
+                if (!prevDozouleh) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'نقص اطلاعات تمدید',
+                        text: 'لطفاً کد رهگیری پرونده قبلی یا شماره دوزوله را وارد کنید.',
+                        confirmButtonText: 'متوجه شدم',
+                        confirmButtonColor: '#1e293b'
+                    });
                     return;
                 }
-                let validFormatRegex = /^[a-zA-Z0-9-]{5,20}$/;
-                if (!validFormatRegex.test(prevDozouleh)) {
-                    Swal.fire({ icon: 'error', title: 'فرمت نامعتبر', text: 'شماره دوزوله باید حداقل ۵ کاراکتر و فقط شامل حروف انگلیسی و عدد باشد.' });
+
+                if (window.renewalReference && (window.renewalReference.d_code == prevDozouleh || window.renewalReference.serial_number == prevDozouleh)) {
+                    transitionToStep2();
                     return;
                 }
-                transitionToStep2();
+
+                let nextBtn = jQuery('#nextBtn');
+                let originalText = nextBtn.text();
+                nextBtn.prop('disabled', true).text('در حال بررسی تمدید...');
+
+                jQuery.ajax({
+                    url: window.DozoulehConfig.renewableListUrl || '/dozbalagh/renewable-list',
+                    type: 'GET',
+                    data: { d_code: prevDozouleh },
+                    success: function(res) {
+                        nextBtn.prop('disabled', false).text(originalText);
+
+                        if (!res.success || !res.items || res.items.length === 0) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'امکان تمدید وجود ندارد',
+                                text: res.message || 'این دوزبلاغ هنوز صادر نهایی نشده است و امکان ثبت درخواست تمدید برای آن وجود ندارد. لطفاً پس از تأیید نهایی و صدور دوزبلاغ، مجدداً اقدام نمایید.',
+                                confirmButtonText: 'متوجه شدم',
+                                confirmButtonColor: '#1e293b'
+                            });
+                            return;
+                        }
+
+                        let item = res.items[0];
+
+                        window.isApplyingRenewalReference = true;
+                        // در تمدید فقط مقدار پشت‌صحنه ست می‌شود؛ change نمی‌زنیم تا هشدار ناوگان فعال اجرا نشود
+                        if (item.driver_id) jQuery('#driver_id').val(item.driver_id);
+                        if (item.fleet_id) jQuery('#fleet_id').val(item.fleet_id);
+                        setTimeout(function() { window.isApplyingRenewalReference = false; }, 500);
+
+                        window.renewalReference = item;
+                        window.renewalPreviousDestinations = item.destinations || [];
+
+                        transitionToStep2();
+                    },
+                    error: function() {
+                        nextBtn.prop('disabled', false).text(originalText);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'خطای استعلام',
+                            text: 'ارتباط با سرور برای بررسی پرونده تمدید برقرار نشد.',
+                            confirmButtonText: 'متوجه شدم',
+                            confirmButtonColor: '#1e293b'
+                        });
+                    }
+                });
+
                 return;
             }
         }
@@ -109,13 +169,135 @@ window.navigateWizard = function(direction) {
 };
 
 // تابع انتقال به گام ۲ پس از تاییدیه سرور
-function transitionToStep2() {
+window.transitionToStep2 = window.transitionToStep2 = window.transitionToStep2 = function transitionToStep2() {
     jQuery('#step-1').addClass('hidden');
     mohammadWizardStep = 2;
     jQuery('#step-2').removeClass('hidden');
+
+    if (jQuery('input[name="request_type"]:checked').val() === 'renewal' && window.renewalReference) {
+        populateStep2FromRenewal(window.renewalReference);
+    }
+
     updateWizardUI();
     validateStep2Directly();
 }
+
+
+
+function setSelectValueOrText(selector, value) {
+    if (!value) return;
+    let el = jQuery(selector);
+    if (!el.length) return;
+
+    el.val(value);
+
+    if (el.val() != value) {
+        let found = false;
+        el.find('option').each(function() {
+            let optText = jQuery(this).text().trim();
+            let optVal = String(jQuery(this).val()).trim();
+            if (optVal === String(value).trim() || optText.includes(String(value).trim())) {
+                el.val(jQuery(this).val());
+                found = true;
+                return false;
+            }
+        });
+    }
+
+    el.trigger('change');
+}
+
+function populateStep2FromRenewal(item) {
+    if (!item) return;
+
+    if (item.cargo_type) {
+        setSelectValueOrText('#main_cargo_type', item.cargo_type);
+    }
+
+    if (item.loading_origin) {
+        setSelectValueOrText('#loading_origin', item.loading_origin);
+    }
+
+    if (item.loading_destination) {
+        setSelectValueOrText('#loading_destination', item.loading_destination);
+    }
+
+    if (item.cits_code) {
+        jQuery('input[name="cits_code"]').val(item.cits_code).trigger('keyup').trigger('change');
+    }
+
+    if (item.trip_code) {
+        jQuery('input[name="trip_code"]').val(item.trip_code).trigger('keyup').trigger('change');
+    }
+
+    if (item.cmr_date) {
+        jQuery('input[name="cmr_date"]').val(item.cmr_date).trigger('change');
+    }
+
+    if (item.receipt_code) {
+        jQuery('input[name="receipt_code"]').val(item.receipt_code).trigger('keyup').trigger('change');
+    }
+
+    if (item.receipt_amount) {
+        jQuery('input[name="receipt_amount"]').val(item.receipt_amount).trigger('keyup').trigger('change');
+    }
+
+    if (item.tir_carnet_number) {
+        jQuery('input[name="tir_carnet_number"]').val(item.tir_carnet_number).trigger('keyup').trigger('change');
+    }
+
+    if (item.tir_carnet_date) {
+        jQuery('input[name="tir_carnet_date"]').val(item.tir_carnet_date).trigger('change');
+    }
+
+    if (item.destinations && item.destinations.length > 0) {
+        let wrapper = jQuery('#destinations_wrapper');
+        wrapper.empty();
+
+        item.destinations.forEach(function(dest, index) {
+            let countryOptions = '<option value="">انتخاب کشور...</option>';
+
+            if (window.DozoulehConfig && window.DozoulehConfig.countriesList) {
+                window.DozoulehConfig.countriesList.forEach(function(country) {
+                    let price = country.price ?? 0;
+                    let selected = String(country.id) === String(dest.country_id) ? 'selected' : '';
+                    countryOptions += `<option value="${country.id}" data-price="${price}" ${selected}>${country.name}</option>`;
+                });
+            } else {
+                countryOptions += `<option value="${dest.country_id}" selected>${dest.country_name || dest.country_id}</option>`;
+            }
+
+            let removeBtn = index === 0 ? '' : `<button type="button" class="remove-country-btn absolute -top-3 -right-2 bg-rose-100 text-rose-600 border border-rose-200 w-7 h-7 rounded-full flex items-center justify-center hover:bg-rose-500 hover:text-white transition shadow-sm" title="حذف این کشور">✖</button>`;
+
+            let row = `
+            <div class="country-row flex flex-col md:flex-row items-center gap-4 bg-white border border-slate-200 p-4 rounded-xl shadow-sm relative mt-3" data-index="${index}">
+                <div class="w-full md:w-1/2">
+                    <label class="block text-xs font-bold text-slate-600 mb-1">کشور مقصد/عبوری <span class="text-rose-500">*</span></label>
+                    <select name="destinations[${index}][country_id]" class="w-full border border-slate-300 rounded-lg p-2.5 country-select outline-none focus:border-blue-500">
+                        ${countryOptions}
+                    </select>
+                </div>
+                <div class="w-full md:w-1/2">
+                    <label class="block text-xs font-bold text-slate-600 mb-1">نوع مجوز دوزوله <span class="text-rose-500">*</span></label>
+                    <select name="destinations[${index}][permit_type]" class="w-full border border-slate-300 rounded-lg p-2.5 permit-select outline-none focus:border-blue-500">
+                        <option value="">انتخاب کنید...</option>
+                    </select>
+                </div>
+                ${removeBtn}
+            </div>`;
+
+            wrapper.append(row);
+
+            let newRow = wrapper.find('.country-row').last();
+            newRow.find('.country-select').trigger('change');
+
+            setTimeout(function() {
+                newRow.find('.permit-select').val(dest.permit_type).trigger('change');
+            }, 250);
+        });
+    }
+}
+
 
 // --------------------------------------------------------
 // تابع بررسی و فعال‌سازی خودکار دکمه مرحله بعد در استپ ۲
@@ -374,7 +556,7 @@ function proceedToStep3() {
     setTimeout(function() {
         jQuery('#summary-countries-list').html(summaryHeader + countriesHtml);
         renderWalletSection(totalPrice); 
-    }, 50);
+    }, 200);
 }
 
 window.renderWalletSection = function(totalPrice) {

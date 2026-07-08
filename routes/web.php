@@ -63,7 +63,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
     Route::post('/inventory', [InventoryController::class, 'store'])->name('inventory.store');
     Route::delete('/inventory/{id}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
-    
+    Route::get('/admin/inventory/{id}/available-serials', [InventoryController::class, 'getAvailableSerials'])->name('admin.inventory.available-serials'); 
+	
     // 🚚 سهمیه‌ها
     Route::get('/allocations', [AllocationController::class, 'index'])->name('allocations.index');
     Route::post('/allocations/quota', [AllocationController::class, 'updateQuota'])->name('allocations.quota');
@@ -93,7 +94,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     
     // 🏛️ مدیریت مالی ادمین
     Route::get('/financial/dashboard', [FinancialController::class, 'dashboard'])->name('financial.dashboard');
-    Route::post('/financial/settlement', [FinancialController::class, 'storeSettlement'])->name('financial.storeSettlement');
+    Route::post('/financial/store-settlement', [FinancialController::class, 'storeSettlement'])->name('financial.storeSettlement');
     Route::post('/financial/manual-adjustment', [FinancialController::class, 'manualAdjustment'])->name('financial.manualAdjustment');
     Route::get('/financial/export-excel', [FinancialController::class, 'exportExcel'])->name('financial.exportExcel');
     Route::delete('/financial/manual-adjustment/{id}', [FinancialController::class, 'destroyAdjustment'])->name('financial.destroyAdjustment');
@@ -107,8 +108,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/web/association/driver/list', [AssociationController::class, 'index'])->name('association.pending.index');
     Route::post('/web/association/request/process/{id}', [AssociationController::class, 'updateRequestStatus']);
     
-    // 🟢 روت جدید ثبت اختصاصی برگشت اصلاحی مدارک بدون مخدوش شدن تراز مالی لاشه‌ها
-    Route::post('/web/association/request/return/{id}', [AssociationController::class, 'returnToCompany'])->name('association.request.return');
+    // 🟢 دریافت مستندات شرکت برای پاپ‌آپ انجمن
+    Route::get('/web/association/request/details/{id}', [AssociationController::class, 'getRequestDetailsJson']);
+    
+    // 🟢 روت جدید و اختصاصی: ثبت ویرایش مستقیم اطلاعات شرکت توسط اپراتور انجمن
+    Route::post('/web/association/request/inline-update/{id}', [AssociationController::class, 'updateCompanyRequestDataInline']);
 
     Route::get('/web/association/approved/permits', [AssociationController::class, 'associationApprovedPermits'])->name('association.approved.index');
     Route::post('/web/association/request/serial/{id}', [AssociationController::class, 'assignPermitSerial'])->name('association.permit.assign_serial');    
@@ -125,7 +129,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // ==========================================
-// 🏢 روت‌های بخش شرکت (اصلاح شده با ساختار کلاس آرایه‌ای لاراول ۱۱)
+// 🏢 روت‌های بخش شرکت
 // ==========================================
 Route::middleware(['auth'])->group(function () {
     
@@ -140,7 +144,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dozbalagh/renewable-list', [DozbalaghController::class, 'renewableList'])->name('dozbalagh.renewable_list');
     Route::post('/dozbalagh/store', [DozbalaghController::class, 'store'])->name('dozbalagh.store');
     
-    // 🟢 روت‌های ویرایش پرونده‌های برگشت خورده جهت اصلاح مدارک توسط شرکت
+    // 🟢 روت‌های ویرایش پرونده‌های برگشت خورده
     Route::get('/dozbalagh/{id}/edit', [DozbalaghController::class, 'edit'])->name('dozbalagh.edit');
     Route::put('/dozbalagh/{id}/update', [DozbalaghController::class, 'update'])->name('dozbalagh.update');
 
@@ -176,3 +180,8 @@ Route::middleware(['auth'])->group(function () {
         
     });
 });
+
+// ==========================================
+// 🗺️ روت اختصاصی و مستقل نقشه جامع سیستم
+// ==========================================
+Route::get('/system-map', \App\Http\Controllers\SystemMapController::class)->middleware(['auth'])->name('system.map');

@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('header_title', 'صدور و ثبت دستی سریال دوزبِلاغ')
+@section('header_title', 'صدور و ثبت دستی سریال دوزوله')
 
 @section('content')
 <div class="space-y-6">
@@ -11,7 +11,7 @@
             </div>
             <div>
                 <h2 class="text-lg font-black tracking-wide">ثبت دستی سریال و تسویه نهایی پروانه‌ها</h2>
-                <p class="text-slate-400 text-xs mt-1">پرونده‌های تایید شده که اپراتور انجمن باید شماره سریال دوزبلاغ کشور را هنگام صدور و چاپ وارد کند.</p>
+                <p class="text-slate-400 text-xs mt-1">پرونده‌های تایید شده که اپراتور انجمن باید شماره سریال دوزوله کشور را هنگام صدور و چاپ وارد کند.</p>
             </div>
         </div>
     </div>
@@ -107,8 +107,8 @@
 
                             <td class="p-4 text-center">
                                 {{-- 🟢 متغیرهای روز اعتبار و تاریخ پایان هم به صورت هوشمند پاس داده شدند --}}
-                                <button type="button" onclick="manualAssignAndPrint(@js($req->id), @js($req->d_code), @js($req->next_serial_in_warehouse), @js($req->validity_days), @js($req->expire_date_jalali))" class="dbz-action-btn px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 mx-auto cursor-pointer">
-                                    ✍️ ثبت سریال و چاپ پروانه
+                                <button type="button" onclick="manualAssignAndPrint(@js($req->id), @js($req->d_code), @js($req->next_serial_in_warehouse), @js($req->validity_days), @js($req->expire_date_jalali), @js($req->is_renewal ?? false))" class="dbz-action-btn px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 mx-auto cursor-pointer">
+                                    {{ ($req->is_renewal ?? false) ? '🔄 صدور تمدید و چاپ' : '✍️ ثبت سریال و چاپ پروانه' }}
                                 </button>
                             </td>
                         </tr>
@@ -566,7 +566,7 @@
 @endsection
 
 @section('scripts')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 <script>
 function copyToClipboard(text, element) {
     navigator.clipboard.writeText(text).then(function() {
@@ -616,12 +616,18 @@ function filterTable() {
     }
 }
 
-// 🟢 ثبت دستی سریال دوزبلاغ کشور (حذف اینپوت روز و استفاده از اطلاعات محاسبه شده بک‌اند)
-function manualAssignAndPrint(id, dCode, nextSerial, validityDays, expireDateFa) {
+// 🟢 ثبت دستی سریال دوزوله کشور (حذف اینپوت روز و استفاده از اطلاعات محاسبه شده بک‌اند)
+function manualAssignAndPrint(id, dCode, nextSerial, validityDays, expireDateFa, isRenewal = false) {
     const suggestedSerial = (nextSerial && nextSerial !== 'بدون موجودی') ? nextSerial : '';
+    const modalTitle = isRenewal ? 'صدور تمدید دوزوله' : 'ثبت سریال دوزوله کشور';
+    const serialLabel = isRenewal ? 'شماره دوزوله قبلی' : 'شماره سریال کشور';
+    const serialHelp = isRenewal ? 'در تمدید، شماره جدید از انبار مصرف نمی‌شود و همان شماره قبلی تمدید می‌گردد.' : 'سریال باید در انبار خام همان کشور موجود باشد.';
+    const confirmText = isRenewal ? 'صدور تمدید و چاپ پروانه' : 'ثبت سریال و چاپ پروانه';
+    const readOnlyAttr = isRenewal ? 'readonly' : '';
+    const inputValue = isRenewal ? suggestedSerial : suggestedSerial;
 
     Swal.fire({
-        title: 'ثبت سریال دوزبلاغ کشور',
+        title: modalTitle,
         html: `
             <div class="serial-modal-box" dir="rtl">
                 <div class="serial-doc-icon">
@@ -630,28 +636,28 @@ function manualAssignAndPrint(id, dCode, nextSerial, validityDays, expireDateFa)
                 </div>
 
                 <p class="serial-desc">
-                    شماره سریال درج‌شده روی برگه فیزیکی کشور را برای پرونده
+                    ${isRenewal ? 'این پرونده تمدیدی است. همان شماره دوزوله قبلی برای پرونده' : 'شماره سریال درج‌شده روی برگه فیزیکی کشور را برای پرونده'}
                     <b>${dCode || '---'}</b>
                     وارد کنید.
                 </p>
 
                 <div class="serial-suggest">
                     <span class="serial-suggest-icon">ℹ️</span>
-                    <span>پیشنهاد انبار:</span>
+                    <span>${isRenewal ? 'شماره قبلی:' : 'پیشنهاد انبار:'}</span>
                     <b>${nextSerial || 'بدون موجودی'}</b>
                 </div>
 
                 <div class="serial-fields-grid" style="grid-template-columns: 1fr;">
                     <div class="serial-field">
-                        <label for="manual-serial-input">شماره سریال کشور <em>*</em></label>
+                        <label for="manual-serial-input">${serialLabel} <em>*</em></label>
                         <div class="serial-input-wrap">
-                            <input id="manual-serial-input" type="text" inputmode="numeric" dir="ltr" value="${suggestedSerial}" placeholder="123456">
+                            <input id="manual-serial-input" type="text" inputmode="numeric" dir="ltr" value="${inputValue}" ${readOnlyAttr} placeholder="123456">
                             <span>▦</span>
                         </div>
                     </div>
                 </div>
 
-                <small class="serial-help-line">سریال باید در انبار خام همان کشور موجود باشد.</small>
+                <small class="serial-help-line">${serialHelp}</small>
 
                 <div class="serial-validity-preview" style="flex-direction: row; justify-content: space-between; align-items: center; background: #ecfdf5; border-color: #34d399;">
                     <div class="serial-validity-days" style="text-align: right;">
@@ -669,7 +675,7 @@ function manualAssignAndPrint(id, dCode, nextSerial, validityDays, expireDateFa)
             </div>
         `,
         showCancelButton: true,
-        confirmButtonText: 'ثبت سریال و چاپ پروانه',
+        confirmButtonText: confirmText,
         cancelButtonText: 'انصراف',
         reverseButtons: true,
         focusConfirm: false,
@@ -688,11 +694,11 @@ function manualAssignAndPrint(id, dCode, nextSerial, validityDays, expireDateFa)
             const serial = document.getElementById('manual-serial-input').value.trim();
 
             if (!serial) {
-                Swal.showValidationMessage('شماره سریال کشور را وارد کنید.');
+                Swal.showValidationMessage(isRenewal ? 'شماره دوزوله قبلی در پرونده تمدید ثبت نشده است.' : 'شماره سریال کشور را وارد کنید.');
                 return false;
             }
 
-            if (!/^\d+$/.test(serial)) {
+            if (!isRenewal && !/^\d+$/.test(serial)) {
                 Swal.showValidationMessage('شماره سریال فقط باید عدد باشد.');
                 return false;
             }

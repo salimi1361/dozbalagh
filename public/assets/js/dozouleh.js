@@ -394,4 +394,3 @@ $(document).ready(function() {
         }
     });
 });
-

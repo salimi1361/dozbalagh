@@ -75,9 +75,11 @@
                                 @endif
                             </td>
                             <td class="p-4 text-center flex items-center justify-center gap-2">
+                                {{-- 🟢 اصلاحیه طلایی: اضافه کردن فیلد به دیتای دکمه جهت خواندن قطعی توسط جاوااسکریپت بدون باگ کش مرورگر --}}
                                 <button type="button" 
                                         data-permits="{{ json_encode($country->allowed_permit_types ?? []) }}"
-                                        onclick="openEditCountryModal(this, '{{ $country->id }}', '{{ $country->name }}', '{{ $country->code }}', '{{ $country->price }}', '{{ $country->validity_days ?? 30 }}')" 
+                                        data-validity="{{ $country->validity_days ?? 30 }}"
+                                        onclick="openEditCountryModal(this, '{{ $country->id }}', '{{ $country->name }}', '{{ $country->code }}', '{{ $country->price }}')" 
                                         class="text-indigo-600 hover:text-indigo-800 font-bold text-xs bg-indigo-50 px-3 py-1.5 rounded-md transition flex items-center gap-1">
                                     ✏️ ویرایش
                                 </button>
@@ -232,11 +234,15 @@
         $('#country_modal').addClass('hidden'); 
     }
 
-    function openEditCountryModal(btnElement, id, name, code, price, validity_days) {
+    function openEditCountryModal(btnElement, id, name, code, price) {
+        // پر کردن مقادیر داینامیک از دیتابیس در فرم مودال
         $('#edit_name').val(name);
         $('#edit_code').val(code !== '---' ? code : '');
         $('#edit_price').val(price); 
-        $('#edit_validity_days').val(validity_days); 
+        
+        // 🟢 اصلاحیه قطعی: واکشی امن دیتا مستقیماً از دیتا-ویژگی المنت HTML دکمه جدول
+        let validityDays = $(btnElement).data('validity') || 30;
+        $('#edit_validity_days').val(validityDays); 
         
         let permits = $(btnElement).data('permits');
         $('.edit-permit-checkbox').prop('checked', false);
