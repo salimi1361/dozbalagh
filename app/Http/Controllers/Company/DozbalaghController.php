@@ -92,6 +92,8 @@ class DozbalaghController extends Controller
                 });
             } elseif ($statusFilter === 'active') {
                 $query->whereIn('status', $this->activePermitStatuses());
+            } elseif ($statusFilter === 'collected') {
+                $query->whereIn('status', ['collected', 'archived']);
             } else {
                 $query->where('status', $statusFilter);
             }
