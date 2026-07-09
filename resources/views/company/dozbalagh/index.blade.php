@@ -186,6 +186,22 @@
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                         جزئیات
                                     </button>
+
+                                    @if($item->status === 'issued')
+                                        @if(empty($item->company_return_image))
+                                            <button onclick='openReturnLashModal(@json($item->id), @json($item->d_code))' class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-md shadow-emerald-100">
+                                                ثبت لاشه
+                                            </button>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-black">
+                                                کد پیک: {{ $item->courier_delivery_code ?? '---' }}
+                                            </span>
+                                        @endif
+
+                                        <button onclick='reportLost(@json($item->id), @json($item->d_code))' class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-md shadow-rose-100">
+                                            مفقودی
+                                        </button>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -328,29 +344,6 @@
                                             </div>
                                         </div>
                                     </div>
-
-                                    @if($item->status === 'issued')
-                                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                            <div>
-                                                <p class="text-xs font-black text-slate-700">عملیات این پرونده</p>
-                                                <p class="text-[11px] text-slate-400 font-bold mt-1">اقدام‌های مربوط به لاشه و مفقودی فقط داخل جزئیات همین درخواست نمایش داده می‌شود.</p>
-                                            </div>
-                                            <div class="flex flex-wrap gap-2">
-                                                @if(empty($item->company_return_image))
-                                                    <button onclick='openReturnLashModal(@json($item->id), @json($item->d_code))' class="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors">
-                                                        ثبت لاشه
-                                                    </button>
-                                                @else
-                                                    <span class="inline-flex items-center gap-1 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-xs font-black">
-                                                        کد پیک: {{ $item->courier_delivery_code ?? '---' }}
-                                                    </span>
-                                                @endif
-                                                <button onclick='reportLost(@json($item->id), @json($item->d_code))' class="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors">
-                                                    مفقودی
-                                                </button>
-                                            </div>
-                                        </div>
-                                    @endif
 
                                     @if($item->company_note)
                                         <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 font-medium leading-relaxed">
