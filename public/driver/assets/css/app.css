@@ -211,18 +211,43 @@ body {
 .notification-card {
     width: 100%;
     min-height: 74px;
-    padding: 12px 13px;
+    padding: 8px;
     border: 1px solid rgba(255,255,255,.72);
     border-radius: var(--radius-md);
     background: rgba(255,255,255,.96);
     box-shadow: var(--shadow-soft);
     display: grid;
-    grid-template-columns: 42px minmax(0, 1fr) 18px;
+    grid-template-columns: minmax(0, 1fr) 36px;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     font-family: var(--font);
     text-align: right;
     color: var(--text);
+}
+.notification-card__open {
+    min-width: 0;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 18px;
+    align-items: center;
+    gap: 10px;
+    padding: 4px;
+    font-family: var(--font);
+    text-align: right;
+    color: var(--text);
+    cursor: pointer;
+}
+.notification-card__delete {
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    color: #ef4444;
+    background: #fff1f2;
     cursor: pointer;
 }
 .notification-card.is-unread {
@@ -247,7 +272,7 @@ body {
     color: var(--muted);
     overflow-wrap: anywhere;
 }
-.notification-card > i { color: #94a3b8; font-size: 11px; }
+.notification-card__open > i { color: #94a3b8; font-size: 11px; }
 .notification-summary-card {
     width: 100%;
     min-height: 76px;

@@ -35,6 +35,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/web/company/driver/delete', [CompanyDriverController::class, 'destroy'])->name('web.company.driver.delete');
 
         Route::get('/web/company/driver-messages', [DriverMessageController::class, 'index'])->name('company.driver_messages.index');
+        Route::get('/web/company/driver-messages/summary', [DriverMessageController::class, 'summary'])->name('company.driver_messages.summary');
         Route::post('/web/company/driver-messages', [DriverMessageController::class, 'store'])->name('company.driver_messages.store');
         Route::get('/web/company/driver-messages/{driverId}', [DriverMessageController::class, 'thread'])->name('company.driver_messages.thread');
 

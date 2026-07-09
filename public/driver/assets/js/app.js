@@ -176,7 +176,7 @@ function requestBrowserNotificationPermission() {
 
 function startNotificationPolling() {
     if (notificationPollTimer) return;
-    notificationPollTimer = setInterval(() => fetchNotifications(true), 30000);
+    notificationPollTimer = setInterval(() => fetchNotifications(true), 10000);
 }
 
 function notifyNewDriverNotifications(items) {
@@ -725,6 +725,27 @@ function sendCompanyMessageReply(messageId) {
         .catch(() => showToast('خطا در ارسال پاسخ.', 'error'));
 }
 
+function deleteNotification(id, event) {
+    if (event) event.stopPropagation();
+
+    fetch(`${API_BASE}/notifications/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                notificationsCache = notificationsCache.filter(item => item.id !== id);
+                showToast('اعلان حذف شد.', 'success');
+                fetchNotifications();
+                showNotificationsModal();
+            } else {
+                showToast('حذف اعلان انجام نشد.', 'error');
+            }
+        })
+        .catch(() => showToast('خطا در حذف اعلان.', 'error'));
+}
+
 function showNotificationsModal() {
     const items = notificationsCache.length
         ? notificationsCache
@@ -732,15 +753,20 @@ function showNotificationsModal() {
 
     const listHtml = items.length
         ? items.map(item => `
-            <button type="button" class="notification-card ${item.read_at ? '' : 'is-unread'}" onclick="${item.type === 'company_message' && item.message_id ? `openCompanyMessageNotification('${escapeHtml(item.id)}', ${Number(item.message_id)})` : `openNotification('${escapeHtml(item.id)}', ${item.permit_id || 'null'})`}">
-                <span class="notification-card__icon"><i class="fa-solid fa-bell"></i></span>
-                <span class="notification-card__body">
-                    <b>${displayValue(item.title)}</b>
-                    <small>${displayValue(item.message)}</small>
-                    ${item.type === 'company_message' && item.message_id ? '<small style="color:#0b63ce;font-weight:950">مشاهده و پاسخ به شرکت</small>' : ''}
-                </span>
-                <i class="fa-solid fa-chevron-left"></i>
-            </button>
+            <div class="notification-card ${item.read_at ? '' : 'is-unread'}">
+                <button type="button" class="notification-card__open" onclick="${item.type === 'company_message' && item.message_id ? `openCompanyMessageNotification('${escapeHtml(item.id)}', ${Number(item.message_id)})` : `openNotification('${escapeHtml(item.id)}', ${item.permit_id || 'null'})`}">
+                    <span class="notification-card__icon"><i class="fa-solid fa-bell"></i></span>
+                    <span class="notification-card__body">
+                        <b>${displayValue(item.title)}</b>
+                        <small>${displayValue(item.message)}</small>
+                        ${item.type === 'company_message' && item.message_id ? '<small style="color:#0b63ce;font-weight:950">مشاهده و پاسخ به شرکت</small>' : ''}
+                    </span>
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <button type="button" class="notification-card__delete" onclick="deleteNotification('${escapeHtml(item.id)}', event)" aria-label="حذف اعلان">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </div>
         `).join('')
         : emptyNotificationsHtml();
 

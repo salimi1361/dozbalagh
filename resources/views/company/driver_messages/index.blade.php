@@ -5,21 +5,6 @@
 @endsection
 
 @section('content')
-@php
-    $driverPayload = $drivers->map(function ($driver) use ($threads, $unreadByDriver) {
-        $name = trim(($driver->first_name_fa ?? '') . ' ' . ($driver->last_name_fa ?? ''));
-
-        return [
-            'id' => $driver->id,
-            'name' => $name ?: 'راننده بدون نام',
-            'national_code' => $driver->national_code,
-            'mobile' => $driver->mobile,
-            'last_message_at' => $threads[$driver->id] ?? null,
-            'unread_count' => (int) ($unreadByDriver[$driver->id] ?? 0),
-        ];
-    })->values();
-@endphp
-
 <div class="max-w-7xl mx-auto space-y-5">
     <div class="bg-slate-950 text-white rounded-2xl p-6 shadow-sm flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
@@ -28,15 +13,15 @@
         </div>
         <div class="grid grid-cols-3 gap-2 text-center">
             <div class="bg-white/10 rounded-xl px-4 py-3">
-                <div class="text-lg font-black">{{ number_format($drivers->count()) }}</div>
+                <div id="stat_drivers" class="text-lg font-black">{{ number_format($drivers->count()) }}</div>
                 <div class="text-[10px] text-slate-300">راننده فعال</div>
             </div>
             <div class="bg-white/10 rounded-xl px-4 py-3">
-                <div class="text-lg font-black">{{ number_format($unreadByDriver->sum()) }}</div>
+                <div id="stat_unread" class="text-lg font-black">{{ number_format($unreadByDriver->sum()) }}</div>
                 <div class="text-[10px] text-slate-300">پاسخ خوانده‌نشده</div>
             </div>
             <div class="bg-white/10 rounded-xl px-4 py-3">
-                <div class="text-lg font-black">{{ number_format($threads->count()) }}</div>
+                <div id="stat_threads" class="text-lg font-black">{{ number_format($threads->count()) }}</div>
                 <div class="text-[10px] text-slate-300">گفتگوی فعال</div>
             </div>
         </div>
@@ -46,8 +31,13 @@
         <aside class="xl:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
             <div class="p-4 border-b border-slate-100 bg-slate-50">
                 <div class="flex items-center justify-between gap-3 mb-3">
-                    <h2 class="text-sm font-black text-slate-800">رانندگان</h2>
+                    <h2 class="text-sm font-black text-slate-800">سوابق و مخاطبین</h2>
                     <button type="button" onclick="selectAllDrivers()" class="text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg">انتخاب همه</button>
+                </div>
+                <div class="grid grid-cols-3 gap-1 mb-3">
+                    <button type="button" id="mode_chats" onclick="setListMode('chats')" class="list-mode-btn bg-blue-600 text-white rounded-lg py-2 text-[10px] font-black">سوابق گفتگو</button>
+                    <button type="button" id="mode_unread" onclick="setListMode('unread')" class="list-mode-btn bg-slate-100 text-slate-600 rounded-lg py-2 text-[10px] font-black">خوانده‌نشده</button>
+                    <button type="button" id="mode_all" onclick="setListMode('all')" class="list-mode-btn bg-slate-100 text-slate-600 rounded-lg py-2 text-[10px] font-black">همه</button>
                 </div>
                 <input id="driver_search" type="text" placeholder="جستجو نام، موبایل یا کد ملی..."
                        class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-blue-500">
@@ -134,10 +124,12 @@
 @section('scripts')
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 <script>
-    const drivers = @json($driverPayload);
+    let drivers = @json($driverPayload);
     let selectedDriverIds = [];
     let currentScope = 'selected';
     let activeThreadDriverId = null;
+    let currentListMode = 'chats';
+    let threadRefreshInFlight = false;
 
     function escapeText(value) {
         return String(value ?? '').replace(/[&<>'"]/g, ch => ({
@@ -148,6 +140,9 @@
     function renderDrivers() {
         const query = $('#driver_search').val().trim().toLowerCase();
         const filtered = drivers.filter(driver => {
+            if (currentListMode === 'chats' && !driver.last_message_at) return false;
+            if (currentListMode === 'unread' && Number(driver.unread_count || 0) === 0) return false;
+
             const haystack = `${driver.name} ${driver.mobile || ''} ${driver.national_code || ''}`.toLowerCase();
             return haystack.includes(query);
         });
@@ -171,9 +166,29 @@
                         </button>
                     </div>
                 </div>`;
-        }).join('') || '<div class="p-8 text-center text-xs font-bold text-slate-400">راننده‌ای یافت نشد.</div>');
+        }).join('') || emptyDriverListHtml();
 
         updateSummary();
+    }
+
+    function emptyDriverListHtml() {
+        const labels = {
+            chats: 'هنوز سابقه گفتگویی ثبت نشده است. از تب «همه» راننده را انتخاب کنید.',
+            unread: 'پاسخ خوانده‌نشده‌ای وجود ندارد.',
+            all: 'راننده‌ای یافت نشد.',
+        };
+
+        return `<div class="p-8 text-center text-xs font-bold text-slate-400 leading-7">${labels[currentListMode]}</div>`;
+    }
+
+    function setListMode(mode) {
+        currentListMode = mode;
+        ['chats', 'unread', 'all'].forEach(item => {
+            $(`#mode_${item}`)
+                .toggleClass('bg-blue-600 text-white', item === mode)
+                .toggleClass('bg-slate-100 text-slate-600', item !== mode);
+        });
+        renderDrivers();
     }
 
     function toggleDriver(driverId) {
@@ -237,8 +252,12 @@
 
         $.post("{{ route('company.driver_messages.store') }}", data, function(res) {
             if (res.success) {
-                Swal.fire({ icon: 'success', title: 'ارسال شد', text: res.message, confirmButtonColor: '#2563eb' })
-                    .then(() => location.reload());
+                $('#message_title').val('');
+                $('#message_body').val('');
+                $('#message_ack').prop('checked', false);
+                Swal.fire({ icon: 'success', title: 'ارسال شد', text: res.message, confirmButtonColor: '#2563eb' });
+                refreshSummary();
+                btn.prop('disabled', false).text(originalText);
             } else {
                 btn.prop('disabled', false).text(originalText);
                 Swal.fire({ icon: 'error', title: 'خطا', text: res.message || 'ارسال انجام نشد.' });
@@ -250,15 +269,20 @@
         });
     }
 
-    function loadThread(driverId) {
+    function loadThread(driverId, silent = false) {
+        if (threadRefreshInFlight) return;
+        threadRefreshInFlight = true;
         activeThreadDriverId = driverId;
         renderDrivers();
-        $('#thread_body').html('<div class="p-8 text-center text-xs font-bold text-slate-400">در حال دریافت گفتگو...</div>');
+        if (!silent) {
+            $('#thread_body').html('<div class="p-8 text-center text-xs font-bold text-slate-400">در حال دریافت گفتگو...</div>');
+        }
 
         $.get(`{{ url('/web/company/driver-messages') }}/${driverId}`, function(res) {
             if (!res.success) return;
 
             $('#thread_title').text(`${res.driver.name} · ${res.driver.mobile || 'بدون موبایل'}`);
+            drivers = drivers.map(driver => driver.id === driverId ? { ...driver, unread_count: 0 } : driver);
 
             const html = res.messages.length
                 ? res.messages.map(item => `
@@ -274,10 +298,30 @@
 
             $('#thread_body').html(html);
             $('#thread_body').scrollTop($('#thread_body')[0].scrollHeight);
+        }).always(function() {
+            threadRefreshInFlight = false;
+        });
+    }
+
+    function refreshSummary() {
+        $.get("{{ route('company.driver_messages.summary') }}", function(res) {
+            if (!res.success) return;
+            drivers = res.drivers || [];
+            $('#stat_drivers').text(Number(res.stats.drivers_count || 0).toLocaleString('fa-IR'));
+            $('#stat_unread').text(Number(res.stats.unread_count || 0).toLocaleString('fa-IR'));
+            $('#stat_threads').text(Number(res.stats.threads_count || 0).toLocaleString('fa-IR'));
+            selectedDriverIds = selectedDriverIds.filter(id => drivers.some(driver => driver.id === id));
+            renderDrivers();
         });
     }
 
     $('#driver_search').on('input', renderDrivers);
-    $(document).ready(renderDrivers);
+    $(document).ready(function() {
+        renderDrivers();
+        setInterval(function() {
+            refreshSummary();
+            if (activeThreadDriverId) loadThread(activeThreadDriverId, true);
+        }, 8000);
+    });
 </script>
 @endsection

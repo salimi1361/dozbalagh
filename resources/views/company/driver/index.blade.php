@@ -18,16 +18,10 @@
                 <p class="text-slate-400 text-[11px] mt-0.5">سیستم فینگلیش خودکار و کنترل محدودیت‌های بین‌المللی فعال است.</p>
             </div>
             
-            <div class="flex flex-wrap gap-2 justify-end">
-                <button onclick="openNotifyModal('all')"
-                        class="bg-blue-600 hover:bg-blue-700 text-white font-black px-5 py-2.5 rounded-xl text-xs shadow-lg transition">
-                    📣 ارسال گروهی
-                </button>
-                <button onclick="openDriverModal()"
-                        class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-5 py-2.5 rounded-xl text-xs shadow-lg transition">
-                    ➕ ثبت راننده جدید
-                </button>
-            </div>
+            <button onclick="openDriverModal()"
+                    class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-5 py-2.5 rounded-xl text-xs shadow-lg transition">
+                ➕ ثبت راننده جدید
+            </button>
         </div>
 
         <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row gap-4 justify-between items-center">
@@ -51,7 +45,6 @@
                         <th class="p-4">شماره موبایل</th>
                         <th class="p-4 text-blue-600">هویت فینگلیش</th>
                         <th class="p-4 text-center">دوزبلاغ فعال</th>
-                        <th class="p-4 text-center">پیام‌ها</th>
                         <th class="p-4 text-center">عملیات</th>
                     </tr>
                 </thead>
@@ -71,20 +64,7 @@
                                 @endif
                             </td>
 
-                            <td class="p-4 text-center">
-                                @if($d->unread_company_messages > 0)
-                                    <span class="bg-blue-100 text-blue-700 font-black px-3 py-1 rounded-full text-xs shadow-sm">{{ $d->unread_company_messages }} خوانده‌نشده</span>
-                                @elseif($d->last_company_message_at)
-                                    <span class="bg-slate-100 text-slate-500 font-bold px-3 py-1 rounded-full text-xs">ارسال شده</span>
-                                @else
-                                    <span class="bg-slate-50 text-slate-400 font-bold px-3 py-1 rounded-full text-xs">بدون پیام</span>
-                                @endif
-                            </td>
-
                             <td class="p-4 text-center flex justify-center gap-2 flex-wrap">
-                                <button onclick="openNotifyModal('selected', {{ $d->id }})"
-                                        class="bg-blue-500 hover:bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition">📣 پیام</button>
-
                                 <button onclick="editDriver('{{ $d->national_code }}', '{{ $d->first_name_fa }}', '{{ $d->last_name_fa }}', '{{ $d->first_name_en }}', '{{ $d->last_name_en }}', '{{ $d->passport_number }}', '{{ $d->mobile }}')" 
                                         class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-3 py-1.5 rounded-lg text-xs transition">✏️ ویرایش</button>
                                 
@@ -93,11 +73,11 @@
                             </td>
                         </tr>
                     @empty
-                        <tr id="no_records_row"><td colspan="7" class="p-8 text-center text-slate-400 font-bold">رکوردی یافت نشد.</td></tr>
+                        <tr id="no_records_row"><td colspan="6" class="p-8 text-center text-slate-400 font-bold">رکوردی یافت نشد.</td></tr>
                     @endforelse
                     
                     <tr id="search_empty_row" class="hidden">
-                        <td colspan="7" class="p-8 text-center text-slate-400 font-bold">هیچ راننده‌ای با مشخصات جستجو شده یافت نشد.</td>
+                        <td colspan="6" class="p-8 text-center text-slate-400 font-bold">هیچ راننده‌ای با مشخصات جستجو شده یافت نشد.</td>
                     </tr>
                 </tbody>
             </table>

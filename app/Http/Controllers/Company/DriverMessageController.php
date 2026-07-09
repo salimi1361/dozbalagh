@@ -15,28 +15,25 @@ class DriverMessageController extends Controller
     public function index()
     {
         $companyId = auth()->user()->company->id ?? auth()->user()->company_id;
+        [$drivers, $threads, $unreadByDriver, $driverPayload] = $this->messageOverview($companyId);
 
-        $drivers = Driver::query()
-            ->where('current_company_id', $companyId)
-            ->orderBy('last_name_fa')
-            ->orderBy('first_name_fa')
-            ->get(['id', 'national_code', 'first_name_fa', 'last_name_fa', 'mobile']);
+        return view('company.driver_messages.index', compact('drivers', 'threads', 'unreadByDriver', 'driverPayload'));
+    }
 
-        $threads = CompanyDriverMessage::query()
-            ->selectRaw('driver_id, max(created_at) as last_message_at')
-            ->where('company_id', $companyId)
-            ->groupBy('driver_id')
-            ->pluck('last_message_at', 'driver_id');
+    public function summary()
+    {
+        $companyId = auth()->user()->company->id ?? auth()->user()->company_id;
+        [$drivers, $threads, $unreadByDriver, $driverPayload] = $this->messageOverview($companyId);
 
-        $unreadByDriver = CompanyDriverMessage::query()
-            ->selectRaw('driver_id, count(*) as total')
-            ->where('company_id', $companyId)
-            ->where('sender', 'driver')
-            ->whereNull('read_at')
-            ->groupBy('driver_id')
-            ->pluck('total', 'driver_id');
-
-        return view('company.driver_messages.index', compact('drivers', 'threads', 'unreadByDriver'));
+        return response()->json([
+            'success' => true,
+            'drivers' => $driverPayload,
+            'stats' => [
+                'drivers_count' => $drivers->count(),
+                'unread_count' => $unreadByDriver->sum(),
+                'threads_count' => $threads->count(),
+            ],
+        ]);
     }
 
     public function store(Request $request)
@@ -147,5 +144,43 @@ class DriverMessageController extends Controller
             ],
             'messages' => $messages,
         ]);
+    }
+
+    private function messageOverview(int $companyId): array
+    {
+        $drivers = Driver::query()
+            ->where('current_company_id', $companyId)
+            ->orderBy('last_name_fa')
+            ->orderBy('first_name_fa')
+            ->get(['id', 'national_code', 'first_name_fa', 'last_name_fa', 'mobile']);
+
+        $threads = CompanyDriverMessage::query()
+            ->selectRaw('driver_id, max(created_at) as last_message_at')
+            ->where('company_id', $companyId)
+            ->groupBy('driver_id')
+            ->pluck('last_message_at', 'driver_id');
+
+        $unreadByDriver = CompanyDriverMessage::query()
+            ->selectRaw('driver_id, count(*) as total')
+            ->where('company_id', $companyId)
+            ->where('sender', 'driver')
+            ->whereNull('read_at')
+            ->groupBy('driver_id')
+            ->pluck('total', 'driver_id');
+
+        $driverPayload = $drivers->map(function ($driver) use ($threads, $unreadByDriver) {
+            $name = trim(($driver->first_name_fa ?? '') . ' ' . ($driver->last_name_fa ?? ''));
+
+            return [
+                'id' => $driver->id,
+                'name' => $name ?: 'راننده بدون نام',
+                'national_code' => $driver->national_code,
+                'mobile' => $driver->mobile,
+                'last_message_at' => $threads[$driver->id] ?? null,
+                'unread_count' => (int) ($unreadByDriver[$driver->id] ?? 0),
+            ];
+        })->sortByDesc(fn ($driver) => $driver['last_message_at'] ?? '')->values();
+
+        return [$drivers, $threads, $unreadByDriver, $driverPayload];
     }
 }

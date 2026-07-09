@@ -53,6 +53,7 @@ Route::prefix('v1/driver')->group(function () {
         Route::get('/permits/{id}', [PermitController::class, 'show']); // دریافت جزئیات یک دوزبلاغ
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
         Route::post('/company-messages/reply', [CompanyMessageController::class, 'reply']);
     });
 
