@@ -49,6 +49,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/web/company/dozbalagh/{id}/return-lash', [DozbalaghController::class, 'submitReturnLash'])->name('company.dozbalagh.return_lash');
         Route::post('/web/company/dozbalagh/{id}/report-lost', [DozbalaghController::class, 'reportLost'])->name('company.dozbalagh.report_lost');
         Route::get('/web/company/report/index', [ReportController::class, 'index'])->name('report.index');
+        Route::get('/web/company/report/export', [ReportController::class, 'exportExcel'])->name('report.export');
 
         Route::get('/wallet', [WalletController::class, 'index'])->name('company.wallet.index');
         Route::post('/wallet/charge', [WalletController::class, 'charge'])->name('company.wallet.charge');
