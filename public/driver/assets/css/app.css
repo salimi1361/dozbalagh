@@ -845,6 +845,50 @@ body {
 }
 .auth-title { margin-top: 4px; }
 
+.install-gate {
+    width: min(100%, 360px);
+    margin: 0 auto;
+    padding: 26px 22px;
+    display: grid;
+    gap: 15px;
+    justify-items: center;
+    text-align: center;
+}
+.install-steps {
+    width: 100%;
+    display: grid;
+    gap: 9px;
+    margin: 2px 0 6px;
+}
+.install-steps div {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+    padding: 10px 11px;
+    border-radius: 16px;
+    background: #f8fbff;
+    border: 1px solid rgba(17,104,216,.12);
+    text-align: right;
+}
+.install-steps b {
+    width: 30px;
+    height: 30px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 999px;
+    color: #fff;
+    background: linear-gradient(135deg, #00a3ff, #0b63ce);
+    font-size: 12px;
+    font-weight: 950;
+}
+.install-steps span {
+    color: #334155;
+    font-size: 11.5px;
+    font-weight: 850;
+    line-height: 1.7;
+}
+
 .permit-card {
     transform: translateZ(0);
 }

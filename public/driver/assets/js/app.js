@@ -4,8 +4,20 @@ let currentTab = 'home';
 let permitsCache = [];
 let notificationsCache = [];
 let gpsPermissionState = 'prompt';
+let deferredInstallPrompt = null;
 
 document.addEventListener('DOMContentLoaded', initApp);
+window.addEventListener('beforeinstallprompt', event => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    const installBtn = document.getElementById('install-app-btn');
+    if (installBtn) installBtn.disabled = false;
+});
+window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    localStorage.setItem('driver_app_installed', 'true');
+    renderLoginScreen();
+});
 
 function initApp() {
     registerServiceWorker();
@@ -15,6 +27,10 @@ function initApp() {
 
     if (!token) {
         document.getElementById('bottom-navigation').classList.add('hidden');
+        if (shouldShowInstallGate()) {
+            renderInstallGate();
+            return;
+        }
         renderLoginScreen();
         return;
     }
@@ -29,6 +45,73 @@ function initApp() {
 function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
     navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+function isStandaloneApp() {
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function shouldShowInstallGate() {
+    if (isStandaloneApp()) return false;
+    if (localStorage.getItem('driver_install_gate_done') === 'true') return false;
+    return true;
+}
+
+function renderInstallGate() {
+    const main = document.getElementById('main-content');
+    main.classList.add('is-centered');
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+    main.innerHTML = `
+        <div class="install-gate card">
+            <div class="auth-icon auth-icon--logo">
+                ${associationLogoHtml('association-logo--auth')}
+            </div>
+            <h1 class="auth-title">نصب وب‌اپ راننده</h1>
+            <p class="auth-subtitle">برای ورود به سامانه، ابتدا وب‌اپ دوزوله را روی گوشی نصب کنید.</p>
+            <div class="install-steps">
+                ${isIos
+                    ? `
+                        <div><b>۱</b><span>دکمه Share مرورگر Safari را بزنید.</span></div>
+                        <div><b>۲</b><span>گزینه Add to Home Screen را انتخاب کنید.</span></div>
+                        <div><b>۳</b><span>پس از نصب، آیکن دوزوله را از صفحه اصلی گوشی باز کنید.</span></div>
+                    `
+                    : `
+                        <div><b>۱</b><span>دکمه نصب را بزنید.</span></div>
+                        <div><b>۲</b><span>بعد از نصب، برنامه را از صفحه اصلی گوشی باز کنید.</span></div>
+                    `
+                }
+            </div>
+            ${isIos
+                ? `<button type="button" onclick="continueAfterInstallGuide()" class="btn btn--primary">متوجه شدم</button>`
+                : `<button type="button" onclick="installDriverApp()" id="install-app-btn" class="btn btn--primary">
+                    <i class="fa-solid fa-download"></i>
+                    <span>نصب وب‌اپ راننده</span>
+                </button>`
+            }
+        </div>`;
+}
+
+function installDriverApp() {
+    if (!deferredInstallPrompt) {
+        showToast('اگر گزینه نصب نمایش داده نشد، از منوی مرورگر گزینه نصب برنامه را انتخاب کنید.', 'info');
+        return;
+    }
+
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(choice => {
+        if (choice.outcome === 'accepted') {
+            localStorage.setItem('driver_app_installed', 'true');
+            localStorage.setItem('driver_install_gate_done', 'true');
+            showToast('بعد از نصب، برنامه را از صفحه اصلی گوشی باز کنید.', 'success');
+        }
+        deferredInstallPrompt = null;
+    });
+}
+
+function continueAfterInstallGuide() {
+    localStorage.setItem('driver_install_gate_done', 'true');
+    renderLoginScreen();
 }
 
 function switchTab(tab) {
