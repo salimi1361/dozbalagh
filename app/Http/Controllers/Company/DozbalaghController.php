@@ -45,6 +45,11 @@ class DozbalaghController extends Controller
         return 'KHD' . $datePrefix . str_pad($nextSequence, 3, '0', STR_PAD_LEFT);
     }
 
+    private function activePermitStatuses(): array
+    {
+        return ['draft', 'pending', 'under_review', 'returned', 'approved', 'issued'];
+    }
+
     public function index(Request $request)
     {
         $user = auth()->user();
@@ -86,7 +91,7 @@ class DozbalaghController extends Controller
                       ->orWhere('request_type', '');
                 });
             } elseif ($statusFilter === 'active') {
-                $query->whereIn('status', ['pending', 'approved', 'issued']);
+                $query->whereIn('status', $this->activePermitStatuses());
             } else {
                 $query->where('status', $statusFilter);
             }
@@ -126,7 +131,7 @@ class DozbalaghController extends Controller
         $drivers = \App\Models\Driver::where('current_company_id', $companyId)->get();
         foreach ($drivers as $driver) {
             $activeDriverPermit = \App\Models\PermitRequest::where('driver_id', $driver->id)
-                ->whereIn('status', ['pending', 'approved', 'issued', 'صادر شده'])
+                ->whereIn('status', $this->activePermitStatuses())
                 ->orderBy('id', 'desc')
                 ->first();
             $driver->active_dozbalaghs = $activeDriverPermit ? 1 : 0;
@@ -136,7 +141,7 @@ class DozbalaghController extends Controller
         $fleets = \App\Models\Fleet::where('company_id', $companyId)->get();
         foreach ($fleets as $fleet) {
             $activeFleetPermit = \App\Models\PermitRequest::where('fleet_id', $fleet->id)
-                ->whereIn('status', ['pending', 'approved', 'issued', 'صادر شده'])
+                ->whereIn('status', $this->activePermitStatuses())
                 ->orderBy('id', 'desc')
                 ->first();
             $fleet->active_dozbalaghs = $activeFleetPermit ? 1 : 0;
@@ -535,7 +540,7 @@ public function store(Request $request)
         } else {
             // در متد ذخیره‌سازی فقط ناوگان کنترل می‌شود (راننده کاملاً آزاد شد)
             $activePermitCheck = PermitRequest::where('fleet_id', $request->fleet_id)
-                ->whereIn('status', ['pending', 'approved', 'issued'])
+                ->whereIn('status', $this->activePermitStatuses())
                 ->exists();
 
             if ($activePermitCheck) {
@@ -634,12 +639,16 @@ public function store(Request $request)
 
             // دژ امنیتی تمدید: اگر حالت درخواست تمدید (renewal) باشد، نباید جلوی ناوگان گرفته شود
             if ($requestType !== 'renewal') {
-                $activeFleetPermit = PermitRequest::where('fleet_id', $fleetId)->whereIn('status', ['pending', 'approved', 'issued'])->first();
+                $activeFleetPermit = PermitRequest::where('fleet_id', $fleetId)
+                    ->whereIn('status', $this->activePermitStatuses())
+                    ->first();
                 if ($activeFleetPermit) {
                     return response()->json(['success' => false, 'message' => "این ناوگان درخواست فعالی به شماره {$activeFleetPermit->d_code} دارد."], 200);
                 }
                 if ($driverId) {
-                    $activeDriverPermit = PermitRequest::where('driver_id', $driverId)->whereIn('status', ['pending', 'approved', 'issued'])->first();
+                    $activeDriverPermit = PermitRequest::where('driver_id', $driverId)
+                        ->whereIn('status', $this->activePermitStatuses())
+                        ->first();
                     if ($activeDriverPermit) {
                         return response()->json(['success' => false, 'message' => "راننده درخواست فعالی به شماره {$activeDriverPermit->d_code} دارد."], 200);
                     }

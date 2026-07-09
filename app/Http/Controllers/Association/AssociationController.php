@@ -633,6 +633,32 @@ class AssociationController
                 }
             }
 
+            foreach ($requests as $req) {
+                $items = DB::table('permit_request_items')
+                    ->where('permit_request_id', $req->id)
+                    ->get();
+
+                $req->dbDetails = $items->first();
+                $req->destinations = $items->map(function ($item) {
+                    $country = DB::table('countries')->where('id', $item->country_id)->first();
+
+                    return [
+                        'country_name' => $country ? $country->name : 'نامشخص',
+                        'permit_type' => $item->permit_type ?? '---',
+                        'operation_type' => $item->operation_type ?? '---',
+                        'loading_origin' => $item->loading_origin ?? '---',
+                        'loading_destination' => $item->loading_destination ?? '---',
+                        'cits_code' => $item->cits_code ?? '---',
+                        'trip_code' => $item->trip_code ?? '---',
+                        'receipt_code' => $item->receipt_code ?? '---',
+                        'receipt_amount' => $item->receipt_amount ?? 0,
+                        'cmr_date' => $item->cmr_date ?? '---',
+                        'tir_carnet_number' => $item->tir_carnet_number ?? '---',
+                        'tir_carnet_date' => $item->tir_carnet_date ?? '---',
+                    ];
+                })->values();
+            }
+
             return view('association.driver.archive', compact('requests'));
         } catch (\Throwable $e) {
             Log::error('Archive Permits Load Error: ' . $e->getMessage());

@@ -125,6 +125,10 @@
                                         📊 گزارش فرآیند
                                     </button>
 
+                                    <button onclick="viewArchiveDocuments({{ $req->id }})" class="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-black transition-all border border-emerald-100">
+                                        کنترل/تکمیل
+                                    </button>
+
                                     @if(isset($req->collected_image))
                                         <a href="{{ asset('storage/' . $req->collected_image) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-black transition-all border border-indigo-100">
                                             👁️ تصویر لاشه
@@ -156,11 +160,126 @@
         @endif
     </div>
 </div>
+
+@include('association.driver.partials.documents-modal')
 @endsection
 
 @section('scripts')
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 <script>
+let archiveLoadedFiles = { receipt: '', cmr: '', tir: '', declaration: '' };
+let archiveActivePermitId = null;
+
+function viewArchiveDocuments(id) {
+    archiveActivePermitId = id;
+    $('#documents_modal').removeClass('hidden');
+    $('#mdl_d_code').text('در حال بارگذاری...');
+    $('#mdl_countries_list').html('<div class="py-4 text-center text-slate-400">در حال بارگذاری کشورهای مسیر...</div>');
+    $('#modal_action_buttons').html('<span class="text-[11px] font-bold text-slate-400">ویرایش اطلاعات کنترلی بایگانی</span>');
+
+    fetch('/web/association/request/details/' + id)
+        .then(res => {
+            if (!res.ok) throw new Error('Server returned ' + res.status);
+            return res.json();
+        })
+        .then(data => {
+            if (!data.success) throw new Error(data.message || 'اطلاعات پرونده دریافت نشد.');
+
+            const p = data.permit || {};
+            const db = data.dbDetails || {};
+            const d = data.driver || {};
+            const f = data.fleet || {};
+
+            $('#mdl_d_code').text(p.d_code || '---');
+            $('#mdl_driver_name').text(`${d.first_name_fa || ''} ${d.last_name_fa || ''}`.trim() || '---');
+            $('#mdl_driver_national').text(d.national_code || '---');
+            $('#mdl_fleet_smart').text(f.smart_card_number || f.smart_id || '---');
+            $('#mdl_fleet_plate_container').html(`<span class="bg-slate-50 text-slate-500 px-2 py-0.5 rounded border border-slate-100 font-bold text-xs">${f.transit_plate || 'بدون پلاک'}</span>`);
+
+            $('#inp_cargo_type').val(db.operation_type || '');
+            $('#inp_cits_code').val(db.cits_code || '');
+            $('#inp_origin').val(db.loading_origin || '');
+            $('#inp_destination').val(db.loading_destination || '');
+            $('#inp_receipt_code').val(db.receipt_code || '');
+            $('#inp_trip_code').val(db.trip_code || '');
+            $('#inp_cmr_date').val(db.cmr_date || '');
+            $('#inp_tir_number').val(db.tir_carnet_number || '');
+            $('#inp_tir_date').val(db.tir_carnet_date || '');
+
+            const amount = p.total_amount ? parseInt(p.total_amount).toLocaleString('fa-IR') : '0';
+            $('#mdl_receipt_amount').text(amount + ' ریال');
+
+            archiveLoadedFiles.receipt = db.receipt_file ? '/storage/' + db.receipt_file : '';
+            archiveLoadedFiles.cmr = db.cmr_file ? '/storage/' + db.cmr_file : '';
+            archiveLoadedFiles.tir = db.tir_file ? '/storage/' + db.tir_file : '';
+            archiveLoadedFiles.declaration = db.declaration_file ? '/storage/' + db.declaration_file : '';
+
+            const countries = data.destinations || [];
+            $('#mdl_countries_list').html(countries.length
+                ? countries.map(item => `<div class="flex justify-between items-center py-2"><span class="font-bold text-slate-800">${item.country_name || 'نامشخص'}</span><span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[11px] font-black border border-indigo-100">${item.permit_type || '---'}</span></div>`).join('')
+                : '<div class="py-2 text-slate-400 text-center">هیچ کشور مقصدی ثبت نشده است.</div>');
+
+            switchArchiveDocumentImage('receipt');
+        })
+        .catch((error) => {
+            closeDocumentsModal();
+            Swal.fire({ title: 'خطا', text: error.message, icon: 'error', confirmButtonText: 'تایید' });
+        });
+}
+
+$('#btn_save_inline_edit').on('click', function() {
+    if (!archiveActivePermitId) return;
+
+    fetch('/web/association/request/inline-update/' + archiveActivePermitId, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({
+            cargo_type: $('#inp_cargo_type').val(),
+            cits_code: $('#inp_cits_code').val(),
+            loading_origin: $('#inp_origin').val(),
+            loading_destination: $('#inp_destination').val(),
+            receipt_code: $('#inp_receipt_code').val(),
+            trip_code: $('#inp_trip_code').val(),
+            cmr_date: $('#inp_cmr_date').val(),
+            tir_carnet_number: $('#inp_tir_number').val(),
+            tir_carnet_date: $('#inp_tir_date').val(),
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({ title: 'ذخیره شد', text: data.message, icon: 'success', confirmButtonText: 'تایید' });
+        } else {
+            Swal.fire({ title: 'خطا', text: data.message, icon: 'error', confirmButtonText: 'تایید' });
+        }
+    });
+});
+
+function switchArchiveDocumentImage(type) {
+    $('.doc-tab').removeClass('bg-indigo-600 text-white shadow').addClass('bg-slate-100 text-slate-600 hover:bg-slate-200');
+    $(`#tab-${type}`).removeClass('bg-slate-100 text-slate-600 hover:bg-slate-200').addClass('bg-indigo-600 text-white shadow');
+
+    const viewer = document.getElementById('modal_document_viewer');
+    const fileUrl = archiveLoadedFiles[type];
+    if (fileUrl) {
+        viewer.src = fileUrl;
+        viewer.style.display = 'block';
+    } else {
+        viewer.src = '';
+        viewer.alt = 'این سند توسط شرکت آپلود نشده است.';
+    }
+}
+
+function switchDocumentImage(type) {
+    switchArchiveDocumentImage(type);
+}
+
+function closeDocumentsModal() {
+    $('#documents_modal').addClass('hidden');
+}
 // 🔍 موتور جستجوگر در هدر برای فیلتر آنی سطرها بدون نیاز به رفرش
 function filterArchiveTable() {
     const input = document.getElementById('archiveSearch').value.toLowerCase();
@@ -180,7 +299,133 @@ function filterArchiveTable() {
 }
 
 // 📊 تولید گزارش ارتقا یافته تفکیکی (رفت‌وآمد بین شرکت و انجمن) با نشانگرهای رنگی حرارتی
+let lastArchiveReportHtml = '';
+let lastArchiveReportTitle = 'گزارش تفکیکی چرخه حیات پرونده';
+
+function archiveValue(value, fallback = '---') {
+    if (value === null || value === undefined || value === '') return fallback;
+    return String(value);
+}
+
+function archiveEscape(value) {
+    return archiveValue(value).replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    }[char]));
+}
+
+function archiveDate(value, fallback = '---') {
+    if (!value) return fallback;
+    try {
+        return new Date(value).toLocaleString('fa-IR');
+    } catch (e) {
+        return archiveValue(value, fallback);
+    }
+}
+
+function archiveStatus(req) {
+    if (req.status === 'archived' || req.status === 'collected') return { text: 'تحویل لاشه سالم', cls: 'ok' };
+    if (req.status === 'lost') return { text: 'مفقودی', cls: 'bad' };
+    return { text: 'در جریان', cls: 'wait' };
+}
+
+function archiveInfoRow(label, value) {
+    return `<div class="archive-report-item"><span>${archiveEscape(label)}</span><strong>${archiveEscape(value)}</strong></div>`;
+}
+
+function archiveStep(index, title, owner, date, body, tone) {
+    return `
+        <div class="archive-report-step ${tone}">
+            <div class="archive-report-step-dot">${index}</div>
+            <div class="archive-report-step-body">
+                <div class="archive-report-step-head"><strong>${archiveEscape(title)}</strong><span>${archiveEscape(owner)}</span></div>
+                <p>${archiveEscape(body)}</p>
+                <small>${archiveEscape(date)}</small>
+            </div>
+        </div>
+    `;
+}
+
+function buildArchiveReportHtml(req, countryName, printable = false) {
+    const details = req.dbDetails || {};
+    const driverName = req.driver ? `${archiveValue(req.driver.first_name_fa, '')} ${archiveValue(req.driver.last_name_fa, '')}`.trim() : 'نامشخص';
+    const fleetPlate = req.fleet ? archiveValue(req.fleet.transit_plate || req.fleet.plate_number || req.fleet.smart_card_number) : '---';
+    const status = archiveStatus(req);
+    const destinations = Array.isArray(req.destinations) ? req.destinations : [];
+    const destinationHtml = destinations.length
+        ? destinations.map((item) => `
+            <tr>
+                <td>${archiveEscape(item.country_name)}</td>
+                <td>${archiveEscape(item.permit_type)}</td>
+                <td>${archiveEscape(item.operation_type)}</td>
+                <td>${archiveEscape(item.loading_origin)}</td>
+                <td>${archiveEscape(item.loading_destination)}</td>
+            </tr>
+        `).join('')
+        : `<tr><td colspan="5">مقصدی برای این پرونده ثبت نشده است.</td></tr>`;
+    const lashImageUrl = req.collected_image ? `/storage/${archiveValue(req.collected_image)}` : '';
+    const requestType = req.request_type === 'renewal' ? 'تمدید' : 'درخواست جدید';
+    const previousRef = req.previous_serial_number || req.previous_d_code || '---';
+
+    return `
+        <style>
+            .archive-report-shell{direction:rtl;text-align:right;color:#172033;font-family:inherit}
+            .archive-report-head{background:linear-gradient(135deg,#0f172a,#172554);color:#fff;border-radius:18px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px}
+            .archive-report-head h3{font-size:18px;font-weight:900;margin:0}.archive-report-head p{font-size:11px;color:#cbd5e1;margin:5px 0 0}
+            .archive-report-badge{border-radius:999px;padding:7px 12px;font-size:11px;font-weight:900;white-space:nowrap}.archive-report-badge.ok{background:#dcfce7;color:#166534}.archive-report-badge.bad{background:#ffe4e6;color:#be123c}.archive-report-badge.wait{background:#fef3c7;color:#92400e}
+            .archive-report-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:14px}.archive-report-card{border:1px solid #e2e8f0;border-radius:16px;background:#fff;padding:14px;margin-bottom:12px}
+            .archive-report-card h4{margin:0 0 10px;color:#0f172a;font-size:12px;font-weight:900;border-bottom:1px solid #eef2f7;padding-bottom:8px}
+            .archive-report-item{display:flex;align-items:center;justify-content:space-between;gap:10px;border-radius:10px;background:#f8fafc;padding:8px 10px;margin-top:7px;font-size:11px}
+            .archive-report-item span{color:#64748b;font-weight:800}.archive-report-item strong{color:#0f172a;font-weight:900;text-align:left;direction:rtl}
+            .archive-report-table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;font-size:11px}.archive-report-table th{background:#f1f5f9;color:#334155;font-weight:900;padding:9px}.archive-report-table td{padding:9px;border-top:1px solid #e2e8f0;color:#475569;font-weight:800}
+            .archive-report-timeline{position:relative;margin:4px 8px 0 0;padding-right:22px;border-right:2px solid #dbeafe}.archive-report-step{position:relative;margin:0 0 13px}.archive-report-step-dot{position:absolute;right:-34px;top:2px;width:24px;height:24px;border-radius:999px;background:#2563eb;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;border:3px solid #fff;box-shadow:0 6px 14px rgba(37,99,235,.22)}
+            .archive-report-step.ok .archive-report-step-dot{background:#10b981}.archive-report-step.warn .archive-report-step-dot{background:#f59e0b}.archive-report-step.info .archive-report-step-dot{background:#0ea5e9}.archive-report-step-body{border:1px solid #e2e8f0;border-radius:14px;background:#fff;padding:11px 13px}.archive-report-step-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.archive-report-step-head strong{font-size:12px;color:#0f172a}.archive-report-step-head span{font-size:10px;font-weight:900;background:#eef2ff;color:#3730a3;border-radius:999px;padding:4px 8px}.archive-report-step p{font-size:11px;color:#64748b;line-height:1.8;margin:7px 0}.archive-report-step small{font-size:10px;color:#94a3b8;font-weight:900}
+            .archive-report-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}.archive-report-print-btn{border:0;border-radius:11px;background:#2563eb;color:#fff;font-size:12px;font-weight:900;padding:10px 16px;cursor:pointer}.archive-report-link{display:inline-flex;align-items:center;border-radius:10px;background:#eef2ff;color:#3730a3;font-size:11px;font-weight:900;padding:8px 10px;text-decoration:none;margin-top:7px}
+            @media(max-width:700px){.archive-report-grid{grid-template-columns:1fr}.archive-report-head{align-items:flex-start;flex-direction:column}}@media print{body{margin:0;background:#fff}.archive-report-shell{padding:18px}.archive-report-actions,.swal2-actions{display:none!important}.archive-report-head{border-radius:0}.archive-report-card,.archive-report-step{break-inside:avoid}}
+        </style>
+        <div class="archive-report-shell">
+            <div class="archive-report-head"><div><h3>گزارش تفکیکی چرخه حیات پرونده</h3><p>کد پرونده ${archiveEscape(req.d_code)} | سریال ${archiveEscape(req.serial_number)}</p></div><span class="archive-report-badge ${status.cls}">${archiveEscape(status.text)}</span></div>
+            <div class="archive-report-grid">
+                <div class="archive-report-card"><h4>شناسه پرونده</h4>${archiveInfoRow('کد پرونده', req.d_code)}${archiveInfoRow('سریال اختصاصی', req.serial_number)}${archiveInfoRow('نوع درخواست', requestType)}${archiveInfoRow('مرجع تمدید', previousRef)}${archiveInfoRow('کشور مقصد', countryName)}</div>
+                <div class="archive-report-card"><h4>راننده و ناوگان</h4>${archiveInfoRow('راننده', driverName)}${archiveInfoRow('کد ملی', req.driver ? req.driver.national_code : '---')}${archiveInfoRow('ناوگان / پلاک', fleetPlate)}${archiveInfoRow('کارت هوشمند', req.fleet ? (req.fleet.smart_card_number || req.fleet.smart_id || '---') : '---')}</div>
+                <div class="archive-report-card"><h4>لاشه و پیک</h4>${archiveInfoRow('نام پیک', req.courier_name)}${archiveInfoRow('موبایل پیک', req.courier_mobile)}${archiveInfoRow('کد تحویل', req.courier_delivery_code)}${archiveInfoRow('زمان تحویل', archiveDate(req.courier_received_at))}${lashImageUrl ? `<a class="archive-report-link" href="${lashImageUrl}" target="_blank">مشاهده تصویر لاشه</a>` : archiveInfoRow('تصویر لاشه', 'ثبت نشده')}</div>
+            </div>
+            <div class="archive-report-card"><h4>اطلاعات کنترلی پرونده و مدارک</h4><div class="archive-report-grid" style="margin:0"><div>${archiveInfoRow('نوع عملیات/بار', details.operation_type)}${archiveInfoRow('کد جامع CITS', details.cits_code)}${archiveInfoRow('کد سفر', details.trip_code)}</div><div>${archiveInfoRow('مبدا بارگیری', details.loading_origin)}${archiveInfoRow('مقصد نهایی حمل', details.loading_destination)}${archiveInfoRow('شماره فیش', details.receipt_code)}</div><div>${archiveInfoRow('مبلغ فیش', details.receipt_amount)}${archiveInfoRow('تاریخ CMR', details.cmr_date)}${archiveInfoRow('کارنه تیر', details.tir_carnet_number)}${archiveInfoRow('تاریخ کارنه تیر', details.tir_carnet_date)}</div></div></div>
+            <div class="archive-report-card"><h4>کشورها و مجوزهای مسیر</h4><table class="archive-report-table"><thead><tr><th>کشور</th><th>نوع مجوز</th><th>نوع عملیات</th><th>مبدا</th><th>مقصد</th></tr></thead><tbody>${destinationHtml}</tbody></table></div>
+            <div class="archive-report-card"><h4>گردش کار اداری</h4><div class="archive-report-timeline">${archiveStep(1, 'ثبت درخواست شرکت', 'سمت شرکت', archiveDate(req.created_at), 'ثبت الکترونیکی اطلاعات اولیه، راننده، ناوگان، مسیر و مدارک بارنامه.', 'info')}${archiveStep(2, 'بررسی و تایید انجمن', 'سمت انجمن', archiveDate(req.approved_at), 'کنترل مدارک، اصالت‌سنجی اطلاعات و تایید اولیه برای صدور.', 'info')}${archiveStep(3, 'صدور و تخصیص سریال', 'انبار/صدور', archiveDate(req.issued_at || req.updated_at), 'ثبت سریال، چاپ پروانه و ورود ناوگان به چرخه تردد.', 'warn')}${archiveStep(4, 'تحویل لاشه و بایگانی', 'بایگانی کل', archiveDate(req.closed_at || req.courier_received_at || req.updated_at), 'تایید کد پیک، ثبت لاشه برگشتی و انتقال پرونده به بایگانی کل.', 'ok')}</div></div>
+            ${printable ? '' : `<div class="archive-report-actions"><button class="archive-report-print-btn" onclick="printArchiveLifecycleReport()">چاپ گزارش</button></div>`}
+        </div>
+    `;
+}
+
+function printArchiveLifecycleReport() {
+    if (!lastArchiveReportHtml) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>${archiveEscape(lastArchiveReportTitle)}</title></head><body>${lastArchiveReportHtml}</body></html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => printWindow.print(), 250);
+}
+
+function showArchiveLifecycleReport(req, countryName) {
+    lastArchiveReportTitle = `گزارش پرونده ${archiveValue(req.d_code)}`;
+    lastArchiveReportHtml = buildArchiveReportHtml(req, countryName, true);
+    Swal.fire({
+        html: buildArchiveReportHtml(req, countryName, false),
+        width: 'min(980px, calc(100vw - 24px))',
+        padding: '16px',
+        confirmButtonText: 'بستن گزارش',
+        confirmButtonColor: '#4f46e5'
+    });
+}
+
 function showProcessTimeline(req, countryName) {
+    showArchiveLifecycleReport(req, countryName);
+    return;
     const dName = req.driver ? (req.driver.first_name_fa + ' ' + req.driver.last_name_fa) : 'نامشخص';
     
     // فرمت‌دهی دقیق و بررسی تاریخ رویدادها
