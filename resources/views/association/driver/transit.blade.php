@@ -6,9 +6,7 @@
 <div class="space-y-6">
     <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl p-6 shadow-xl border border-slate-800">
         <div class="flex items-center gap-4">
-            <div class="p-3 bg-amber-500/10 text-amber-500 rounded-xl border border-amber-500/20 text-2xl">
-                ًںڑڑ
-            </div>
+            <div class="p-3 bg-amber-500/10 text-amber-500 rounded-xl border border-amber-500/20 text-2xl">تردد</div>
             <div>
                 <h2 class="text-lg font-black tracking-wide">کارتابل ناوگان در حال تردد</h2>
                 <p class="text-slate-400 text-xs mt-1">لیست ناوگانی که در مسیر ترانزیت هستند. تحویل لاشه از این بخش حذف شده و در پنل شرکت انجام می‌شود.</p>
@@ -40,7 +38,7 @@
                     @forelse($requests as $index => $req)
                         <tr id="req-row-{{ $req->id }}" class="transition-all duration-200 {{ $index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60' }} hover:bg-indigo-50/30">
                             
-                            <td class="p-4 font-mono font-black text-indigo-600 text-sm">ًںژ« {{ $req->serial_number }}</td>
+                            <td class="p-4 font-mono font-black text-indigo-600 text-sm">شماره {{ $req->serial_number }}</td>
                             <td class="p-4 font-mono text-xs font-bold text-slate-500">{{ $req->d_code }}</td>
                             
                             <td class="p-4">
@@ -64,8 +62,8 @@
 
                             <td class="p-4">
                                 <div class="flex items-center justify-center gap-1.5">
-                                    <button onclick="window.open('/web/association/request/print/{{ $req->id }}', '_blank')" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all" title="باز کردن مجدد صفحه چاپ رسمی">
-                                        ًں–¨ï¸ڈ چاپ
+                                    <button onclick="window.open('/web/association/request/print/{{ $req->id }}', '_blank')" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all" title="باز کردن صفحه چاپ رسمی">
+                                        چاپ
                                     </button>
 
                                     @if(!empty($req->company_return_image))
@@ -79,11 +77,11 @@
                                     @endif
 
                                     <button onclick="processTransit({{ $req->id }}, 'lost', '{{ $req->serial_number }}')" class="px-2.5 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg text-xs font-black transition-all">
-                                        âڑ ï¸ڈ مفقودی
+                                        مفقودی
                                     </button>
 
                                     <button onclick="openExtensionModal({{ $req->id }}, '{{ $req->d_code }}')" class="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg text-xs font-black transition-all shadow-sm">
-                                        ًں”„ تمدید مسیر
+                                        تمدید مسیر
                                     </button>
                                 </div>
                             </td>
@@ -91,7 +89,7 @@
                     @empty
                         <tr>
                             <td colspan="6" class="p-12 text-center text-slate-400 bg-white">
-                                <div class="text-4xl mb-3">ًںڑڑ</div>
+                                <div class="text-4xl mb-3"></div>
                                 <p class="font-bold text-sm">در حال حاضر هیچ ناوگانی در حال تردد با پروانه‌های فعال نیست.</p>
                             </td>
                         </tr>

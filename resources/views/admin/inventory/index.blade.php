@@ -147,8 +147,8 @@
 @endsection
 
 @section('scripts')
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+<script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 <script>
     function openInventoryModal() { $('#inventory_modal').removeClass('hidden'); }
     function closeInventoryModal() { $('#inventory_modal').addClass('hidden'); }

@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>شرکت حمل‌و‌نقل | ثبت و استعلام راننده جدید</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="{{ asset('assets/js/tailwindcss.js') }}"></script>
     <style>
-        @import url('https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css');
-        body { font-family: 'Vazirmatn', sans-serif; }
+        @font-face { font-family: 'Vazirmatn'; src: url('{{ asset('assets/fonts/Vazirmatn-Regular.woff2') }}') format('woff2'); font-weight: 400; font-display: swap; }
+        @font-face { font-family: 'Vazirmatn'; src: url('{{ asset('assets/fonts/Vazirmatn-Bold.woff2') }}') format('woff2'); font-weight: 700; font-display: swap; }
+        @font-face { font-family: 'Vazirmatn'; src: url('{{ asset('assets/fonts/Vazirmatn-Black.woff2') }}') format('woff2'); font-weight: 900; font-display: swap; }
+        body { font-family: 'Vazirmatn', Tahoma, sans-serif; }
     </style>
 </head>
 <body class="bg-slate-50 flex h-screen overflow-hidden">

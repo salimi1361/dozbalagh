@@ -209,11 +209,6 @@
     };
 </script>
 <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
-<script>
-    if (!window.jQuery) {
-        document.write('<script src="https://code.jquery.com/jquery-3.7.1.min.js"><\/script>');
-    }
-</script>
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 <script src="{{ asset('assets/js/dozouleh.js') }}?v={{ time() }}"></script>
 <script src="{{ asset('assets/js/dozouleh_wizard.js') }}?v={{ time() }}"></script>

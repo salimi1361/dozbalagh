@@ -29,7 +29,7 @@
         </div>
     @endif
 
-    {{-- ًںژ›ï¸ڈ نوار فیلترهای وضعیت و باکس جستجوی یکپارچه جدول --}}
+    {{-- نوار فیلترهای وضعیت و باکس جستجوی یکپارچه جدول --}}
     <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-5 bg-white p-3 rounded-2xl border border-slate-200/60 shadow-sm">
         
         {{-- دکمه‌های فیلتر وضعیت به ترتیب درخواستی شما --}}
@@ -40,11 +40,11 @@
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'pending'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'pending' ? 'bg-blue-600 text-white shadow-sm' : 'bg-blue-50/60 text-blue-600 hover:bg-blue-50' }}">
-                âڈ³ در حال بررسی
+                در حال بررسی
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'approved'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'approved' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-emerald-50/60 text-emerald-600 hover:bg-emerald-50' }}">
-                âœ… تایید شده
+                تایید شده
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'issued'])) }}"
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'issued' ? 'bg-sky-600 text-white shadow-sm' : 'bg-sky-50/60 text-sky-600 hover:bg-sky-50' }}">
@@ -52,11 +52,7 @@
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'rejected'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'rejected' ? 'bg-rose-600 text-white shadow-sm' : 'bg-rose-50/60 text-rose-600 hover:bg-rose-50' }}">
-                â‌Œ رد شده
-            </a>
-            <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'returned'])) }}" 
-               class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'returned' ? 'bg-amber-600 text-white shadow-sm' : 'bg-amber-50/60 text-amber-700 hover:bg-amber-50' }}">
-                نیاز به اصلاح
+                ‌ رد شده
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'collected'])) }}"
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'collected' ? 'bg-slate-700 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
@@ -68,11 +64,11 @@
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'renewal'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'renewal' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-indigo-50/60 text-indigo-600 hover:bg-indigo-50' }}">
-                ًں”„ تمدیدها
+                تمدیدها
             </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'lost'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'lost' ? 'bg-slate-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
-                âڑ ï¸ڈ مفقودی
+                مفقودی
             </a>
         </div>
 
@@ -81,8 +77,7 @@
             @if(request('status'))
                 <input type="hidden" name="status" value="{{ request('status') }}">
             @endif
-            <span class="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 pointer-events-none text-base">ًں”چ</span>
-            <input type="text" name="search" id="tableSearchInput" value="{{ request('search') }}" placeholder="جستجو در این وضعیت..." class="w-full pr-10 pl-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
+            <input type="text" name="search" id="tableSearchInput" value="{{ request('search') }}" placeholder="جستجو در این وضعیت..." class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all">
             @if(request('search'))
                 <a href="{{ route('dozbalagh.index', request()->except('search')) }}" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-rose-500 transition-colors p-1 rounded-full hover:bg-slate-200">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -109,19 +104,19 @@
                     @forelse($requests as $item)
                         @php
                             $requestType = $item->request_type ?: 'new';
-                            $requestTypeLabel = $requestType === 'renewal' ? 'ًں”„ تمدید' : 'ًں†• درخواست جدید';
+                            $requestTypeLabel = $requestType === 'renewal' ? 'درخواست تمدید' : 'درخواست جدید';
                             $requestTypeClass = $requestType === 'renewal'
                                 ? 'bg-indigo-50 text-indigo-700 border-indigo-100'
                                 : 'bg-slate-50 text-slate-700 border-slate-200';
                             $statusLabels = [
-                                'pending' => ['âڈ³ در انتظار بررسی انجمن', 'bg-amber-50 text-amber-700 border-amber-100'],
-                                'approved' => ['âœ… تایید اولیه / آماده صدور', 'bg-emerald-50 text-emerald-700 border-emerald-100'],
-                                'issued' => ['ًں“„ صادر شده / معتبر', 'bg-sky-50 text-sky-700 border-sky-100'],
-                                'rejected' => ['â‌Œ رد شده', 'bg-rose-50 text-rose-700 border-rose-100'],
-                                'returned' => ['ًں› ï¸ڈ نیاز به اصلاح', 'bg-orange-50 text-orange-700 border-orange-200'],
-                                'collected' => ['ًںڑڑ لاشه تحویل شد', 'bg-slate-100 text-slate-700 border-slate-200'],
-                                'archived' => ['ًں—‚ï¸ڈ بایگانی شد', 'bg-slate-100 text-slate-700 border-slate-200'],
-                                'lost' => ['âڑ ï¸ڈ مفقودی', 'bg-zinc-100 text-zinc-700 border-zinc-200'],
+                                'pending' => ['در حال بررسی', 'bg-amber-50 text-amber-700 border-amber-100'],
+                                'approved' => ['تایید شده', 'bg-emerald-50 text-emerald-700 border-emerald-100'],
+                                'issued' => ['صادر شده / معتبر', 'bg-sky-50 text-sky-700 border-sky-100'],
+                                'rejected' => ['رد شده', 'bg-rose-50 text-rose-700 border-rose-100'],
+                                'returned' => ['رد شده', 'bg-rose-50 text-rose-700 border-rose-100'],
+                                'collected' => ['لاشه تحویل شده', 'bg-slate-100 text-slate-700 border-slate-200'],
+                                'archived' => ['بایگانی شده', 'bg-slate-100 text-slate-700 border-slate-200'],
+                                'lost' => ['مفقودی', 'bg-zinc-100 text-zinc-700 border-zinc-200'],
                             ];
                             [$statusText, $statusClass] = $statusLabels[$item->status] ?? ['نامشخص: ' . $item->status, 'bg-slate-100 text-slate-700 border-slate-200'];
                             $associationNote = $item->reject_reason ?: null;
@@ -176,7 +171,7 @@
                                 <div class="flex flex-col gap-1.5">
                                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black border {{ $requestTypeClass }}">{{ $requestTypeLabel }}</span>
                                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border {{ $statusClass }}">{{ $statusText }}</span>
-                                    @if(in_array($item->status, ['rejected', 'returned']) && $associationNote)
+                                    @if($item->status === 'rejected' && $associationNote)
                                         <span class="max-w-xs text-[10px] leading-5 text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-2 py-1">
                                             {{ $associationNote }}
                                         </span>
@@ -219,7 +214,7 @@
                             <div class="relative w-full max-w-3xl bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 overflow-hidden transform scale-95 transition-transform duration-300" id="modal-content-{{ $item->id }}">
                                 <div class="bg-slate-50/80 border-b border-slate-200/60 p-5 flex justify-between items-center">
                                     <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
-                                        <span class="bg-indigo-100 p-1.5 rounded-lg text-sm">ًں“‹</span> جزئیات کامل سفر پرونده {{ $item->d_code }}
+                                        <span class="bg-indigo-100 p-1.5 rounded-lg text-sm"></span> جزئیات کامل سفر پرونده {{ $item->d_code }}
                                     </h3>
                                     <button onclick="closeModal('modal-{{ $item->id }}')" class="p-2 bg-white rounded-full hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors shadow-sm">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
@@ -236,15 +231,15 @@
                                                 <p class="text-xs font-bold text-slate-500 mt-1">(کد ملی: {{ $item->driver->national_code ?? '---' }})</p>
                                             </div>
                                             <div class="border-t border-slate-200/60 pt-3 mt-4 flex flex-col gap-1 text-xs text-slate-600 font-bold">
-                                                <p>ًں‘¤ نام لاتین: <span class="font-mono uppercase tracking-wider text-slate-700">{{ $item->driver ? trim(($item->driver->first_name_en ?? '') . ' ' . ($item->driver->last_name_en ?? '')) : '---' }}</span></p>
-                                                <p>ًںھھ شماره گذرنامه: <span class="text-slate-700 font-mono">{{ $item->driver->passport_number ?? '---' }}</span></p>
+                                                <p>نام لاتین: <span class="font-mono uppercase tracking-wider text-slate-700">{{ $item->driver ? trim(($item->driver->first_name_en ?? '') . ' ' . ($item->driver->last_name_en ?? '')) : '---' }}</span></p>
+                                                <p>شماره گذرنامه: <span class="text-slate-700 font-mono">{{ $item->driver->passport_number ?? '---' }}</span></p>
                                             </div>
                                         </div>
 
                                         <div class="border border-slate-200/60 bg-slate-50/50 rounded-2xl p-4 flex flex-col justify-between min-h-[140px]">
                                             <div class="flex justify-between items-start text-xs text-slate-600 font-bold">
-                                                <p>ًںڑ› نوع: <span class="text-slate-800">{{ optional($item->fleet)->truck_type ?? '---' }}</span></p>
-                                                <p>ًں’³ کارت هوشمند: <span class="text-slate-700 font-mono">{{ optional($item->fleet)->smart_card_number ?? '---' }}</span></p>
+                                                <p>نوع: <span class="text-slate-800">{{ optional($item->fleet)->truck_type ?? '---' }}</span></p>
+                                                <p>کارت هوشمند: <span class="text-slate-700 font-mono">{{ optional($item->fleet)->smart_card_number ?? '---' }}</span></p>
                                             </div>
 
                                             <div class="flex justify-center my-2">
@@ -301,13 +296,13 @@
                                                 @endphp
                                                 <div class="flex justify-between items-center text-xs bg-slate-50 border border-slate-100 p-3 rounded-xl shadow-inner font-bold">
                                                     <span class="text-slate-700 flex items-center gap-1">
-                                                        ًں“چ {{ $countryInfo->name ?? 'کشور مقصد' }} 
+                                                        {{ $countryInfo->name ?? 'کشور مقصد' }} 
                                                         <span class="text-slate-400 text-[10px]">[{{ str_replace('_', '-', $subItem->permit_type) }}]</span>
                                                     </span>
                                                     
                                                     @if(!empty($subItem->document_path) || !empty($subItem->document))
                                                         <a href="{{ asset('storage/' . ($subItem->document_path ?? $subItem->document)) }}" target="_blank" class="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg border border-emerald-200 transition-colors">
-                                                            ًں“ژ مشاهده مدرک پیوست
+                                                            مشاهده مدرک پیوست
                                                         </a>
                                                     @else
                                                         <span class="text-slate-400 font-medium text-[11px]">بدون فایل پیوست</span>
@@ -335,19 +330,19 @@
                                         <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
                                             <span class="text-xs text-slate-400 font-bold block mb-1">زمان دقیق ثبت درخواست</span>
                                             <div class="text-sm font-bold text-slate-700 mt-2">
-                                                ًں“† تاریخ: {{ \Hekmatinasser\Verta\Verta::instance($item->created_at)->format('Y/m/d') }}
+                                                تاریخ: {{ \Hekmatinasser\Verta\Verta::instance($item->created_at)->format('Y/m/d') }}
                                                 <span class="text-slate-400 px-1">|</span>
-                                                âڈ° ساعت: {{ \Hekmatinasser\Verta\Verta::instance($item->created_at)->format('H:i') }}
+                                                ساعت: {{ \Hekmatinasser\Verta\Verta::instance($item->created_at)->format('H:i') }}
                                             </div>
                                         </div>
                                     </div>
 
                                     @if($item->company_note)
                                         <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 font-medium leading-relaxed">
-                                            ًں“Œ <strong>توضیحات پرونده:</strong> {{ $item->company_note }}
+                                             <strong>توضیحات پرونده:</strong> {{ $item->company_note }}
                                         </div>
                                     @endif
-                                    @if(in_array($item->status, ['rejected', 'returned']) && $associationNote)
+                                    @if($item->status === 'rejected' && $associationNote)
                                         <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 font-medium leading-relaxed">
                                             <strong>توضیحات انجمن:</strong> {{ $associationNote }}
                                         </div>
@@ -387,7 +382,7 @@
 
 {{-- توست اطلاع‌رسانی کپی کد رهگیری --}}
 <div id="copy-toast" class="fixed top-5 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-2xl transition-all duration-300 opacity-0 pointer-events-none z-[200] flex items-center gap-2">
-    <span>ًں“‹</span> کد رهگیری با موفقیت کپی شد.
+    <span></span> کد رهگیری با موفقیت کپی شد.
 </div>
 
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>

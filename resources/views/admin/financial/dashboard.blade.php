@@ -407,7 +407,7 @@
 @endsection
 
 @section('scripts')
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 {{-- فراخوانی فایل هسته جاوااسکریپت تقویم آفلاین --}}
 <script src="{{ asset('assets/js/persian-datepicker.min.js') }}"></script>
 <script>

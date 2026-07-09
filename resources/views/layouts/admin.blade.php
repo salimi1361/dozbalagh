@@ -13,14 +13,24 @@
             font-family: 'Vazirmatn';
             src: url('{{ asset('assets/fonts/Vazirmatn-Regular.woff2') }}') format('woff2');
             font-weight: 400;
+            font-display: swap;
         }
         @font-face {
             font-family: 'Vazirmatn';
             src: url('{{ asset('assets/fonts/Vazirmatn-Bold.woff2') }}') format('woff2');
             font-weight: 700;
+            font-display: swap;
         }
-        body { 
-            font-family: 'Vazirmatn', sans-serif; 
+        @font-face {
+            font-family: 'Vazirmatn';
+            src: url('{{ asset('assets/fonts/Vazirmatn-Black.woff2') }}') format('woff2');
+            font-weight: 900;
+            font-display: swap;
+        }
+        html, body, button, input, select, textarea {
+            font-family: 'Vazirmatn', Tahoma, sans-serif;
+        }
+        body {
             background-color: #f8fafc; /* رنگ پس زمینه بسیار ملایم برای محتوا */
         }
         

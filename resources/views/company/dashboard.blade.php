@@ -9,11 +9,11 @@
     <div class="bg-white rounded-2xl border-2 border-slate-100 shadow-sm p-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div class="flex items-start gap-4">
-                <div class="p-3 bg-slate-100 rounded-2xl text-2xl shadow-inner">ًںڈ¢</div>
+                <div class="p-3 bg-slate-100 rounded-2xl text-2xl shadow-inner"></div>
                 <div>
                     <h2 class="text-xl font-black text-slate-800 tracking-tight">خوش آمدید، {{ $company->ceo_name ?? 'مدیر محترم شرکت' }} عزیز</h2>
                     <p class="text-slate-600 text-sm font-bold mt-2">نام شرکت: <span class="text-slate-900 font-black">{{ $company->name_fa ?? $company->name }}</span> | کد اختصاصی: <span class="font-mono text-slate-900 font-black">{{ $company->company_code ?? '---' }}</span></p>
-                    <p class="text-slate-500 text-xs font-bold mt-1.5">ًں“چ آدرس دفتر مرکزی: {{ $company->address_fa ?? 'ثبت نشده' }}</p>
+                    <p class="text-slate-500 text-xs font-bold mt-1.5">آدرس دفتر مرکزی: {{ $company->address_fa ?? 'ثبت نشده' }}</p>
                 </div>
             </div>
 
@@ -21,11 +21,11 @@
                 <div>
                     @if($company->status == 'approved')
                         <div class="bg-emerald-50 text-emerald-800 px-5 py-2.5 rounded-xl text-sm font-black border-2 border-emerald-200/80 shadow-sm flex items-center gap-2">
-                            <span class="text-lg">âœ…</span> حساب کاربری فعال و تایید شده
+                            <span class="text-lg"></span> حساب کاربری فعال و تایید شده
                         </div>
                     @else
                         <div class="bg-amber-50 text-amber-800 px-5 py-2.5 rounded-xl text-sm font-black border-2 border-amber-200/80 shadow-sm flex items-center gap-2">
-                            <span class="text-lg">âڈ³</span> در انتظار تایید مدارک مدیریت
+                            <span class="text-lg"></span> در انتظار تایید مدارک مدیریت
                         </div>
                     @endif
                 </div>
@@ -50,7 +50,7 @@
             <div class="mt-6 pt-3 border-t border-white/10 flex justify-between items-center text-xs font-bold">
                 <span class="text-slate-400">بلوکه: <strong class="text-amber-400 font-mono font-black">{{ number_format($blockedBalance) }}</strong></span>
                 <a href="{{ route('company.wallet.index') }}" class="text-sky-400 hover:text-sky-300 font-black transition">
-                    شارژ حساب â†گ
+                    شارژ حساب 
                 </a>
             </div>
         </div>
@@ -63,7 +63,7 @@
                 <span class="text-[10px] text-sky-600 font-black bg-sky-50 px-2 py-0.5 rounded border border-sky-100 block w-max">سرمایه انسانی فعال</span>
             </div>
             <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl shadow-inner">
-                ًں‘¤
+                
             </div>
         </div>
 
@@ -75,7 +75,7 @@
                 <span class="text-[10px] text-amber-600 font-black bg-amber-50 px-2 py-0.5 rounded border border-amber-100 block w-max">کدهای هوشمند ثبت‌شده</span>
             </div>
             <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shadow-inner">
-                ًںڑ›
+                
             </div>
         </div>
 
@@ -105,9 +105,9 @@
                     ['صادر شده / معتبر', $permitStats->issued_count ?? 0, 'text-sky-700', 'bg-sky-50/60 border-sky-200/80'],
                     ['رد درخواست', $permitStats->rejected_count ?? 0, 'text-rose-700', 'bg-rose-50/60 border-rose-200/80'],
                     ['نیاز به اصلاح', $permitStats->returned_count ?? 0, 'text-orange-700', 'bg-orange-50/60 border-orange-200/80'],
-                    ['ًںڑڑ لاشه تحویل شده', $permitStats->collected_count ?? 0, 'text-indigo-700', 'bg-indigo-50/60 border-indigo-200/80'],
-                    ['ًں”„ درخواست تمدید', $permitStats->renewal_count ?? 0, 'text-emerald-700', 'bg-emerald-50/60 border-emerald-200/80'],
-                    ['âڑ ï¸ڈ مفقودی', $permitStats->lost_count ?? 0, 'text-slate-700', 'bg-slate-50 border-slate-300'],
+                    ['لاشه تحویل شده', $permitStats->collected_count ?? 0, 'text-indigo-700', 'bg-indigo-50/60 border-indigo-200/80'],
+                    ['درخواست تمدید', $permitStats->renewal_count ?? 0, 'text-emerald-700', 'bg-emerald-50/60 border-emerald-200/80'],
+                    ['مفقودی', $permitStats->lost_count ?? 0, 'text-slate-700', 'bg-slate-50 border-slate-300'],
                 ];
             @endphp
 
@@ -120,12 +120,12 @@
         </div>
     </div>
 
-    {{-- ردیف سوم: جدول تفصیلی فرآیندهای اخیر کاملاً عریض (Full Width) --}}
+    {{-- ردیف سوم: جدول تفصیلی فرآیندهای اخیر کاملاعریض (Full Width) --}}
     <div class="bg-white rounded-2xl border-2 border-slate-100 shadow-sm overflow-hidden">
         <div class="p-5 border-b-2 border-slate-100 flex justify-between items-center bg-slate-50/60">
-            <h3 class="font-black text-slate-800 text-sm flex items-center gap-2">ًں“‌ آخرین درخواست‌های دوزوله صادر شده و معلق</h3>
+            <h3 class="font-black text-slate-800 text-sm flex items-center gap-2">‌ آخرین درخواست‌های دوزوله صادر شده و معلق</h3>
             <a href="{{ route('dozbalagh.index') }}" class="text-xs text-sky-600 font-black hover:underline bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-sm transition">
-                مشاهده کارتابل جامع پروانه‌ها â†گ
+                مشاهده کارتابل جامع پروانه‌ها 
             </a>
         </div>
         
@@ -205,17 +205,17 @@
                             <td class="p-4 text-center">
                                 @php
                                     $requestType = $req->request_type ?? 'new';
-                                    $typeText = $requestType === 'renewal' ? 'ًں”„ تمدید' : 'ًں†• جدید';
+                                    $typeText = $requestType === 'renewal' ? 'تمدید' : 'جدید';
                                     $typeClass = $requestType === 'renewal' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-50 text-slate-700 border-slate-200';
                                     $statusMap = [
-                                        'pending' => ['âڈ³ در انتظار بررسی', 'bg-amber-50 text-amber-800 border-amber-200'],
-                                        'approved' => ['âœ… آماده صدور', 'bg-emerald-50 text-emerald-800 border-emerald-200'],
-                                        'issued' => ['ًں“„ صادر شده / معتبر', 'bg-sky-50 text-sky-800 border-sky-200'],
-                                        'collected' => ['ًںڑڑ لاشه تحویل شد', 'bg-slate-100 text-slate-700 border-slate-200'],
-                                        'archived' => ['ًں—‚ï¸ڈ بایگانی شد', 'bg-slate-100 text-slate-700 border-slate-200'],
-                                        'rejected' => ['â‌Œ رد درخواست', 'bg-rose-50 text-rose-800 border-rose-200'],
+                                        'pending' => ['در انتظار بررسی', 'bg-amber-50 text-amber-800 border-amber-200'],
+                                        'approved' => ['آماده صدور', 'bg-emerald-50 text-emerald-800 border-emerald-200'],
+                                        'issued' => ['صادر شده / معتبر', 'bg-sky-50 text-sky-800 border-sky-200'],
+                                        'collected' => ['لاشه تحویل شد', 'bg-slate-100 text-slate-700 border-slate-200'],
+                                        'archived' => ['بایگانی شد', 'bg-slate-100 text-slate-700 border-slate-200'],
+                                        'rejected' => ['‌ رد درخواست', 'bg-rose-50 text-rose-800 border-rose-200'],
                                         'returned' => ['نیاز به اصلاح', 'bg-orange-50 text-orange-800 border-orange-200'],
-                                        'lost' => ['âڑ ï¸ڈ مفقودی', 'bg-zinc-100 text-zinc-700 border-zinc-200'],
+                                        'lost' => ['مفقودی', 'bg-zinc-100 text-zinc-700 border-zinc-200'],
                                     ];
                                     [$statusText, $statusClass] = $statusMap[$req->status] ?? [$req->status, 'bg-slate-100 text-slate-800 border-slate-200'];
                                     $associationNote = $req->reject_reason ?: null;

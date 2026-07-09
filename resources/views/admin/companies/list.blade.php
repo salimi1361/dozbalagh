@@ -92,7 +92,7 @@
 
 @include('admin.companies.create_modal')
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 <script>
     function confirmDelete(formId, companyName) {
         Swal.fire({
