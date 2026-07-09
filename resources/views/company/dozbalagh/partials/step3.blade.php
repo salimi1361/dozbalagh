@@ -12,7 +12,7 @@
     
     <div class="bg-slate-50 px-5 py-2.5 rounded-xl border border-slate-200 shadow-sm flex flex-col items-end">
         <span class="text-[10px] text-slate-400 font-bold tracking-widest">شماره پرونده سیستمی (جهت پیگیری)</span>
-        <span class="font-mono font-black text-lg text-slate-800 tracking-wider" dir="ltr">{{ $newDCode ?? 'D20260613001' }}</span>
+        <span class="font-mono font-black text-lg text-slate-800 tracking-wider" dir="ltr">{{ $newDCode ?? 'KHD14050418001' }}</span>
         <input type="hidden" name="tracking_code" value="{{ $newDCode ?? '' }}">
     </div>
 </div>

@@ -23,11 +23,26 @@ class DozbalaghController extends Controller
     private function generateDCode()
     {
         $datePrefix = \Hekmatinasser\Verta\Verta::now()->format('Ymd');
-        $lastRequest = PermitRequest::where('d_code', 'like', 'D' . $datePrefix . '%')
-                                    ->orderBy('id', 'desc')
-                                    ->first();
-        $nextSequence = $lastRequest ? intval(substr($lastRequest->d_code, -3)) + 1 : 1;
-        return 'D' . $datePrefix . str_pad($nextSequence, 3, '0', STR_PAD_LEFT);
+        $lastSequence = PermitRequest::whereNotNull('d_code')
+            ->pluck('d_code')
+            ->map(function ($code) {
+                $code = (string) $code;
+
+                if (preg_match('/^KHD\d{8}(\d+)$/', $code, $matches)) {
+                    return (int) $matches[1];
+                }
+
+                if (preg_match('/^D\d{8}(\d+)$/', $code, $matches)) {
+                    return (int) $matches[1];
+                }
+
+                return 0;
+            })
+            ->max();
+
+        $nextSequence = ((int) $lastSequence) + 1;
+
+        return 'KHD' . $datePrefix . str_pad($nextSequence, 3, '0', STR_PAD_LEFT);
     }
 
     public function index(Request $request)

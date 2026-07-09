@@ -155,7 +155,7 @@
                         id="previous_dozouleh_number"
                         name="previous_dozouleh_number"
                         class="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-blue-500 transition-colors bg-white font-mono"
-                        placeholder="مثلاً D1405... یا شماره دوزوله قبلی"
+                        placeholder="مثلاً KHD1405... یا شماره دوزوله قبلی"
                         autocomplete="off"
                     >
                     <button type="button" id="check_renewal_code_btn" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-black transition">
