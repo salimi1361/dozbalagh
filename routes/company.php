@@ -42,6 +42,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/web/company/driver-messages/{driverId}', [DriverMessageController::class, 'thread'])->whereNumber('driverId')->name('company.driver_messages.thread');
 
         Route::get('/web/company/association-crm', [AssociationCrmController::class, 'index'])->name('company.association_crm.index');
+        Route::get('/web/company/association-crm/live', [AssociationCrmController::class, 'live'])->name('company.association_crm.live');
         Route::post('/web/company/association-crm/messages/{message}/acknowledge', [AssociationCrmController::class, 'acknowledge'])->name('company.association_crm.messages.acknowledge');
         Route::post('/web/company/association-crm/tickets', [AssociationCrmController::class, 'storeTicket'])->name('company.association_crm.tickets.store');
         Route::post('/web/company/association-crm/tickets/{ticket}/reply', [AssociationCrmController::class, 'replyTicket'])->name('company.association_crm.tickets.reply');

@@ -159,6 +159,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::delete('/financial/manual-adjustment/{id}', [FinancialController::class, 'destroyAdjustment'])->name('financial.destroyAdjustment');
 
     Route::get('/association-crm', [AssociationCrmController::class, 'index'])->name('association_crm.index');
+    Route::get('/association-crm/tickets/live', [AssociationCrmController::class, 'liveTickets'])->name('association_crm.tickets.live');
     Route::post('/association-crm/messages', [AssociationCrmController::class, 'storeMessage'])->name('association_crm.messages.store');
     Route::put('/association-crm/messages/{message}/toggle', [AssociationCrmController::class, 'toggleMessage'])->name('association_crm.messages.toggle');
     Route::delete('/association-crm/messages/{message}', [AssociationCrmController::class, 'destroyMessage'])->name('association_crm.messages.destroy');

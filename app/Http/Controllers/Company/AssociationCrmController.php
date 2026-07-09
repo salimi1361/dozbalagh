@@ -17,6 +17,47 @@ class AssociationCrmController extends Controller
         return $this->show();
     }
 
+    public function live()
+    {
+        $companyId = $this->companyId();
+
+        $messages = AssociationCompanyMessage::query()
+            ->visibleForCompany($companyId)
+            ->with(['receipts' => fn ($query) => $query->where('company_id', $companyId)])
+            ->latest()
+            ->limit(20)
+            ->get()
+            ->map(function (AssociationCompanyMessage $message) {
+                $receipt = $message->receipts->first();
+
+                return [
+                    'id' => $message->id,
+                    'title' => $message->title,
+                    'body' => $message->body,
+                    'category' => $message->category,
+                    'priority' => $message->priority,
+                    'is_mandatory' => (bool) $message->is_mandatory,
+                    'acknowledged' => filled($receipt?->acknowledged_at),
+                    'created_at' => verta($message->published_at ?? $message->created_at)->format('Y/m/d H:i'),
+                    'ack_url' => route('company.association_crm.messages.acknowledge', $message),
+                ];
+            });
+
+        $tickets = AssociationSupportTicket::query()
+            ->where('company_id', $companyId)
+            ->with(['messages' => fn ($query) => $query->orderBy('created_at')])
+            ->latest()
+            ->limit(30)
+            ->get()
+            ->map(fn (AssociationSupportTicket $ticket) => $this->ticketPayload($ticket));
+
+        return response()->json([
+            'success' => true,
+            'messages' => $messages,
+            'tickets' => $tickets,
+        ]);
+    }
+
     private function show(string $activeTab = 'messages')
     {
         $companyId = $this->companyId();
@@ -167,6 +208,8 @@ class AssociationCrmController extends Controller
             'id' => $ticket->id,
             'title' => $ticket->title,
             'status' => $ticket->status,
+            'category' => $ticket->category,
+            'priority' => $ticket->priority,
             'created_at' => verta($ticket->created_at)->format('Y/m/d H:i'),
             'messages' => $ticket->messages->map(fn (AssociationTicketMessage $message) => $this->ticketMessagePayload($message))->values(),
         ];

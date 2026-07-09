@@ -65,6 +65,7 @@
                         <option value="{{ $company->id }}">{{ $company->name_fa ?? $company->name }} - {{ $company->company_code }}</option>
                     @endforeach
                 </select>
+                <p class="mt-1 text-[11px] font-bold text-slate-500">برای ارسال اختصاصی، مخاطب را روی «شرکت مشخص» بگذارید و شرکت را انتخاب کنید.</p>
             </div>
             <div>
                 <label class="mb-1 block text-xs font-black text-slate-600">دسته‌بندی</label>
@@ -154,9 +155,9 @@
 
         <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <h2 class="mb-4 text-lg font-black text-slate-900">تیکت‌های شرکت‌ها</h2>
-            <div class="max-h-[680px] space-y-3 overflow-y-auto pr-1">
+            <div id="adminTicketsList" class="max-h-[680px] space-y-3 overflow-y-auto pr-1">
                 @forelse($tickets as $ticket)
-                    <form action="{{ route('admin.association_crm.tickets.update', $ticket) }}" method="POST" class="rounded-lg border border-slate-200 p-4">
+                    <form data-admin-ticket-id="{{ $ticket->id }}" action="{{ route('admin.association_crm.tickets.update', $ticket) }}" method="POST" class="rounded-lg border border-slate-200 p-4">
                         @csrf
                         @method('PUT')
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -179,9 +180,9 @@
                         @endif
                         <p class="mt-3 text-sm leading-7 text-slate-600">{{ $ticket->description }}</p>
                         @if($ticket->messages->isNotEmpty())
-                            <div class="mt-3 max-h-48 space-y-2 overflow-auto rounded-lg bg-slate-50 p-3">
+                            <div id="admin-ticket-messages-{{ $ticket->id }}" class="mt-3 max-h-48 space-y-2 overflow-auto rounded-lg bg-slate-50 p-3">
                                 @foreach($ticket->messages as $chatMessage)
-                                    <div class="rounded-lg {{ $chatMessage->sender === 'association' ? 'bg-sky-50 text-sky-900' : 'bg-white text-slate-700' }} p-2 text-xs font-bold leading-6">
+                                    <div data-chat-message-id="{{ $chatMessage->id }}" class="rounded-lg {{ $chatMessage->sender === 'association' ? 'bg-sky-50 text-sky-900' : 'bg-white text-slate-700' }} p-2 text-xs font-bold leading-6">
                                         <div class="mb-1 flex items-center justify-between gap-2 text-[10px] text-slate-500">
                                             <span>{{ $chatMessage->sender === 'association' ? 'انجمن' : 'شرکت' }}</span>
                                             <span>{{ verta($chatMessage->created_at)->format('Y/m/d H:i') }}</span>
@@ -260,14 +261,26 @@
 </div>
 
 <script>
+    const adminTicketsLiveUrl = '{{ route('admin.association_crm.tickets.live') }}';
+
+    function escapeHtml(value) {
+        return String(value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
     function toggleCompanySelect() {
         const audience = document.getElementById('audience');
         const wrap = document.getElementById('companySelectWrap');
         const company = document.getElementById('company_id');
         const selected = audience.value === 'selected';
 
-        wrap.classList.toggle('hidden', !selected);
+        wrap.classList.toggle('opacity-50', !selected);
         company.required = selected;
+        company.disabled = !selected;
         if (!selected) {
             company.value = '';
         }
@@ -281,6 +294,125 @@
         document.getElementById(id).classList.add('hidden');
     }
 
+    function adminChatBubble(message) {
+        const association = message.sender === 'association';
+        return `
+            <div data-chat-message-id="${message.id}" class="rounded-lg ${association ? 'bg-sky-50 text-sky-900' : 'bg-white text-slate-700'} p-2 text-xs font-bold leading-6">
+                <div class="mb-1 flex items-center justify-between gap-2 text-[10px] text-slate-500">
+                    <span>${association ? 'انجمن' : 'شرکت'}</span>
+                    <span>${escapeHtml(message.created_at)}</span>
+                </div>
+                ${escapeHtml(message.body)}
+            </div>
+        `;
+    }
+
+    function adminTicketCard(ticket) {
+        const messages = ticket.messages.map(adminChatBubble).join('');
+        return `
+            <form data-admin-ticket-id="${ticket.id}" action="${ticket.update_url}" method="POST" class="rounded-lg border border-slate-200 p-4">
+                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="_method" value="PUT">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h3 class="font-black text-slate-900">${escapeHtml(ticket.title)}</h3>
+                        <p class="mt-1 text-xs font-bold text-slate-500">${escapeHtml(ticket.company_name)} · ${escapeHtml(ticket.category)} · ${escapeHtml(ticket.priority)}</p>
+                    </div>
+                    <select name="status" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">
+                        <option value="open">باز</option>
+                        <option value="in_progress">در حال بررسی</option>
+                        <option value="answered">پاسخ داده شده</option>
+                        <option value="closed">بسته شده</option>
+                    </select>
+                </div>
+                <p class="mt-3 text-sm leading-7 text-slate-600">${escapeHtml(ticket.description)}</p>
+                <div id="admin-ticket-messages-${ticket.id}" class="mt-3 max-h-48 space-y-2 overflow-auto rounded-lg bg-slate-50 p-3">${messages}</div>
+                <textarea name="admin_response" rows="2" class="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="پاسخ جدید یا یادداشت پیگیری"></textarea>
+                <button class="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-xs font-black text-white">ثبت پیگیری</button>
+            </form>
+        `;
+    }
+
+    async function pollAdminTickets() {
+        if (document.hidden) {
+            return;
+        }
+
+        try {
+            const response = await fetch(adminTicketsLiveUrl, { headers: { 'Accept': 'application/json' } });
+            if (!response.ok) {
+                return;
+            }
+
+            const data = await response.json();
+            const list = document.getElementById('adminTicketsList');
+            if (!list) {
+                return;
+            }
+
+            data.tickets.forEach((ticket) => {
+                let card = list.querySelector(`[data-admin-ticket-id="${ticket.id}"]`);
+                if (!card) {
+                    list.insertAdjacentHTML('afterbegin', adminTicketCard(ticket));
+                    card = list.querySelector(`[data-admin-ticket-id="${ticket.id}"]`);
+                    bindAdminTicketForm(card);
+                }
+
+                const target = document.getElementById(`admin-ticket-messages-${ticket.id}`);
+                if (!target) {
+                    return;
+                }
+
+                ticket.messages.forEach((message) => {
+                    if (!target.querySelector(`[data-chat-message-id="${message.id}"]`)) {
+                        target.insertAdjacentHTML('beforeend', adminChatBubble(message));
+                        target.scrollTop = target.scrollHeight;
+                    }
+                });
+            });
+        } catch (error) {
+            // Keep polling quiet; form submits remain available.
+        }
+    }
+
+    function bindAdminTicketForm(form) {
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const button = form.querySelector('button');
+            const textarea = form.querySelector('[name="admin_response"]');
+            button.disabled = true;
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    body: new FormData(form),
+                });
+
+                if (!response.ok) {
+                    throw new Error('request failed');
+                }
+
+                const data = await response.json();
+                if (data.message) {
+                    const ticketId = form.dataset.adminTicketId;
+                    const target = document.getElementById(`admin-ticket-messages-${ticketId}`);
+                    target.insertAdjacentHTML('beforeend', adminChatBubble(data.message));
+                    target.scrollTop = target.scrollHeight;
+                    textarea.value = '';
+                }
+            } catch (error) {
+                alert('ثبت پاسخ انجام نشد. لطفا دوباره تلاش کنید.');
+            } finally {
+                button.disabled = false;
+            }
+        });
+    }
+
     toggleCompanySelect();
+    document.querySelectorAll('[data-admin-ticket-id]').forEach(bindAdminTicketForm);
+    setInterval(pollAdminTickets, 5000);
 </script>
 @endsection

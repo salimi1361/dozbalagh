@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AssociationCompanyMessage;
+use App\Models\AssociationMessageReceipt;
 use App\Models\AssociationSupportTicket;
 use App\Models\Company;
 use Illuminate\Http\Request;
@@ -70,10 +71,40 @@ class AssociationCrmController extends Controller
             'active_messages' => AssociationCompanyMessage::where('is_active', true)->count(),
             'mandatory_messages' => AssociationCompanyMessage::where('is_mandatory', true)->count(),
             'open_tickets' => AssociationSupportTicket::whereIn('status', ['open', 'in_progress'])->count(),
-            'acknowledged_receipts' => \App\Models\AssociationMessageReceipt::whereNotNull('acknowledged_at')->count(),
+            'acknowledged_receipts' => AssociationMessageReceipt::whereNotNull('acknowledged_at')->count(),
         ];
 
         return view('admin.association_crm.index', compact('companies', 'messages', 'tickets', 'stats', 'messageReceiptDetails'));
+    }
+
+    public function liveTickets()
+    {
+        $tickets = AssociationSupportTicket::query()
+            ->with(['company:id,name,name_fa,company_code', 'message:id,title', 'messages' => fn ($query) => $query->orderBy('created_at')])
+            ->latest()
+            ->limit(30)
+            ->get()
+            ->map(fn (AssociationSupportTicket $ticket) => [
+                'id' => $ticket->id,
+                'title' => $ticket->title,
+                'company_name' => $ticket->company->name_fa ?? $ticket->company->name ?? 'شرکت',
+                'category' => $ticket->category,
+                'priority' => $ticket->priority,
+                'status' => $ticket->status,
+                'description' => $ticket->description,
+                'update_url' => route('admin.association_crm.tickets.update', $ticket),
+                'messages' => $ticket->messages->map(fn ($message) => [
+                    'id' => $message->id,
+                    'sender' => $message->sender,
+                    'body' => $message->body,
+                    'created_at' => verta($message->created_at)->format('Y/m/d H:i'),
+                ])->values(),
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'tickets' => $tickets,
+        ]);
     }
 
     public function storeMessage(Request $request)
@@ -128,11 +159,25 @@ class AssociationCrmController extends Controller
             'closed_at' => $validated['status'] === 'closed' ? now() : null,
         ]);
 
+        $reply = null;
         if (filled($validated['admin_response'])) {
-            $ticket->messages()->create([
+            $reply = $ticket->messages()->create([
                 'user_id' => auth()->id(),
                 'sender' => 'association',
                 'body' => $validated['admin_response'],
+            ]);
+        }
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'status' => $validated['status'],
+                'message' => $reply ? [
+                    'id' => $reply->id,
+                    'sender' => $reply->sender,
+                    'body' => $reply->body,
+                    'created_at' => verta($reply->created_at)->format('Y/m/d H:i'),
+                ] : null,
             ]);
         }
 
