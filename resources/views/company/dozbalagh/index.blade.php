@@ -316,11 +316,17 @@
 
                                     {{-- باکس وضعیت مالی و زمان درخواست --}}
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        @php
+                                            $isRefundedPayment = in_array($item->status, ['rejected', 'returned'], true) || $item->payment_status === 'refunded';
+                                            $isReservedPayment = !$isRefundedPayment && $item->payment_status === 'reserved';
+                                        @endphp
                                         <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
                                             <span class="text-xs text-slate-400 font-bold block mb-1">وضعیت پرداخت تراکنش</span>
                                             <div class="flex justify-between items-center mt-2">
                                                 <span class="text-base font-black text-slate-800 font-mono">{{ number_format($item->total_amount) }} ریال</span>
-                                                @if($item->payment_status === 'reserved')
+                                                @if($isRefundedPayment)
+                                                    <span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-xs font-bold">وجه عودت داده شده</span>
+                                                @elseif($isReservedPayment)
                                                     <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-bold">مبلغ بلوکه شده</span>
                                                 @else
                                                     <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-bold">تسویه نهایی</span>

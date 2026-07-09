@@ -115,6 +115,7 @@
                                                     @case('dozbalagh_reserve') مسدودی موقت @break
                                                     @case('dozbalagh_purchase') کسر قطعی دوزوله @break
                                                     @case('dozbalagh_release') آزادسازی وجه @break
+                                                    @case('dozbalagh_refund') برگشت وجه رد درخواست @break
                                                     @case('manual_adjustment') اصلاحیه سیستمی @break
                                                 @endswitch
                                             </div>

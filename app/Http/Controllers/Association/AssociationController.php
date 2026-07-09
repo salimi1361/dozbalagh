@@ -181,19 +181,28 @@ class AssociationController
 
             if ($status === 'rejected') {
                 $updateData['rejected_at'] = $now;
+                $updateData['payment_status'] = 'refunded';
 
                 $wallet = DB::table('wallets')->where('company_id', $permit->company_id)->first();
-                if ($wallet) {
+                $shouldReleaseFunds = $wallet
+                    && ($permit->payment_status ?? null) === 'reserved'
+                    && ($permit->status ?? null) !== 'rejected'
+                    && (float) $permit->total_amount > 0
+                    && (float) $wallet->blocked_balance > 0;
+
+                if ($shouldReleaseFunds) {
+                    $releaseAmount = min((float) $permit->total_amount, (float) $wallet->blocked_balance);
+
                     DB::table('wallets')->where('id', $wallet->id)->update([
-                        'blocked_balance' => $wallet->blocked_balance - $permit->total_amount,
-                        'balance' => $wallet->balance + $permit->total_amount,
+                        'blocked_balance' => max(0, (float) $wallet->blocked_balance - $releaseAmount),
+                        'balance' => (float) $wallet->balance + $releaseAmount,
                         'updated_at' => $now
                     ]);
 
                     // 🟢 فیکس قطعی: استفاده از مقدار دقیق تعریف شده در ENUM دیتابیس شما (dozbalagh_refund)
                     DB::table('wallet_transactions')->insert([
                         'wallet_id' => $wallet->id,
-                        'amount' => $permit->total_amount,
+                        'amount' => $releaseAmount,
                         'type' => 'credit',
                         'action_type' => 'dozbalagh_refund', // 👈 منطبق بر ساختار ENUM دیتابیس شما
                         'description' => "برگشت کل وجه به دلیل رد درخواست دوزوله پرونده {$permit->d_code}",
