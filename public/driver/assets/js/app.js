@@ -2,10 +2,12 @@ const API_BASE = '/api/v1/driver';
 let watchId = null;
 let currentTab = 'home';
 let permitsCache = [];
+let gpsPermissionState = 'prompt';
 
 document.addEventListener('DOMContentLoaded', initApp);
 
 function initApp() {
+    registerServiceWorker();
     const token = localStorage.getItem('driver_token');
     const main = document.getElementById('main-content');
     main.classList.add('is-centered');
@@ -19,6 +21,13 @@ function initApp() {
     document.getElementById('bottom-navigation').classList.remove('hidden');
     main.classList.remove('is-centered');
     renderDashboard();
+    syncGpsStatus();
+    resumeTripTrackingIfNeeded();
+}
+
+function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.register('sw.js').catch(() => {});
 }
 
 function switchTab(tab) {
@@ -86,6 +95,86 @@ function datePairHtml(label, jalali, gregorian) {
             <span><b>شمسی</b>${displayValue(jalali)}</span>
             <span><b>میلادی</b>${displayValue(gregorian)}</span>
         </div>`;
+}
+
+function associationLogoHtml(extraClass = '') {
+    return `<img class="association-logo ${extraClass}" src="logo.png" alt="لوگوی انجمن شرکت‌های حمل و نقل بین‌المللی خراسان رضوی">`;
+}
+
+function gpsStatusLabel() {
+    if (localStorage.getItem('is_on_trip') === 'true' || gpsPermissionState === 'granted') {
+        return 'فعال';
+    }
+    if (gpsPermissionState === 'denied') {
+        return 'رد شده';
+    }
+    return 'در انتظار';
+}
+
+function updateGpsBadge() {
+    const gpsBadge = document.getElementById('home-gps-badge');
+    if (gpsBadge) gpsBadge.textContent = gpsStatusLabel();
+}
+
+function syncGpsStatus() {
+    if (!navigator.geolocation) {
+        gpsPermissionState = 'denied';
+        updateGpsBadge();
+        return;
+    }
+
+    if (navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({ name: 'geolocation' })
+            .then(permission => {
+                gpsPermissionState = permission.state;
+                updateGpsBadge();
+                permission.onchange = () => {
+                    gpsPermissionState = permission.state;
+                    updateGpsBadge();
+                };
+            })
+            .catch(updateGpsBadge);
+    } else {
+        updateGpsBadge();
+    }
+}
+
+function startLocationWatch(permitId, silent = false) {
+    if (!navigator.geolocation) {
+        showToast('GPS در این دستگاه پشتیبانی نمی‌شود.', 'error');
+        gpsPermissionState = 'denied';
+        updateGpsBadge();
+        return false;
+    }
+
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+
+    localStorage.setItem('active_permit_id', permitId);
+    localStorage.setItem('is_on_trip', 'true');
+    watchId = navigator.geolocation.watchPosition(
+        pos => {
+            gpsPermissionState = 'granted';
+            updateGpsBadge();
+            sendLocation(pos.coords.latitude, pos.coords.longitude, permitId);
+        },
+        () => {
+            gpsPermissionState = 'denied';
+            localStorage.removeItem('is_on_trip');
+            updateTripButtonUI();
+            updateGpsBadge();
+            if (!silent) showToast('دسترسی به GPS رد شد.', 'error');
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
+    );
+    updateTripButtonUI();
+    updateGpsBadge();
+    return true;
+}
+
+function resumeTripTrackingIfNeeded() {
+    if (localStorage.getItem('is_on_trip') !== 'true') return;
+    const permitId = localStorage.getItem('active_permit_id');
+    if (permitId) startLocationWatch(permitId, true);
 }
 
 function toEnglishDigits(value) {
@@ -184,7 +273,7 @@ function renderHomeTab(main, driver) {
                     </div>
                     <div>
                         <span class="metric-card__label">وضعیت GPS</span>
-                        <div class="metric-card__value" id="home-gps-badge">${localStorage.getItem('is_on_trip') === 'true' ? 'فعال' : 'غیرفعال'}</div>
+                        <div class="metric-card__value" id="home-gps-badge">${gpsStatusLabel()}</div>
                     </div>
                 </div>
             </div>
@@ -203,6 +292,7 @@ function renderHomeTab(main, driver) {
         </div>`;
 
     updateTripButtonUI();
+    syncGpsStatus();
     fetchPermits();
 }
 
@@ -296,6 +386,9 @@ function fetchPermits() {
 
             permitsCache = data.data || [];
             if (badge) badge.textContent = permitsCache.length.toLocaleString('fa-IR');
+            if (localStorage.getItem('is_on_trip') === 'true' && !localStorage.getItem('active_permit_id') && permitsCache[0]) {
+                startLocationWatch(permitsCache[0].id, true);
+            }
 
             if (permitsCache.length === 0) {
                 container.innerHTML = emptyPermitsHtml();
@@ -328,6 +421,10 @@ function fetchPermits() {
                     <div class="permit-card__row">
                         <span>شرکت: <b>${displayValue(p.company_name)}</b></span>
                         <span>ناوگان: <b>${displayValue(p.fleet_plate || p.truck_type)}</b></span>
+                    </div>
+                    <div class="permit-card__hint">
+                        <span>برای مشاهده اطلاعات کامل لمس کنید</span>
+                        <i class="fa-solid fa-chevron-left"></i>
                     </div>
                 </div>
             `).join('');
@@ -450,22 +547,10 @@ function toggleTripState() {
             showToast('ابتدا یک دوزوله انتخاب کنید.', 'error');
             return;
         }
-        if (!navigator.geolocation) {
-            showToast('GPS در این دستگاه پشتیبانی نمی‌شود.', 'error');
-            return;
-        }
-        localStorage.setItem('active_permit_id', permitId);
-        localStorage.setItem('is_on_trip', 'true');
-        showToast('ارسال موقعیت آغاز شد.', 'success');
-        watchId = navigator.geolocation.watchPosition(
-            pos => sendLocation(pos.coords.latitude, pos.coords.longitude, permitId),
-            () => showToast('دسترسی به GPS رد شد.', 'error'),
-            { enableHighAccuracy: true, maximumAge: 10000 }
-        );
+        if (startLocationWatch(permitId)) showToast('ارسال موقعیت آغاز شد.', 'success');
     }
     updateTripButtonUI();
-    const gpsBadge = document.getElementById('home-gps-badge');
-    if (gpsBadge) gpsBadge.textContent = localStorage.getItem('is_on_trip') === 'true' ? 'فعال' : 'غیرفعال';
+    updateGpsBadge();
 }
 
 function updateTripButtonUI() {
@@ -506,7 +591,7 @@ function logout() {
 function renderLoginScreen() {
     document.getElementById('main-content').innerHTML = `
         <div class="auth-wrap">
-            <div class="auth-icon"><i class="fa-solid fa-truck"></i></div>
+            <div class="auth-icon auth-icon--logo">${associationLogoHtml('association-logo--auth')}</div>
             <h1 class="auth-title">ورود رانندگان</h1>
             <p class="auth-subtitle">کد یکبار مصرف به موبایل ثبت‌شده ارسال می‌شود</p>
             <div class="card auth-card">
@@ -559,7 +644,7 @@ function handleRequestOtp() {
 function renderOtpScreen(mobile) {
     document.getElementById('main-content').innerHTML = `
         <div class="auth-wrap">
-            <div class="auth-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <div class="auth-icon auth-icon--logo">${associationLogoHtml('association-logo--auth')}</div>
             <h1 class="auth-title">تأیید کد</h1>
             <p class="auth-subtitle">کد ۵ رقمی ارسال‌شده به ${mobile} را وارد کنید</p>
             <div class="card auth-card">
@@ -602,6 +687,8 @@ function handleVerifyOtp(mobile) {
                 document.getElementById('main-content').classList.remove('is-centered');
                 showToast('ورود موفق.', 'success');
                 renderDashboard();
+                syncGpsStatus();
+                resumeTripTrackingIfNeeded();
             } else {
                 showToast(data.message || 'کد اشتباه است.', 'error');
                 btn.disabled = false;

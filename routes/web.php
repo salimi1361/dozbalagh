@@ -35,7 +35,75 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
         $companiesCount = \App\Models\Company::count();
         $driversCount = \App\Models\Driver::count();
         $fleetsCount = \App\Models\Fleet::count();
-        return view('admin.dashboard', compact('companiesCount', 'driversCount', 'fleetsCount'));
+        $pendingRequestsCount = \App\Models\PermitRequest::where('status', 'pending')->count();
+
+        $weekStart = \Carbon\Carbon::now()->subDays(6)->startOfDay();
+        $dailyRequests = \Illuminate\Support\Facades\DB::table('permit_requests')
+            ->selectRaw('DATE(created_at) as day_key, COUNT(*) as total')
+            ->where('created_at', '>=', $weekStart)
+            ->groupBy('day_key')
+            ->pluck('total', 'day_key');
+
+        $weekdayNames = [
+            0 => 'یکشنبه',
+            1 => 'دوشنبه',
+            2 => 'سه‌شنبه',
+            3 => 'چهارشنبه',
+            4 => 'پنجشنبه',
+            5 => 'جمعه',
+            6 => 'شنبه',
+        ];
+
+        $requestChartLabels = [];
+        $requestChartData = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = \Carbon\Carbon::now()->subDays($i);
+            $requestChartLabels[] = $weekdayNames[$date->dayOfWeek] ?? $date->format('Y/m/d');
+            $requestChartData[] = (int) ($dailyRequests[$date->toDateString()] ?? 0);
+        }
+
+        $destinationRows = \Illuminate\Support\Facades\DB::table('permit_request_items as pri')
+            ->leftJoin('countries as c', 'pri.country_id', '=', 'c.id')
+            ->selectRaw("COALESCE(c.name, 'نامشخص') as country_name, COUNT(*) as total")
+            ->groupByRaw("COALESCE(c.name, 'نامشخص')")
+            ->orderByDesc('total')
+            ->limit(5)
+            ->get();
+
+        $destinationChartLabels = $destinationRows->pluck('country_name')->values();
+        $destinationChartData = $destinationRows->map(fn ($row) => (int) $row->total)->values();
+        $destinationTotal = $destinationChartData->sum();
+
+        $availableStatuses = ['raw', 'in_stock', 'returned_unused'];
+        $usedStatuses = ['consumed', 'issued', 'collected', 'archived', 'lost', 'used', 'extended', 'cancelled'];
+
+        $lowStockCountries = \Illuminate\Support\Facades\DB::table('dozbalagh_items as di')
+            ->join('dozbalagh_batches as db', 'di.batch_id', '=', 'db.id')
+            ->leftJoin('countries as c', 'db.country_id', '=', 'c.id')
+            ->where(function ($query) use ($availableStatuses, $usedStatuses) {
+                $query->whereNull('di.lifecycle_status')
+                    ->orWhereIn('di.lifecycle_status', $availableStatuses)
+                    ->orWhereNotIn('di.lifecycle_status', $usedStatuses);
+            })
+            ->selectRaw("COALESCE(c.name, db.country_name, 'نامشخص') as country_name, COUNT(di.id) as available_count")
+            ->groupByRaw("COALESCE(c.name, db.country_name, 'نامشخص')")
+            ->having('available_count', '<=', 50)
+            ->orderBy('available_count')
+            ->limit(4)
+            ->get();
+
+        return view('admin.dashboard', compact(
+            'companiesCount',
+            'driversCount',
+            'fleetsCount',
+            'pendingRequestsCount',
+            'requestChartLabels',
+            'requestChartData',
+            'destinationChartLabels',
+            'destinationChartData',
+            'destinationTotal',
+            'lowStockCountries'
+        ));
     })->name('dashboard');
 
     // 🌍 کشورها
@@ -94,7 +162,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 // 🏛️ روت‌های کارتابل و مدیریت پروانه‌های انجمن صنفی
 // ==========================================
 Route::middleware(['auth'])->group(function () {
-    Route::get('/web/association/dashboard', [AssociationController::class, 'dashboard'])->name('association.dashboard');
     Route::get('/web/association/driver/list', [AssociationController::class, 'index'])->name('association.pending.index');
     Route::post('/web/association/request/process/{id}', [AssociationController::class, 'updateRequestStatus']);
     

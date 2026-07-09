@@ -1,122 +1,174 @@
-@extends('layouts.admin') {{-- نام فایل قالب اصلی ادمین خودت را اینجا بنویس --}}
+@extends('layouts.admin')
+
+@section('header_title', 'داشبورد کل سامانه')
 
 @section('content')
-    <script src="{{ asset('assets/js/apexcharts.js') }}"></script>
+<script src="{{ asset('assets/js/apexcharts.js') }}"></script>
 
-    <div class="p-4 sm:p-6 lg:p-8 w-full">
-        
-<div class="mb-6">
-        <h1 class="text-2xl font-black text-slate-800">داشبورد کل سامانه</h1>
-        <p class="text-sm text-slate-500 mt-1 font-semibold">خلاصه وضعیت درخواست‌ها و ناوگان</p>
+<div class="space-y-8">
+    <div class="flex flex-col gap-1">
+        <h1 class="text-2xl font-black text-slate-900">داشبورد کل سامانه</h1>
+        <p class="text-sm text-slate-500 font-semibold">خلاصه وضعیت واقعی درخواست‌ها، ناوگان، شرکت‌ها و موجودی انبار</p>
     </div>
 
-        <div class="bg-amber-50 border-r-4 border-amber-500 p-4 rounded-xl mb-8 shadow-sm flex items-start gap-4">
-            <svg class="w-6 h-6 text-amber-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+    @if($lowStockCountries->isNotEmpty())
+        <div class="bg-amber-50 border border-amber-100 border-r-4 border-r-amber-500 p-4 rounded-lg shadow-sm flex items-start gap-4">
+            <svg class="w-6 h-6 text-amber-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            </svg>
             <div>
-                <h3 class="text-sm font-bold text-amber-800">هشدار کاهش موجودی انبار</h3>
-                <p class="text-sm text-amber-700 mt-1">موجودی سریال های دوزوله برای مقاصد <strong>ترکمنستان</strong> رو به اتمام است (کمتر از ۵۰ عدد باقی مانده). لطفاً جهت تخصیص سهمیه جدید اقدام نمایید.</p>
+                <h3 class="text-sm font-black text-amber-900">هشدار کاهش موجودی انبار</h3>
+                <p class="text-sm text-amber-800 mt-1 leading-7">
+                    موجودی سریال‌های خام برای
+                    @foreach($lowStockCountries as $country)
+                        <strong>{{ $country->country_name }}</strong>
+                        <span>({{ number_format($country->available_count) }} عدد)</span>@if(!$loop->last)،@endif
+                    @endforeach
+                    به آستانه هشدار رسیده است.
+                </p>
             </div>
         </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            
-            <div class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm relative overflow-hidden">
-                <div class="absolute -left-4 -bottom-4 w-20 h-20 bg-emerald-50 rounded-full z-0"></div>
-                <div class="flex justify-between items-center relative z-10">
-                    <div>
-                        <p class="text-sm font-bold text-slate-500 mb-1">شرکت‌های عضو</p>
-                        <h3 class="text-3xl font-black text-slate-800">{{ $companiesCount }}</h3>
-                    </div>
-                    <div class="bg-emerald-100 p-3 rounded-xl text-emerald-600">
-                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm relative overflow-hidden">
-                <div class="absolute -left-4 -bottom-4 w-20 h-20 bg-indigo-50 rounded-full z-0"></div>
-                <div class="flex justify-between items-center relative z-10">
-                    <div>
-                        <p class="text-sm font-bold text-slate-500 mb-1">رانندگان ثبت شده</p>
-                        <h3 class="text-3xl font-black text-slate-800">{{ $driversCount }}</h3>
-                    </div>
-                    <div class="bg-indigo-100 p-3 rounded-xl text-indigo-600">
-                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm relative overflow-hidden">
-                <div class="absolute -left-4 -bottom-4 w-20 h-20 bg-amber-50 rounded-full z-0"></div>
-                <div class="flex justify-between items-center relative z-10">
-                    <div>
-                        <p class="text-sm font-bold text-slate-500 mb-1">ناوگان (کامیون‌ها)</p>
-                        <h3 class="text-3xl font-black text-slate-800">{{ $fleetsCount }}</h3>
-                    </div>
-                    <div class="bg-amber-100 p-3 rounded-xl text-amber-600">
-                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-xl p-5 border border-slate-100 shadow-sm relative overflow-hidden">
-                <div class="absolute -left-4 -bottom-4 w-20 h-20 bg-sky-50 rounded-full z-0"></div>
-                <div class="flex justify-between items-center relative z-10">
-                    <div>
-                        <p class="text-sm font-bold text-slate-500 mb-1">درخواست‌های در انتظار</p>
-                        <h3 class="text-3xl font-black text-slate-800">۰</h3>
-                    </div>
-                    <div class="bg-sky-100 p-3 rounded-xl text-sky-600">
-                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm lg:col-span-2">
-                <h3 class="text-base font-bold text-slate-800 mb-4">آمار درخواست های دوزوله (7 روز گذشته)</h3>
-                <div id="barChart" class="w-full h-72"></div>
-            </div>
-
-            <div class="bg-white p-5 rounded-xl border border-slate-100 shadow-sm lg:col-span-1">
-                <h3 class="text-base font-bold text-slate-800 mb-4">توزیع مقاصد پرتردد</h3>
-                <div id="donutChart" class="w-full h-72 flex justify-center items-center"></div>
+    @else
+        <div class="bg-emerald-50 border border-emerald-100 border-r-4 border-r-emerald-500 p-4 rounded-lg shadow-sm flex items-start gap-4">
+            <svg class="w-6 h-6 text-emerald-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m4.5 12.75 6 6 9-13.5"></path>
+            </svg>
+            <div>
+                <h3 class="text-sm font-black text-emerald-900">موجودی انبار در وضعیت عادی است</h3>
+                <p class="text-sm text-emerald-800 mt-1">در حال حاضر مقصدی با موجودی کمتر یا مساوی ۵۰ سریال خام شناسایی نشده است.</p>
             </div>
         </div>
+    @endif
+
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        @php
+            $cards = [
+                [
+                    'label' => 'شرکت‌های عضو',
+                    'value' => $companiesCount,
+                    'color' => 'emerald',
+                    'icon' => 'M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5m-4 0h4',
+                ],
+                [
+                    'label' => 'رانندگان ثبت شده',
+                    'value' => $driversCount,
+                    'color' => 'indigo',
+                    'icon' => 'M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0zM4.5 20.25a8.25 8.25 0 1 1 15 0',
+                ],
+                [
+                    'label' => 'ناوگان (کامیون‌ها)',
+                    'value' => $fleetsCount,
+                    'color' => 'amber',
+                    'icon' => 'M8.25 18.75a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM15.75 18.75a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM3 13.5h2.25m13.5 0H21m-15.75 0h13.5M5.25 13.5 6.6 6.75A2.25 2.25 0 0 1 8.8 5h5.4a2.25 2.25 0 0 1 2.2 1.75l1.35 6.75',
+                ],
+                [
+                    'label' => 'درخواست‌های در انتظار',
+                    'value' => $pendingRequestsCount,
+                    'color' => 'sky',
+                    'icon' => 'M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5A3.375 3.375 0 0 0 10.125 2.25H6.75A2.25 2.25 0 0 0 4.5 4.5v15a2.25 2.25 0 0 0 2.25 2.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-5.25z',
+                ],
+            ];
+
+            $colors = [
+                'emerald' => ['bg' => 'bg-emerald-50', 'icon' => 'bg-emerald-100 text-emerald-600'],
+                'indigo' => ['bg' => 'bg-indigo-50', 'icon' => 'bg-indigo-100 text-indigo-600'],
+                'amber' => ['bg' => 'bg-amber-50', 'icon' => 'bg-amber-100 text-amber-600'],
+                'sky' => ['bg' => 'bg-sky-50', 'icon' => 'bg-sky-100 text-sky-600'],
+            ];
+        @endphp
+
+        @foreach($cards as $card)
+            <div class="bg-white rounded-lg p-5 border border-slate-200 shadow-sm relative overflow-hidden">
+                <div class="absolute -left-4 -bottom-4 w-20 h-20 {{ $colors[$card['color']]['bg'] }} rounded-full z-0"></div>
+                <div class="flex justify-between items-center relative z-10 gap-4">
+                    <div>
+                        <p class="text-sm font-black text-slate-500 mb-1">{{ $card['label'] }}</p>
+                        <h3 class="text-3xl font-black text-slate-900">{{ number_format($card['value']) }}</h3>
+                    </div>
+                    <div class="{{ $colors[$card['color']]['icon'] }} p-3 rounded-lg shrink-0">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="{{ $card['icon'] }}"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        @endforeach
     </div>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const fontFamily = 'Vazirmatn, sans-serif';
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <section class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm xl:col-span-2">
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <div>
+                    <h3 class="text-base font-black text-slate-900">آمار درخواست‌های دوزبلاغ (۷ روز گذشته)</h3>
+                    <p class="text-xs text-slate-400 font-bold mt-1">بر اساس تاریخ ثبت درخواست در سامانه</p>
+                </div>
+                <span class="text-xs font-black text-sky-700 bg-sky-50 border border-sky-100 px-3 py-1 rounded-lg">واقعی</span>
+            </div>
+            <div id="barChart" class="w-full h-72"></div>
+        </section>
 
-            var barOptions = {
-                series: [{ name: 'درخواست‌های ثبت شده', data: [44, 55, 57, 56, 61, 58, 63] }],
-                chart: { type: 'bar', height: '100%', fontFamily: fontFamily, toolbar: { show: false } },
-                plotOptions: { bar: { horizontal: false, columnWidth: '40%', borderRadius: 4 } },
-                dataLabels: { enabled: false },
-                stroke: { show: true, width: 2, colors: ['transparent'] },
-                xaxis: {
-                    categories: ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'],
-                    labels: { style: { fontFamily: fontFamily, fontWeight: 'bold' } }
-                },
-                yaxis: { labels: { style: { fontFamily: fontFamily } } },
-                fill: { opacity: 1, colors: ['#0ea5e9'] },
-                tooltip: { y: { formatter: function (val) { return val + " درخواست" } } }
-            };
-            new ApexCharts(document.querySelector("#barChart"), barOptions).render();
+        <section class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+            <div class="flex items-center justify-between gap-3 mb-4">
+                <div>
+                    <h3 class="text-base font-black text-slate-900">توزیع مقاصد پرتردد</h3>
+                    <p class="text-xs text-slate-400 font-bold mt-1">بر اساس ردیف مقصدهای ثبت‌شده</p>
+                </div>
+                <span class="text-xs font-black text-slate-700 bg-slate-50 border border-slate-100 px-3 py-1 rounded-lg">{{ number_format($destinationTotal) }}</span>
+            </div>
+            <div id="donutChart" class="w-full h-72"></div>
+        </section>
+    </div>
+</div>
+@endsection
 
-            var donutOptions = {
-                series: [44, 55, 13, 33],
-                labels: ['ترکیه', 'ترکمنستان', 'افغانستان', 'گرجستان'],
-                chart: { type: 'donut', height: '100%', fontFamily: fontFamily },
-                colors: ['#0ea5e9', '#10b981', '#f59e0b', '#6366f1'],
-                plotOptions: { pie: { donut: { size: '70%', labels: { show: true, name: { fontSize: '14px', fontFamily: fontFamily }, value: { fontSize: '20px', fontWeight: 'bold', fontFamily: fontFamily }, total: { show: true, label: 'مجموع', formatter: function (w) { return w.globals.seriesTotals.reduce((a, b) => { return a + b }, 0) } } } } } },
-                dataLabels: { enabled: false },
-                legend: { position: 'bottom', fontFamily: fontFamily, fontWeight: 'bold' }
-            };
-            new ApexCharts(document.querySelector("#donutChart"), donutOptions).render();
-        });
-    </script>
+@section('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const fontFamily = 'Vazirmatn, Tahoma, sans-serif';
+    const requestLabels = @json($requestChartLabels);
+    const requestData = @json($requestChartData);
+    const destinationLabels = @json($destinationChartLabels);
+    const destinationData = @json($destinationChartData);
+
+    new ApexCharts(document.querySelector('#barChart'), {
+        series: [{ name: 'درخواست ثبت شده', data: requestData }],
+        chart: { type: 'bar', height: '100%', fontFamily, toolbar: { show: false } },
+        plotOptions: { bar: { horizontal: false, columnWidth: '40%', borderRadius: 5 } },
+        dataLabels: { enabled: false },
+        grid: { borderColor: '#e2e8f0', strokeDashArray: 4 },
+        colors: ['#0ea5e9'],
+        xaxis: { categories: requestLabels, labels: { style: { fontFamily, fontWeight: 700 } } },
+        yaxis: { labels: { style: { fontFamily } } },
+        tooltip: { y: { formatter: function (val) { return val + ' درخواست'; } } }
+    }).render();
+
+    new ApexCharts(document.querySelector('#donutChart'), {
+        series: destinationData.length ? destinationData : [1],
+        labels: destinationLabels.length ? destinationLabels : ['بدون مقصد'],
+        chart: { type: 'donut', height: '100%', fontFamily },
+        colors: ['#0ea5e9', '#10b981', '#f59e0b', '#6366f1', '#ef4444'],
+        dataLabels: { enabled: false },
+        legend: { position: 'bottom', fontFamily, fontWeight: 700 },
+        plotOptions: {
+            pie: {
+                donut: {
+                    size: '70%',
+                    labels: {
+                        show: true,
+                        name: { fontFamily, fontSize: '14px' },
+                        value: { fontFamily, fontSize: '20px', fontWeight: 900 },
+                        total: {
+                            show: true,
+                            label: 'مجموع',
+                            formatter: function (w) {
+                                return destinationData.length ? w.globals.seriesTotals.reduce((a, b) => a + b, 0) : 0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }).render();
+});
+</script>
 @endsection

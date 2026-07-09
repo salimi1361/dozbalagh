@@ -22,14 +22,14 @@
     $availablePercent = $walletTotal > 0 ? round(($availableBalance / $walletTotal) * 100) : 0;
 
     $statusCards = [
-        ['title' => 'در انتظار بررسی', 'count' => $pendingCount, 'tone' => 'amber', 'hint' => 'پرونده‌های منتظر اقدام'],
-        ['title' => 'آماده صدور', 'count' => $approvedCount, 'tone' => 'emerald', 'hint' => 'تایید شده توسط انجمن'],
-        ['title' => 'صادر شده / معتبر', 'count' => $issuedCount, 'tone' => 'sky', 'hint' => 'پروانه‌های فعال'],
-        ['title' => 'نیاز به اصلاح', 'count' => $returnedCount, 'tone' => 'orange', 'hint' => 'برگشتی برای تکمیل'],
-        ['title' => 'رد درخواست', 'count' => $rejectedCount, 'tone' => 'rose', 'hint' => 'پرونده‌های رد شده'],
-        ['title' => 'لاشه تحویل شده', 'count' => $collectedCount, 'tone' => 'indigo', 'hint' => 'تحویل و ثبت نهایی'],
-        ['title' => 'درخواست تمدید', 'count' => $renewalCount, 'tone' => 'teal', 'hint' => 'از کل درخواست‌ها'],
-        ['title' => 'مفقودی', 'count' => $lostCount, 'tone' => 'slate', 'hint' => 'ثبت مفقودی'],
+        ['title' => 'در انتظار بررسی', 'count' => $pendingCount, 'tone' => 'amber', 'hint' => 'پرونده‌های منتظر اقدام', 'filter' => 'pending'],
+        ['title' => 'آماده صدور', 'count' => $approvedCount, 'tone' => 'emerald', 'hint' => 'تایید شده توسط انجمن', 'filter' => 'approved'],
+        ['title' => 'صادر شده / معتبر', 'count' => $issuedCount, 'tone' => 'sky', 'hint' => 'پروانه‌های فعال', 'filter' => 'issued'],
+        ['title' => 'نیاز به اصلاح', 'count' => $returnedCount, 'tone' => 'orange', 'hint' => 'برگشتی برای تکمیل', 'filter' => 'returned'],
+        ['title' => 'رد درخواست', 'count' => $rejectedCount, 'tone' => 'rose', 'hint' => 'پرونده‌های رد شده', 'filter' => 'rejected'],
+        ['title' => 'لاشه تحویل شده', 'count' => $collectedCount, 'tone' => 'indigo', 'hint' => 'تحویل و ثبت نهایی', 'filter' => 'collected'],
+        ['title' => 'درخواست تمدید', 'count' => $renewalCount, 'tone' => 'teal', 'hint' => 'از کل درخواست‌ها', 'filter' => 'renewal'],
+        ['title' => 'مفقودی', 'count' => $lostCount, 'tone' => 'slate', 'hint' => 'ثبت مفقودی', 'filter' => 'lost'],
     ];
 
     $toneClasses = [
@@ -204,144 +204,19 @@
             <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
                 @foreach($statusCards as $item)
                     @php $classes = $toneClasses[$item['tone']]; @endphp
-                    <div class="rounded-lg border p-4 {{ $classes['card'] }}">
+                    <a href="{{ route('dozbalagh.index', ['status' => $item['filter']]) }}" class="group rounded-lg border p-4 transition hover:-translate-y-0.5 hover:shadow-md {{ $classes['card'] }}">
                         <div class="flex items-center justify-between gap-3">
                             <span class="text-[11px] font-black leading-5">{{ $item['title'] }}</span>
                             <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $classes['dot'] }}"></span>
                         </div>
                         <div class="mt-3 font-mono text-3xl font-black">{{ number_format($item['count']) }}</div>
-                        <p class="mt-2 text-[10px] font-bold opacity-75">{{ $item['hint'] }}</p>
-                    </div>
+                        <div class="mt-2 flex items-center justify-between gap-2">
+                            <p class="text-[10px] font-bold opacity-75">{{ $item['hint'] }}</p>
+                            <span class="shrink-0 text-[10px] font-black opacity-0 transition group-hover:opacity-75">مشاهده</span>
+                        </div>
+                    </a>
                 @endforeach
             </div>
-        </div>
-    </section>
-
-    <section class="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div class="flex flex-col gap-3 border-b border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-                <h3 class="text-sm font-black text-slate-900">آخرین درخواست‌های دوزوله صادر شده و معلق</h3>
-                <p class="mt-1 text-xs font-bold text-slate-500">نمای سریع پرونده‌های جدید، بدون تغییر در نمایش پلاک</p>
-            </div>
-            <a href="{{ route('dozbalagh.index') }}" class="inline-flex w-max items-center justify-center rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-black text-sky-700 shadow-sm transition hover:bg-sky-50">
-                مشاهده کارتابل جامع پروانه‌ها
-            </a>
-        </div>
-
-        <div class="overflow-x-auto">
-            <table class="w-full min-w-[920px] border-collapse text-right text-xs">
-                <thead>
-                    <tr class="border-b border-slate-200 bg-white text-[11px] font-black text-slate-500">
-                        <th class="p-4">کد پرونده</th>
-                        <th class="p-4">راننده متقاضی</th>
-                        <th class="p-4">ناوگان ملکی (پلاک ترانزیت)</th>
-                        <th class="p-4">هزینه کل پروانه</th>
-                        <th class="p-4">تاریخ ثبت و فرستش</th>
-                        <th class="p-4 text-center">نوع / وضعیت چرخه عمر</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100 text-sm font-bold text-slate-700">
-                    @forelse($recentRequests->take(10) as $req)
-                        <tr class="transition-colors hover:bg-slate-50">
-                            <td class="p-4 font-mono text-xs font-black tracking-wider text-slate-950">{{ $req->d_code }}</td>
-                            <td class="p-4 text-slate-800">{{ trim($req->first_name_fa . ' ' . $req->last_name_fa) ?: 'نامشخص' }}</td>
-                            <td class="p-4">
-                                @php
-                                    $plateRaw = $req->transit_plate ?? $req->plate_number ?? null;
-                                @endphp
-                                <x-iran-plate :plate="$plateRaw" size="xs" />
-                                @if(false)
-                                @php
-                                    $plateRaw = $req->transit_plate ?? $req->plate_number ?? null;
-                                    $plateParts = $plateRaw ? preg_split('/[-\s]+/', trim($plateRaw)) : [];
-
-                                    $plateLeft   = $plateParts[0] ?? '';
-                                    $plateLetter = $plateParts[1] ?? '';
-                                    $plateMid    = $plateParts[2] ?? '';
-                                    $plateIran   = $plateParts[3] ?? '';
-
-                                    if ($plateRaw && count($plateParts) < 4) {
-                                        $plateLeft = '';
-                                        $plateLetter = '';
-                                        $plateMid = $plateRaw;
-                                        $plateIran = '';
-                                    }
-                                @endphp
-
-                                @if($plateRaw)
-                                    <div class="inline-flex items-stretch rounded border border-slate-900 bg-white overflow-hidden shadow-sm w-[110px] h-[26px] align-middle" dir="ltr">
-                                        <div class="w-[14px] bg-blue-800 text-white flex flex-col items-center justify-between py-[1px] shrink-0">
-                                            <span class="text-[4px] font-black leading-none mt-[1px]">I.R.</span>
-                                            <span class="w-[8px] h-[4px] rounded-[1px] overflow-hidden border border-white/20">
-                                                <span class="block h-[1px] bg-green-500"></span>
-                                                <span class="block h-[1px] bg-white"></span>
-                                                <span class="block h-[1px] bg-red-500"></span>
-                                            </span>
-                                            <span class="text-[4px] font-black leading-none mb-[1px]">IRAN</span>
-                                        </div>
-
-                                        <div class="flex flex-1 items-center bg-gradient-to-b from-white to-slate-100 text-slate-950">
-                                            <div class="w-[24px] h-full flex items-center justify-center border-r border-slate-300">
-                                                <span class="font-black text-[11px] leading-none font-mono">{{ $plateLeft ?: '---' }}</span>
-                                            </div>
-
-                                            <div class="w-[18px] h-full flex items-center justify-center border-r border-slate-300">
-                                                <span class="font-black text-[11px] leading-none">{{ $plateLetter ?: '-' }}</span>
-                                            </div>
-
-                                            <div class="w-[32px] h-full flex items-center justify-center border-r border-slate-300">
-                                                <span class="font-black text-[11px] leading-none font-mono">{{ $plateMid ?: '---' }}</span>
-                                            </div>
-
-                                            <div class="w-[22px] h-full flex flex-col items-center justify-center bg-white">
-                                                <span class="text-[5px] font-black text-slate-500 leading-none mb-[2px]">ایران</span>
-                                                <span class="font-black text-[10px] leading-none font-mono">{{ $plateIran ?: '--' }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                @else
-                                    <span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-400 border border-slate-200 font-black text-[10px]">بدون پلاک</span>
-                                @endif
-                                @endif
-                            </td>
-                            <td class="p-4 font-mono text-xs font-black text-slate-900">{{ number_format($req->total_amount) }} <span class="mr-0.5 text-[10px] font-bold text-slate-400">تومان</span></td>
-                            <td class="p-4 font-mono text-xs font-medium text-slate-500">{{ $req->jalali_date }}</td>
-                            <td class="p-4 text-center">
-                                @php
-                                    $requestType = $req->request_type ?? 'new';
-                                    $typeText = $requestType === 'renewal' ? 'تمدید' : 'جدید';
-                                    $typeClass = $requestType === 'renewal' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-50 text-slate-700 border-slate-200';
-                                    $statusMap = [
-                                        'pending' => ['در انتظار بررسی', 'bg-amber-50 text-amber-800 border-amber-200'],
-                                        'approved' => ['آماده صدور', 'bg-emerald-50 text-emerald-800 border-emerald-200'],
-                                        'issued' => ['صادر شده / معتبر', 'bg-sky-50 text-sky-800 border-sky-200'],
-                                        'collected' => ['لاشه تحویل شد', 'bg-slate-100 text-slate-700 border-slate-200'],
-                                        'archived' => ['بایگانی شد', 'bg-slate-100 text-slate-700 border-slate-200'],
-                                        'rejected' => ['رد درخواست', 'bg-rose-50 text-rose-800 border-rose-200'],
-                                        'returned' => ['نیاز به اصلاح', 'bg-orange-50 text-orange-800 border-orange-200'],
-                                        'lost' => ['مفقودی', 'bg-zinc-100 text-zinc-700 border-zinc-200'],
-                                    ];
-                                    [$statusText, $statusClass] = $statusMap[$req->status] ?? [$req->status, 'bg-slate-100 text-slate-800 border-slate-200'];
-                                    $associationNote = $req->reject_reason ?: null;
-                                @endphp
-                                <div class="flex flex-col items-center gap-1.5">
-                                    <span class="rounded-lg border px-3 py-1 text-[10px] font-black {{ $typeClass }}">{{ $typeText }}</span>
-                                    <span class="rounded-lg border px-3 py-1 text-[10px] font-black {{ $statusClass }}">{{ $statusText }}</span>
-                                    @if(in_array($req->status, ['rejected', 'returned']) && $associationNote)
-                                        <span class="max-w-[180px] rounded-lg border border-rose-100 bg-rose-50 px-2 py-1 text-[10px] leading-5 text-rose-700">
-                                            {{ $associationNote }}
-                                        </span>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6" class="p-10 text-center font-black text-slate-400">هیچ درخواستی تا این لحظه برای این شرکت در دیتابیس یافت نشد.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
         </div>
     </section>
 </div>
