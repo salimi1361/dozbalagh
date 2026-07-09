@@ -485,10 +485,13 @@
             }
         }).then((result) => {
             if (result.isConfirmed && result.value) {
+                const smsStatus = result.value.sms_sent
+                    ? '<div class="text-xs text-emerald-600 mt-2">کد برای شماره پیک پیامک شد.</div>'
+                    : '<div class="text-xs text-amber-600 mt-2">کد ساخته شد اما ارسال پیامک تایید نشد؛ کد را به پیک اعلام کنید.</div>';
                 Swal.fire({
                     icon: 'success',
                     title: 'لاشه ثبت شد',
-                    html: `<div class="text-sm font-bold">کد تحویل پیک: <span class="font-mono text-emerald-700">${result.value.delivery_code}</span></div>`,
+                    html: `<div class="text-sm font-bold">کد تحویل پیک: <span class="font-mono text-emerald-700">${result.value.delivery_code}</span></div>${smsStatus}`,
                     confirmButtonText: 'متوجه شدم',
                     confirmButtonColor: '#059669'
                 }).then(() => window.location.reload());

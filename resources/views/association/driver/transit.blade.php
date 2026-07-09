@@ -76,10 +76,6 @@
                                         </span>
                                     @endif
 
-                                    <button onclick="processTransit({{ $req->id }}, 'lost', '{{ $req->serial_number }}')" class="px-2.5 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 rounded-lg text-xs font-black transition-all">
-                                        مفقودی
-                                    </button>
-
                                 </div>
                             </td>
                         </tr>
@@ -101,29 +97,6 @@
 @section('scripts')
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 <script>
-function processTransit(id, status, serial) {
-    if (status === 'lost') {
-        // روال مفقودی ساده بدون نیاز به عکس
-        Swal.fire({
-            title: 'ثبت اعلام مفقودی پروانه',
-            text: `در صورت ثبت مفقودی سریال ${serial}، راننده آزاد شده اما سوابق جریمه مفقودی در پرونده شرکت درج خواهد شد. تایید می‌کنید؟`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'تایید و ثبت مفقودی',
-            cancelButtonText: 'انصراف'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                executeSettleRequest(id, status, null);
-            }
-        });
-        return;
-    }
-
-    return;
-}
-
 function receiveLash(id, serial, courierName, courierMobile) {
     Swal.fire({
         title: 'تحویل لاشه دوزوله',

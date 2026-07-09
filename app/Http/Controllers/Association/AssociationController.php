@@ -239,10 +239,10 @@ class AssociationController
 
                 $updateData['closed_at'] = $now;
 
-                if (isset($permit->driver_id)) {
+                if (isset($permit->driver_id) && Schema::hasColumn('drivers', 'is_blocked')) {
                     DB::table('drivers')->where('id', $permit->driver_id)->orWhere('national_code', $permit->driver_id)->update(['is_blocked' => false]);
                 }
-                if (isset($permit->fleet_id)) {
+                if (isset($permit->fleet_id) && Schema::hasColumn('fleets', 'is_blocked')) {
                     DB::table('fleets')->where('id', $permit->fleet_id)->orWhere('smart_card_number', $permit->fleet_id)->update(['is_blocked' => false]);
                 }
 

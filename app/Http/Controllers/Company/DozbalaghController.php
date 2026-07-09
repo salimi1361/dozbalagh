@@ -12,6 +12,8 @@ use App\Models\CargoDocumentRule;
 use App\Models\WorldCountry; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
@@ -823,6 +825,11 @@ public function store(Request $request)
         $fileName = ($permitRequest->serial_number ?: $permitRequest->d_code) . '-company-return-' . time() . '.' . $file->getClientOriginalExtension();
         $imagePath = $file->storeAs('permits/company-returns', $fileName, 'public');
         $deliveryCode = (string) random_int(100000, 999999);
+        $smsSent = $this->sendCourierDeliveryCode(
+            $request->courier_mobile,
+            $deliveryCode,
+            $permitRequest->serial_number ?: $permitRequest->d_code
+        );
 
         $permitRequest->update([
             'company_return_image' => $imagePath,
@@ -831,7 +838,7 @@ public function store(Request $request)
             'courier_national_code' => $request->courier_national_code,
             'courier_vehicle_plate' => $request->courier_vehicle_plate,
             'courier_delivery_code' => $deliveryCode,
-            'courier_code_sent_at' => now(),
+            'courier_code_sent_at' => $smsSent ? now() : null,
             'company_return_submitted_at' => now(),
             'company_note' => 'لاشه توسط شرکت ثبت و برای تحویل به انجمن به پیک سپرده شد.',
         ]);
@@ -840,7 +847,38 @@ public function store(Request $request)
             'success' => true,
             'message' => 'لاشه با موفقیت ثبت شد. کد تحویل برای پیک ساخته شد.',
             'delivery_code' => $deliveryCode,
+            'sms_sent' => $smsSent,
         ]);
+    }
+
+    private function sendCourierDeliveryCode(?string $mobile, string $code, string $serial): bool
+    {
+        $mobile = trim((string) $mobile);
+        $apiKey = config('services.kavenegar.key');
+
+        if ($mobile === '' || empty($apiKey)) {
+            return false;
+        }
+
+        $message = "سامانه دوزوله\nکد تحویل لاشه دوزوله سریال {$serial}:\n{$code}\nاین کد را هنگام تحویل به انجمن اعلام کنید.";
+        $url = "https://api.kavenegar.com/v1/{$apiKey}/sms/send.json";
+
+        try {
+            $response = Http::asForm()->post($url, [
+                'receptor' => $mobile,
+                'message' => $message,
+            ]);
+
+            if (!$response->successful()) {
+                Log::warning('Kavenegar courier code send failed: ' . $response->body());
+                return false;
+            }
+
+            return true;
+        } catch (\Throwable $e) {
+            Log::warning('Kavenegar courier code connection failed: ' . $e->getMessage());
+            return false;
+        }
     }
 
     public function reportLost(Request $request, $id)
@@ -867,14 +905,14 @@ public function store(Request $request)
                 'company_note' => 'مفقودی لاشه توسط شرکت ثبت شد.',
             ]);
 
-            if ($permitRequest->driver_id) {
+            if ($permitRequest->driver_id && Schema::hasColumn('drivers', 'is_blocked')) {
                 DB::table('drivers')
                     ->where('id', $permitRequest->driver_id)
                     ->orWhere('national_code', $permitRequest->driver_id)
                     ->update(['is_blocked' => false]);
             }
 
-            if ($permitRequest->fleet_id) {
+            if ($permitRequest->fleet_id && Schema::hasColumn('fleets', 'is_blocked')) {
                 DB::table('fleets')
                     ->where('id', $permitRequest->fleet_id)
                     ->orWhere('smart_card_number', $permitRequest->fleet_id)
