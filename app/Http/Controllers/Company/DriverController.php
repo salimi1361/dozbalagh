@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Company;
 
 use App\Http\Controllers\Controller;
+use App\Models\CompanyDriverMessage;
 use App\Models\Driver;
 use App\Notifications\CompanyDriverMessageNotification;
 use Carbon\Carbon;
@@ -103,6 +104,17 @@ class DriverController extends Controller
             : null;
 
         foreach ($drivers as $driver) {
+            $companyDriverMessage = CompanyDriverMessage::create([
+                'company_id' => $companyId,
+                'driver_id' => $driver->id,
+                'sender' => 'company',
+                'title' => $request->title,
+                'message' => $request->message,
+                'category' => $request->category,
+                'priority' => $request->priority,
+                'requires_acknowledgement' => $request->boolean('requires_acknowledgement'),
+            ]);
+
             $driver->notify(new CompanyDriverMessageNotification(
                 companyId: $companyId,
                 companyName: $companyName,
@@ -111,7 +123,8 @@ class DriverController extends Controller
                 category: $request->category,
                 priority: $request->priority,
                 requiresAcknowledgement: $request->boolean('requires_acknowledgement'),
-                expiresAt: $expiresAt
+                expiresAt: $expiresAt,
+                messageId: $companyDriverMessage->id
             ));
         }
 

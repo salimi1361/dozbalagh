@@ -662,6 +662,69 @@ function openNotification(id, permitId) {
     }
 }
 
+function openCompanyMessageNotification(notificationId, messageId) {
+    fetch(`${API_BASE}/notifications/${notificationId}/read`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({}),
+    }).finally(() => fetchNotifications());
+
+    const item = notificationsCache.find(notification => notification.id === notificationId) || {};
+    document.getElementById('modal-container').innerHTML = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+            <div class="modal-sheet">
+                <div class="modal-handle"></div>
+                <div class="modal-title">${displayValue(item.title || 'پیام شرکت')}</div>
+                <div class="stack-sm">
+                    <div class="info-block">
+                        <span class="info-block__label">${displayValue(item.company_name || 'شرکت حمل و نقل')}</span>
+                        <span class="info-block__value" style="font-size:13px;line-height:1.9">${displayValue(item.message)}</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="input-label" for="company-message-reply">پاسخ شما</label>
+                        <textarea id="company-message-reply" class="input-field" style="min-height:110px;resize:none;line-height:1.8;padding-top:12px" placeholder="پاسخ خود را برای شرکت بنویسید..."></textarea>
+                    </div>
+                    <button type="button" onclick="sendCompanyMessageReply(${Number(messageId) || 0})" class="btn btn--primary">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span>ارسال پاسخ</span>
+                    </button>
+                </div>
+            </div>
+        </div>`;
+}
+
+function sendCompanyMessageReply(messageId) {
+    const textarea = document.getElementById('company-message-reply');
+    const message = textarea ? textarea.value.trim() : '';
+
+    if (!messageId) {
+        showToast('شناسه پیام معتبر نیست.', 'error');
+        return;
+    }
+
+    if (!message) {
+        showToast('متن پاسخ را وارد کنید.', 'error');
+        return;
+    }
+
+    fetch(`${API_BASE}/company-messages/reply`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ message_id: messageId, message }),
+    })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                closeModal();
+                showToast(data.message || 'پاسخ ارسال شد.', 'success');
+                fetchNotifications();
+            } else {
+                showToast(data.message || 'ارسال پاسخ انجام نشد.', 'error');
+            }
+        })
+        .catch(() => showToast('خطا در ارسال پاسخ.', 'error'));
+}
+
 function showNotificationsModal() {
     const items = notificationsCache.length
         ? notificationsCache
@@ -669,11 +732,12 @@ function showNotificationsModal() {
 
     const listHtml = items.length
         ? items.map(item => `
-            <button type="button" class="notification-card ${item.read_at ? '' : 'is-unread'}" onclick="openNotification('${escapeHtml(item.id)}', ${item.permit_id || 'null'})">
+            <button type="button" class="notification-card ${item.read_at ? '' : 'is-unread'}" onclick="${item.type === 'company_message' && item.message_id ? `openCompanyMessageNotification('${escapeHtml(item.id)}', ${Number(item.message_id)})` : `openNotification('${escapeHtml(item.id)}', ${item.permit_id || 'null'})`}">
                 <span class="notification-card__icon"><i class="fa-solid fa-bell"></i></span>
                 <span class="notification-card__body">
                     <b>${displayValue(item.title)}</b>
                     <small>${displayValue(item.message)}</small>
+                    ${item.type === 'company_message' && item.message_id ? '<small style="color:#0b63ce;font-weight:950">مشاهده و پاسخ به شرکت</small>' : ''}
                 </span>
                 <i class="fa-solid fa-chevron-left"></i>
             </button>

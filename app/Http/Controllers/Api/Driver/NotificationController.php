@@ -28,6 +28,7 @@ class NotificationController extends Controller
                 'company_name' => $notification->data['company_name'] ?? null,
                 'valid_until' => $notification->data['valid_until'] ?? null,
                 'expires_at' => $notification->data['expires_at'] ?? null,
+                'message_id' => $notification->data['message_id'] ?? null,
                 'read_at' => optional($notification->read_at)->toDateTimeString(),
                 'created_at' => optional($notification->created_at)->toDateTimeString(),
             ]);

@@ -6,6 +6,7 @@ use App\Http\Controllers\Company\{
     DozbalaghController,
     DashboardController,
     DriverController as CompanyDriverController,
+    DriverMessageController,
     FleetController as CompanyFleetController,
     ReportController,
     WalletController
@@ -32,6 +33,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/web/company/driver/store', [CompanyDriverController::class, 'store'])->name('web.company.driver.store');
         Route::post('/web/company/driver/notify', [CompanyDriverController::class, 'notify'])->name('web.company.driver.notify');
         Route::post('/web/company/driver/delete', [CompanyDriverController::class, 'destroy'])->name('web.company.driver.delete');
+
+        Route::get('/web/company/driver-messages', [DriverMessageController::class, 'index'])->name('company.driver_messages.index');
+        Route::post('/web/company/driver-messages', [DriverMessageController::class, 'store'])->name('company.driver_messages.store');
+        Route::get('/web/company/driver-messages/{driverId}', [DriverMessageController::class, 'thread'])->name('company.driver_messages.thread');
 
         Route::get('/web/company/fleet/index', [CompanyFleetController::class, 'index'])->name('web.company.fleet.index');
         Route::post('/web/company/fleet/inquire', [CompanyFleetController::class, 'inquireApi'])->name('web.company.fleet.inquire');

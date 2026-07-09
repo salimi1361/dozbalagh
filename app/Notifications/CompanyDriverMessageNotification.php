@@ -17,7 +17,8 @@ class CompanyDriverMessageNotification extends Notification
         private readonly string $category = 'general',
         private readonly string $priority = 'normal',
         private readonly bool $requiresAcknowledgement = false,
-        private readonly ?string $expiresAt = null
+        private readonly ?string $expiresAt = null,
+        private readonly ?int $messageId = null
     ) {
     }
 
@@ -38,6 +39,7 @@ class CompanyDriverMessageNotification extends Notification
             'company_id' => $this->companyId,
             'company_name' => $this->companyName,
             'expires_at' => $this->expiresAt,
+            'message_id' => $this->messageId,
         ];
     }
 }
