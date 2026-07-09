@@ -1,5 +1,5 @@
 // 👈 تغییر دادن این شماره نسخه در آینده، کِش تمام راننده‌ها را فوراً آپدیت می‌کند
-const CACHE_NAME = 'dozoleh-driver-v5.3';
+const CACHE_NAME = 'dozoleh-driver-v5.4';
 const ASSETS = [
     '/driver/',
     '/driver/index.html',
@@ -36,5 +36,17 @@ self.addEventListener('fetch', (e) => {
     // از شبکه بگیر، اگر اینترنت نبود از کش بخون (بهترین استراتژی برای برنامه‌های زنده)
     e.respondWith(
         fetch(e.request).catch(() => caches.match(e.request))
+    );
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            for (const client of clientList) {
+                if ('focus' in client) return client.focus();
+            }
+            return clients.openWindow('/driver/index.html');
+        })
     );
 });

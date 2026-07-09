@@ -5,6 +5,7 @@ let permitsCache = [];
 let notificationsCache = [];
 let gpsPermissionState = 'prompt';
 let deferredInstallPrompt = null;
+let notificationPollTimer = null;
 
 document.addEventListener('DOMContentLoaded', initApp);
 window.addEventListener('beforeinstallprompt', event => {
@@ -39,6 +40,8 @@ function initApp() {
 
     document.getElementById('bottom-navigation').classList.remove('hidden');
     main.classList.remove('is-centered');
+    startNotificationPolling();
+    requestBrowserNotificationPermission();
     renderDashboard();
     syncGpsStatus();
     resumeTripTrackingIfNeeded();
@@ -162,6 +165,51 @@ function showToast(message, type = 'info') {
     toast.textContent = message;
     container.appendChild(toast);
     setTimeout(() => toast.remove(), 3200);
+}
+
+function requestBrowserNotificationPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+    }
+}
+
+function startNotificationPolling() {
+    if (notificationPollTimer) return;
+    notificationPollTimer = setInterval(() => fetchNotifications(true), 30000);
+}
+
+function notifyNewDriverNotifications(items) {
+    if (!Array.isArray(items) || items.length === 0) return;
+    const unreadItems = items.filter(item => !item.read_at);
+    if (unreadItems.length === 0) return;
+
+    const latestId = unreadItems[0].id;
+    const lastSeenId = localStorage.getItem('driver_last_notification_id');
+
+    if (!lastSeenId) {
+        localStorage.setItem('driver_last_notification_id', latestId);
+        return;
+    }
+
+    if (latestId === lastSeenId) return;
+
+    localStorage.setItem('driver_last_notification_id', latestId);
+    const latest = unreadItems[0];
+
+    if ('Notification' in window && Notification.permission === 'granted') {
+        navigator.serviceWorker?.ready
+            .then(registration => registration.showNotification(latest.title || 'اعلان دوزوله', {
+                body: latest.message || 'اعلان جدید برای شما ثبت شد.',
+                icon: '/driver/icon-192.png',
+                badge: '/driver/icon-192.png',
+                data: { permitId: latest.permit_id || null },
+            }))
+            .catch(() => new Notification(latest.title || 'اعلان دوزوله', {
+                body: latest.message || 'اعلان جدید برای شما ثبت شد.',
+                icon: '/driver/icon-192.png',
+            }));
+    }
 }
 
 function closeModal() {
@@ -549,9 +597,8 @@ function fetchPermits() {
         });
 }
 
-function fetchNotifications() {
+function fetchNotifications(silent = false) {
     const container = document.getElementById('notifications-container');
-    if (!container) return;
 
     fetch(`${API_BASE}/notifications`, { headers: authHeaders() })
         .then(res => {
@@ -560,32 +607,37 @@ function fetchNotifications() {
         })
         .then(data => {
             if (!data || data.status !== 'success') {
-                container.innerHTML = emptyNotificationsHtml();
+                if (container) container.innerHTML = emptyNotificationsHtml();
                 return;
             }
 
             notificationsCache = data.data || [];
+            notifyNewDriverNotifications(notificationsCache);
+
             const badge = document.getElementById('notifications-unread-badge');
             if (badge) badge.textContent = Number(data.unread_count || 0).toLocaleString('fa-IR');
+
+            if (!container) return;
 
             if (notificationsCache.length === 0) {
                 container.innerHTML = emptyNotificationsHtml();
                 return;
             }
 
-            container.innerHTML = notificationsCache.slice(0, 3).map(item => `
-                <button type="button" class="notification-card ${item.read_at ? '' : 'is-unread'}" onclick="openNotification('${escapeHtml(item.id)}', ${item.permit_id || 'null'})">
-                    <span class="notification-card__icon"><i class="fa-solid fa-bell"></i></span>
+            const latest = notificationsCache[0];
+            const unreadCount = Number(data.unread_count || 0);
+            container.innerHTML = `
+                <button type="button" class="notification-summary-card ${unreadCount > 0 ? 'is-unread' : ''}" onclick="showNotificationsModal()">
+                    <span class="notification-summary-card__icon"><i class="fa-solid fa-bell"></i></span>
                     <span class="notification-card__body">
-                        <b>${displayValue(item.title)}</b>
-                        <small>${displayValue(item.message)}</small>
+                        <b>${unreadCount > 0 ? `${unreadCount.toLocaleString('fa-IR')} اعلان خوانده‌نشده` : 'اعلان‌های راننده'}</b>
+                        <small>${displayValue(latest.message || 'برای مشاهده اعلان‌ها لمس کنید.')}</small>
                     </span>
-                    <i class="fa-solid fa-chevron-left"></i>
-                </button>
-            `).join('');
+                    <span class="notification-summary-card__action">مشاهده</span>
+                </button>`;
         })
         .catch(() => {
-            container.innerHTML = emptyNotificationsHtml();
+            if (container && !silent) container.innerHTML = emptyNotificationsHtml();
         });
 }
 
@@ -605,8 +657,37 @@ function openNotification(id, permitId) {
     }).finally(() => fetchNotifications());
 
     if (permitId) {
+        closeModal();
         showPermitDetail(permitId);
     }
+}
+
+function showNotificationsModal() {
+    const items = notificationsCache.length
+        ? notificationsCache
+        : [];
+
+    const listHtml = items.length
+        ? items.map(item => `
+            <button type="button" class="notification-card ${item.read_at ? '' : 'is-unread'}" onclick="openNotification('${escapeHtml(item.id)}', ${item.permit_id || 'null'})">
+                <span class="notification-card__icon"><i class="fa-solid fa-bell"></i></span>
+                <span class="notification-card__body">
+                    <b>${displayValue(item.title)}</b>
+                    <small>${displayValue(item.message)}</small>
+                </span>
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+        `).join('')
+        : emptyNotificationsHtml();
+
+    document.getElementById('modal-container').innerHTML = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+            <div class="modal-sheet">
+                <div class="modal-handle"></div>
+                <div class="modal-title">اعلان‌های راننده</div>
+                <div class="stack-sm">${listHtml}</div>
+            </div>
+        </div>`;
 }
 
 function emptyPermitsHtml() {
