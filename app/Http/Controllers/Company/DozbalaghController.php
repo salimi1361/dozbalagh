@@ -120,7 +120,6 @@ class DozbalaghController extends Controller
                 'wallet' => null,
                 'newDCode' => '',
                 'allWorldCountries' => $allWorldCountries,
-                'requests' => collect() // 🟢 جلوگیری از خطای متغیر تعریف‌نشده در شرایط خاص نبودن شرکت متبوع
             ])->with('error', 'حساب کاربری شما به هیچ شرکتی متصل نیست.');
         }
 
@@ -155,14 +154,7 @@ class DozbalaghController extends Controller
         $newDCode = $this->generateDCode(); 
         $balance = $wallet->balance;
 
-        // 🟢 اصلاح کلیدی: تغییر get() به paginate(5) جهت فعال شدن متدهای صفحه‌بندی در قالب Blade
-        $requests = PermitRequest::where('company_id', $companyId)
-            ->with(['driver', 'fleet'])
-            ->orderBy('id', 'desc')
-            ->paginate(5) // نمایش ۵ مورد اخیر همراه با دکمه‌های ناوبری صفحات
-            ->withQueryString();
-
-        return view('company.dozbalagh.create', compact('drivers', 'fleets', 'countries', 'cargoRules', 'wallet', 'newDCode', 'balance', 'allWorldCountries', 'requests'));
+        return view('company.dozbalagh.create', compact('drivers', 'fleets', 'countries', 'cargoRules', 'wallet', 'newDCode', 'balance', 'allWorldCountries'));
     }
 
     public function renewableList(Request $request)

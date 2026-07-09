@@ -128,69 +128,6 @@
         </div>
     </form>
 
-    @if(!isset($permitRequest) && isset($requests))
-        <div class="mt-8 bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="p-5 border-b border-slate-100 flex flex-col lg:flex-row justify-between gap-4 lg:items-center">
-                <div>
-                    <h2 class="text-sm font-black text-slate-800">آخرین درخواست‌های دوزوله شرکت</h2>
-                    <p class="text-xs text-slate-400 font-bold mt-1">برای مشاهده سریع وضعیت پرونده‌ها و توضیحات انجمن</p>
-                </div>
-                <div class="flex flex-wrap gap-1.5 text-xs font-bold">
-                    <a href="{{ route('dozbalagh.index') }}" class="px-3 py-2 rounded-xl bg-slate-900 text-white">همه</a>
-                    <a href="{{ route('dozbalagh.index', ['status' => 'pending']) }}" class="px-3 py-2 rounded-xl bg-amber-50 text-amber-700 border border-amber-100">در بررسی</a>
-                    <a href="{{ route('dozbalagh.index', ['status' => 'approved']) }}" class="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100">تایید شده</a>
-                    <a href="{{ route('dozbalagh.index', ['status' => 'issued']) }}" class="px-3 py-2 rounded-xl bg-sky-50 text-sky-700 border border-sky-100">صادر شده</a>
-                    <a href="{{ route('dozbalagh.index', ['status' => 'returned']) }}" class="px-3 py-2 rounded-xl bg-orange-50 text-orange-700 border border-orange-100">نیاز به اصلاح</a>
-                    <a href="{{ route('dozbalagh.index', ['status' => 'rejected']) }}" class="px-3 py-2 rounded-xl bg-rose-50 text-rose-700 border border-rose-100">رد شده</a>
-                </div>
-            </div>
-
-            <div class="divide-y divide-slate-100">
-                @forelse($requests as $requestItem)
-                    @php
-                        $statusLabels = [
-                            'pending' => ['در انتظار بررسی انجمن', 'bg-amber-50 text-amber-700 border-amber-100'],
-                            'approved' => ['تایید شده / آماده صدور', 'bg-emerald-50 text-emerald-700 border-emerald-100'],
-                            'issued' => ['صادر شده / معتبر', 'bg-sky-50 text-sky-700 border-sky-100'],
-                            'returned' => ['نیاز به اصلاح', 'bg-orange-50 text-orange-700 border-orange-100'],
-                            'rejected' => ['رد شده', 'bg-rose-50 text-rose-700 border-rose-100'],
-                            'collected' => ['لاشه تحویل شده', 'bg-slate-100 text-slate-700 border-slate-200'],
-                            'archived' => ['بایگانی شده', 'bg-zinc-100 text-zinc-700 border-zinc-200'],
-                            'lost' => ['مفقودی', 'bg-zinc-100 text-zinc-700 border-zinc-200'],
-                        ];
-                        [$recentStatusText, $recentStatusClass] = $statusLabels[$requestItem->status] ?? [$requestItem->status, 'bg-slate-100 text-slate-700 border-slate-200'];
-                        $recentNote = $requestItem->reject_reason ?: null;
-                    @endphp
-                    <div class="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                        <div class="space-y-1">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <span class="font-mono text-sm font-black text-slate-900">{{ $requestItem->d_code }}</span>
-                                <span class="px-2.5 py-1 rounded-lg border text-[11px] font-black {{ $recentStatusClass }}">{{ $recentStatusText }}</span>
-                                @if(($requestItem->request_type ?? 'new') === 'renewal')
-                                    <span class="px-2.5 py-1 rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-700 text-[11px] font-black">تمدید</span>
-                                @endif
-                            </div>
-                            <p class="text-xs text-slate-500 font-bold">
-                                {{ optional($requestItem->driver)->first_name_fa }} {{ optional($requestItem->driver)->last_name_fa }}
-                                <span class="text-slate-300 px-1">|</span>
-                                {{ optional($requestItem->fleet)->transit_plate ?? 'بدون پلاک' }}
-                            </p>
-                            @if(in_array($requestItem->status, ['rejected', 'returned']) && $recentNote)
-                                <div class="text-xs leading-6 text-rose-800 bg-rose-50 border border-rose-100 rounded-xl px-3 py-2">
-                                    <strong>توضیحات انجمن:</strong> {{ $recentNote }}
-                                </div>
-                            @endif
-                        </div>
-                        <a href="{{ route('dozbalagh.index', ['search' => $requestItem->d_code]) }}" class="self-start md:self-center px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black transition">
-                            مشاهده پرونده
-                        </a>
-                    </div>
-                @empty
-                    <div class="p-8 text-center text-slate-400 text-sm font-bold">هنوز درخواستی برای این شرکت ثبت نشده است.</div>
-                @endforelse
-            </div>
-        </div>
-    @endif
 </div>
 @endsection
 
