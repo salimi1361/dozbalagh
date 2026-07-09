@@ -34,10 +34,6 @@
         
         {{-- دکمه‌های فیلتر وضعیت به ترتیب درخواستی شما --}}
         <div class="flex flex-wrap gap-1.5 text-xs font-bold">
-            <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => ''])) }}" 
-               class="px-3 py-2 rounded-xl transition-all {{ !request('status') ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' }}">
-                همه درخواست‌ها
-            </a>
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'pending'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'pending' ? 'bg-blue-600 text-white shadow-sm' : 'bg-blue-50/60 text-blue-600 hover:bg-blue-50' }}">
                 در حال بررسی
@@ -69,6 +65,10 @@
             <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => 'lost'])) }}" 
                class="px-3 py-2 rounded-xl transition-all {{ request('status') === 'lost' ? 'bg-slate-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}">
                 مفقودی
+            </a>
+            <a href="{{ route('dozbalagh.index', array_merge(request()->except('page'), ['status' => ''])) }}"
+               class="px-3 py-2 rounded-xl transition-all {{ !request('status') ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100' }}">
+                همه درخواست‌ها
             </a>
         </div>
 
@@ -171,11 +171,6 @@
                                 <div class="flex flex-col gap-1.5">
                                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-black border {{ $requestTypeClass }}">{{ $requestTypeLabel }}</span>
                                     <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold border {{ $statusClass }}">{{ $statusText }}</span>
-                                    @if($item->status === 'rejected' && $associationNote)
-                                        <span class="max-w-xs text-[10px] leading-5 text-rose-700 bg-rose-50 border border-rose-100 rounded-lg px-2 py-1">
-                                            {{ $associationNote }}
-                                        </span>
-                                    @endif
                                     @if($requestType === 'renewal' && !empty($item->previous_serial_number))
                                         <span class="text-[10px] font-mono text-indigo-600">شماره قبلی: {{ $item->previous_serial_number }}</span>
                                     @endif
@@ -188,21 +183,6 @@
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                         جزئیات
                                     </button>
-
-                                    @if($item->status === 'issued')
-                                        @if(empty($item->company_return_image))
-                                            <button onclick='openReturnLashModal(@json($item->id), @json($item->d_code))' class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors">
-                                                ثبت لاشه
-                                            </button>
-                                        @else
-                                            <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-black">
-                                                کد پیک: {{ $item->courier_delivery_code ?? '---' }}
-                                            </span>
-                                        @endif
-                                        <button onclick='reportLost(@json($item->id), @json($item->d_code))' class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors">
-                                            مفقودی
-                                        </button>
-                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -342,6 +322,29 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    @if($item->status === 'issued')
+                                        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                            <div>
+                                                <p class="text-xs font-black text-slate-700">عملیات این پرونده</p>
+                                                <p class="text-[11px] text-slate-400 font-bold mt-1">اقدام‌های مربوط به لاشه و مفقودی فقط داخل جزئیات همین درخواست نمایش داده می‌شود.</p>
+                                            </div>
+                                            <div class="flex flex-wrap gap-2">
+                                                @if(empty($item->company_return_image))
+                                                    <button onclick='openReturnLashModal(@json($item->id), @json($item->d_code))' class="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors">
+                                                        ثبت لاشه
+                                                    </button>
+                                                @else
+                                                    <span class="inline-flex items-center gap-1 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-xl text-xs font-black">
+                                                        کد پیک: {{ $item->courier_delivery_code ?? '---' }}
+                                                    </span>
+                                                @endif
+                                                <button onclick='reportLost(@json($item->id), @json($item->d_code))' class="inline-flex items-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-colors">
+                                                    مفقودی
+                                                </button>
+                                            </div>
+                                        </div>
+                                    @endif
 
                                     @if($item->company_note)
                                         <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 font-medium leading-relaxed">
