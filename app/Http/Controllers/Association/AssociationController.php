@@ -591,7 +591,7 @@ class AssociationController
             ));
 
             $driverAppUrl = url('/driver/index.html');
-            $sms = "سامانه دوزوله\nراننده گرامی، دوزوله شماره {$serialNumber} توسط شرکت {$companyName} برای شما صادر شد.\nبرای ورود به وب‌اپ راننده ابتدا برنامه را از لینک زیر نصب کنید و سپس وارد سامانه شوید:\n{$driverAppUrl}";
+            $sms = "سامانه دوزوله\nراننده گرامی، دوزوله شماره {$serialNumber} توسط {$companyName} برای شما صادر شد.\nبرای ورود به وب‌اپ راننده ابتدا برنامه را از لینک زیر نصب کنید و سپس از آیکن نصب‌شده وارد سامانه شوید:\n{$driverAppUrl}";
             app(SmsService::class)->send($driver->mobile, $sms, 'driver_permit_issued');
         } catch (\Throwable $e) {
             Log::warning('Driver permit issued notification failed: ' . $e->getMessage());

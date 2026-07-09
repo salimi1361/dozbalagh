@@ -16,7 +16,7 @@ window.addEventListener('beforeinstallprompt', event => {
 window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
     localStorage.setItem('driver_app_installed', 'true');
-    renderLoginScreen();
+    renderOpenInstalledAppHint();
 });
 
 function initApp() {
@@ -25,12 +25,14 @@ function initApp() {
     const main = document.getElementById('main-content');
     main.classList.add('is-centered');
 
+    if (shouldShowInstallGate()) {
+        document.getElementById('bottom-navigation').classList.add('hidden');
+        renderInstallGate();
+        return;
+    }
+
     if (!token) {
         document.getElementById('bottom-navigation').classList.add('hidden');
-        if (shouldShowInstallGate()) {
-            renderInstallGate();
-            return;
-        }
         renderLoginScreen();
         return;
     }
@@ -52,9 +54,7 @@ function isStandaloneApp() {
 }
 
 function shouldShowInstallGate() {
-    if (isStandaloneApp()) return false;
-    if (localStorage.getItem('driver_install_gate_done') === 'true') return false;
-    return true;
+    return !isStandaloneApp();
 }
 
 function renderInstallGate() {
@@ -77,7 +77,7 @@ function renderInstallGate() {
                         <div><b>۳</b><span>پس از نصب، آیکن دوزوله را از صفحه اصلی گوشی باز کنید.</span></div>
                     `
                     : `
-                        <div><b>۱</b><span>دکمه نصب را بزنید.</span></div>
+                        <div><b>۱</b><span>دکمه نصب را بزنید. اگر دکمه نصب عمل نکرد، از منوی مرورگر گزینه Install app یا Add to Home screen را انتخاب کنید.</span></div>
                         <div><b>۲</b><span>بعد از نصب، برنامه را از صفحه اصلی گوشی باز کنید.</span></div>
                     `
                 }
@@ -102,16 +102,32 @@ function installDriverApp() {
     deferredInstallPrompt.userChoice.then(choice => {
         if (choice.outcome === 'accepted') {
             localStorage.setItem('driver_app_installed', 'true');
-            localStorage.setItem('driver_install_gate_done', 'true');
-            showToast('بعد از نصب، برنامه را از صفحه اصلی گوشی باز کنید.', 'success');
+            renderOpenInstalledAppHint();
         }
         deferredInstallPrompt = null;
     });
 }
 
 function continueAfterInstallGuide() {
-    localStorage.setItem('driver_install_gate_done', 'true');
-    renderLoginScreen();
+    renderOpenInstalledAppHint();
+}
+
+function renderOpenInstalledAppHint() {
+    const main = document.getElementById('main-content');
+    main.classList.add('is-centered');
+    main.innerHTML = `
+        <div class="install-gate card">
+            <div class="auth-icon auth-icon--logo">
+                ${associationLogoHtml('association-logo--auth')}
+            </div>
+            <h1 class="auth-title">وب‌اپ آماده ورود است</h1>
+            <p class="auth-subtitle">برای ورود، آیکن دوزوله را از صفحه اصلی گوشی باز کنید. ورود از داخل مرورگر فعال نیست.</p>
+            <div class="install-steps">
+                <div><b>۱</b><span>به صفحه اصلی گوشی برگردید.</span></div>
+                <div><b>۲</b><span>آیکن دوزوله را لمس کنید.</span></div>
+                <div><b>۳</b><span>بعد از باز شدن برنامه، شماره موبایل راننده را وارد کنید.</span></div>
+            </div>
+        </div>`;
 }
 
 function switchTab(tab) {
