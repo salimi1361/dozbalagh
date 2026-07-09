@@ -57,6 +57,58 @@
     </div>
 
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+        <div class="bg-slate-800 p-5 text-white flex justify-between items-center">
+            <h2 class="text-sm font-black flex items-center gap-2">⏰ تنظیم زمان مجاز ثبت درخواست شرکت‌ها</h2>
+        </div>
+
+        <form action="{{ route('admin.allocations.request-window') }}" method="POST" class="p-5 bg-slate-50 border-t border-slate-200">
+            @csrf
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-5 items-start">
+                <div>
+                    <label class="block text-slate-700 font-bold mb-2 text-xs">وضعیت محدودیت زمانی</label>
+                    <label class="flex items-center justify-between gap-3 bg-white border border-slate-300 rounded-xl px-4 py-3 min-h-[48px]">
+                        <span class="text-sm font-bold text-slate-700">فعال باشد</span>
+                        <input type="checkbox" name="enabled" value="1" class="w-5 h-5 accent-slate-800" @checked($requestWindowSettings['enabled'])>
+                    </label>
+                </div>
+
+                <div>
+                    <label class="block text-slate-700 font-bold mb-2 text-xs">ساعت شروع ثبت</label>
+                    <input type="time" name="start_time" value="{{ $requestWindowSettings['start_time'] }}" required class="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-500 outline-none bg-white">
+                </div>
+
+                <div>
+                    <label class="block text-slate-700 font-bold mb-2 text-xs">ساعت پایان ثبت</label>
+                    <input type="time" name="end_time" value="{{ $requestWindowSettings['end_time'] }}" required class="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-500 outline-none bg-white">
+                </div>
+
+                <div class="flex items-end h-full pb-1">
+                    <button type="submit" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-xl transition shadow-lg text-sm flex items-center justify-center gap-2">
+                        💾 ذخیره زمان‌بندی
+                    </button>
+                </div>
+
+                <div class="md:col-span-4">
+                    <label class="block text-slate-700 font-bold mb-3 text-xs">روزهای غیرمجاز برای ثبت درخواست</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                        @foreach($weekdays as $weekdayNumber => $weekdayName)
+                            <label class="flex items-center justify-center gap-2 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 min-h-[42px]">
+                                <input type="checkbox" name="closed_weekdays[]" value="{{ $weekdayNumber }}" class="w-4 h-4 accent-slate-800" @checked(in_array((int) $weekdayNumber, $requestWindowSettings['closed_weekdays'], true))>
+                                <span>{{ $weekdayName }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div class="md:col-span-4">
+                    <label class="block text-slate-700 font-bold mb-2 text-xs">پیام نمایش داده‌شده به شرکت خارج از زمان مجاز</label>
+                    <input type="text" name="closed_message" value="{{ $requestWindowSettings['closed_message'] }}" maxlength="255" class="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-500 outline-none bg-white">
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
         <div class="p-5 border-b border-slate-100 bg-slate-50">
             <h3 class="font-bold text-slate-700 text-sm">🌍 قوانین پیش‌فرض کشورها (روی همه شرکت‌ها اعمال می‌شود)</h3>
         </div>

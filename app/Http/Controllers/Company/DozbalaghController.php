@@ -10,6 +10,7 @@ use App\Models\Wallet;
 use App\Models\PermitRequest;
 use App\Models\CargoDocumentRule; 
 use App\Models\WorldCountry; 
+use App\Services\PermitRequestWindowService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -107,8 +108,9 @@ class DozbalaghController extends Controller
         $correctionCount = PermitRequest::where('company_id', $companyId)
             ->where('status', 'returned')
             ->count();
+        $requestWindowStatus = app(PermitRequestWindowService::class)->status();
 
-        return view('company.dozbalagh.index', compact('requests', 'correctionCount'));
+        return view('company.dozbalagh.index', compact('requests', 'correctionCount', 'requestWindowStatus'));
     }
 
     public function create()
@@ -160,8 +162,9 @@ class DozbalaghController extends Controller
         
         $newDCode = $this->generateDCode(); 
         $balance = $wallet->balance;
+        $requestWindowStatus = app(PermitRequestWindowService::class)->status();
 
-        return view('company.dozbalagh.create', compact('drivers', 'fleets', 'countries', 'cargoRules', 'wallet', 'newDCode', 'balance', 'allWorldCountries'));
+        return view('company.dozbalagh.create', compact('drivers', 'fleets', 'countries', 'cargoRules', 'wallet', 'newDCode', 'balance', 'allWorldCountries', 'requestWindowStatus'));
     }
 
     public function renewableList(Request $request)
@@ -506,6 +509,13 @@ public function store(Request $request)
         // این کار باعث می‌شود اگر request_type از فرانت اشتباه یا خالی رسید، تمدید به عنوان new ذخیره نشود.
         if ($request->filled('previous_dozouleh_number')) {
             $request->merge(['request_type' => 'renewal']);
+        }
+
+        $requestWindowStatus = app(PermitRequestWindowService::class)->status();
+        if (!$requestWindowStatus['allowed']) {
+            return back()
+                ->withErrors(['error' => $requestWindowStatus['message']])
+                ->withInput();
         }
 
         $validationRules = [

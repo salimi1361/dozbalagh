@@ -1,4 +1,7 @@
 @extends('layouts.app')
+@php
+    $requestWindowStatus = $requestWindowStatus ?? ['allowed' => true, 'message' => null];
+@endphp
 
 @section('header_title')
     مدیریت پروانه‌ها / <span class="text-slate-600 font-black">لیست درخواست‌های دوزوله</span>
@@ -15,11 +18,23 @@
             <p class="text-xs text-slate-400 font-medium mt-1.5">لیست تمام مجوزهای ثبت شده به همراه آخرین وضعیت بررسی و تخصیص</p>
         </div>
         
-        <a href="{{ route('dozbalagh.create') }}" class="z-10 flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-900/20 transition shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-            ثبت درخواست جدید
-        </a>
+        @if($requestWindowStatus['allowed'])
+            <a href="{{ route('dozbalagh.create') }}" class="z-10 flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-900/20 transition shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                ثبت درخواست جدید
+            </a>
+        @else
+            <button type="button" disabled class="z-10 flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-700 text-slate-300 font-bold text-sm rounded-xl cursor-not-allowed shrink-0">
+                ثبت درخواست بسته است
+            </button>
+        @endif
     </div>
+
+    @if(!$requestWindowStatus['allowed'])
+        <div class="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-sm font-bold leading-7">
+            {{ $requestWindowStatus['message'] }}
+        </div>
+    @endif
 
     {{-- نمایش پیام موفقیت سیستم --}}
     @if(session('success'))

@@ -125,6 +125,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     // 🚚 سهمیه‌ها
     Route::get('/allocations', [AllocationController::class, 'index'])->name('allocations.index');
     Route::post('/allocations/quota', [AllocationController::class, 'updateQuota'])->name('allocations.quota');
+    Route::post('/allocations/request-window', [AllocationController::class, 'updateRequestWindow'])->name('allocations.request-window');
     Route::delete('/allocations/quota/{id}', [AllocationController::class, 'destroyQuota'])->name('allocations.quota.destroy');
     Route::delete('/allocations/country/{id}/reset', [AllocationController::class, 'resetCountryRule'])->name('allocations.country.reset');
     

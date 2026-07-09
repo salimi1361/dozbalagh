@@ -10,6 +10,7 @@ use App\Http\Controllers\Company\DozbalaghController;
 use App\Http\Controllers\Api\Driver\AuthController;
 use App\Http\Controllers\Api\Driver\TrackingController;
 use App\Http\Controllers\Api\Driver\PermitController;
+use App\Http\Controllers\Api\Driver\NotificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,6 +50,8 @@ Route::prefix('v1/driver')->group(function () {
         // اطلاعات دوزبلاغ‌ها
         Route::get('/permits', [PermitController::class, 'index']); // لیست دوزبلاغ‌های راننده
         Route::get('/permits/{id}', [PermitController::class, 'show']); // دریافت جزئیات یک دوزبلاغ
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     });
 
 });

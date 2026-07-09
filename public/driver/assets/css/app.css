@@ -194,6 +194,60 @@ body {
 
 .section-title { display: flex; align-items: center; gap: 9px; margin: 2px 2px 12px; font-size: 12px; font-weight: 950; color: #172033; }
 .section-title::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: linear-gradient(135deg, var(--primary-2), var(--accent)); box-shadow: 0 0 0 5px rgba(33,168,255,.12); }
+.section-counter {
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--warning), var(--danger));
+    font-size: 10px;
+    font-weight: 950;
+}
+
+.notification-card {
+    width: 100%;
+    min-height: 74px;
+    padding: 12px 13px;
+    border: 1px solid rgba(255,255,255,.72);
+    border-radius: var(--radius-md);
+    background: rgba(255,255,255,.96);
+    box-shadow: var(--shadow-soft);
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) 18px;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font);
+    text-align: right;
+    color: var(--text);
+    cursor: pointer;
+}
+.notification-card.is-unread {
+    border-color: rgba(17,104,216,.22);
+    background: linear-gradient(135deg, #ffffff, #eef7ff);
+}
+.notification-card__icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 15px;
+    display: grid;
+    place-items: center;
+    color: #0b63ce;
+    background: linear-gradient(135deg, #eaf4ff, #dcecff);
+}
+.notification-card__body { min-width: 0; display: grid; gap: 4px; }
+.notification-card__body b { font-size: 12px; font-weight: 950; color: #0f172a; }
+.notification-card__body small {
+    font-size: 10.5px;
+    font-weight: 750;
+    line-height: 1.7;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+}
+.notification-card > i { color: #94a3b8; font-size: 11px; }
 
 .btn { width: 100%; min-height: 50px; display: inline-flex; align-items: center; justify-content: center; gap: 9px; border: none; border-radius: 17px; font-family: var(--font); font-size: 12.5px; font-weight: 950; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease, opacity .15s ease; }
 .btn:active { transform: translateY(1px) scale(.985); }

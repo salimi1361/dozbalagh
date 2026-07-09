@@ -2,6 +2,7 @@ const API_BASE = '/api/v1/driver';
 let watchId = null;
 let currentTab = 'home';
 let permitsCache = [];
+let notificationsCache = [];
 let gpsPermissionState = 'prompt';
 
 document.addEventListener('DOMContentLoaded', initApp);
@@ -257,6 +258,13 @@ function renderHomeTab(main, driver) {
                 <div class="meta">${driver.company_name || 'شرکت حمل و نقل'}</div>
             </div>
 
+            <div>
+                <div class="section-title">اعلان‌های راننده <span id="notifications-unread-badge" class="section-counter">۰</span></div>
+                <div id="notifications-container" class="stack-sm">
+                    <div class="loader-wrap"><div class="loader"></div></div>
+                </div>
+            </div>
+
             <div class="metric-grid">
                 <div class="metric-card">
                     <div class="metric-card__icon metric-card__icon--blue">
@@ -293,6 +301,7 @@ function renderHomeTab(main, driver) {
 
     updateTripButtonUI();
     syncGpsStatus();
+    fetchNotifications();
     fetchPermits();
 }
 
@@ -439,6 +448,66 @@ function fetchPermits() {
                 </div>`;
             setConnectionStatus(false);
         });
+}
+
+function fetchNotifications() {
+    const container = document.getElementById('notifications-container');
+    if (!container) return;
+
+    fetch(`${API_BASE}/notifications`, { headers: authHeaders() })
+        .then(res => {
+            if (res.status === 401) { logout(); throw new Error('unauthorized'); }
+            return res.json();
+        })
+        .then(data => {
+            if (!data || data.status !== 'success') {
+                container.innerHTML = emptyNotificationsHtml();
+                return;
+            }
+
+            notificationsCache = data.data || [];
+            const badge = document.getElementById('notifications-unread-badge');
+            if (badge) badge.textContent = Number(data.unread_count || 0).toLocaleString('fa-IR');
+
+            if (notificationsCache.length === 0) {
+                container.innerHTML = emptyNotificationsHtml();
+                return;
+            }
+
+            container.innerHTML = notificationsCache.slice(0, 3).map(item => `
+                <button type="button" class="notification-card ${item.read_at ? '' : 'is-unread'}" onclick="openNotification('${escapeHtml(item.id)}', ${item.permit_id || 'null'})">
+                    <span class="notification-card__icon"><i class="fa-solid fa-bell"></i></span>
+                    <span class="notification-card__body">
+                        <b>${displayValue(item.title)}</b>
+                        <small>${displayValue(item.message)}</small>
+                    </span>
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+            `).join('');
+        })
+        .catch(() => {
+            container.innerHTML = emptyNotificationsHtml();
+        });
+}
+
+function emptyNotificationsHtml() {
+    return `
+        <div class="card empty-state empty-state--compact">
+            <i class="fa-solid fa-bell-slash"></i>
+            <p>اعلان جدیدی برای شما ثبت نشده است.</p>
+        </div>`;
+}
+
+function openNotification(id, permitId) {
+    fetch(`${API_BASE}/notifications/${id}/read`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({}),
+    }).finally(() => fetchNotifications());
+
+    if (permitId) {
+        showPermitDetail(permitId);
+    }
 }
 
 function emptyPermitsHtml() {

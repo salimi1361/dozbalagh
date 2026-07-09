@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Country;
 use App\Models\Company; // 👈 نام مدل شرکت خودت
 use App\Models\CompanyQuota;
+use App\Models\SystemSetting;
+use App\Services\PermitRequestWindowService;
 use Illuminate\Http\Request;
 
 class AllocationController extends Controller
@@ -16,8 +18,32 @@ class AllocationController extends Controller
         $countries = Country::where('is_active', true)->get();
         $companies = Company::all(); 
         $quotas = CompanyQuota::with(['company', 'country'])->get();
+        $requestWindowSettings = app(PermitRequestWindowService::class)->settings();
+        $weekdays = PermitRequestWindowService::WEEKDAYS;
         
-        return view('admin.allocation.index', compact('countries', 'companies', 'quotas'));
+        return view('admin.allocation.index', compact('countries', 'companies', 'quotas', 'requestWindowSettings', 'weekdays'));
+    }
+
+    public function updateRequestWindow(Request $request)
+    {
+        $validated = $request->validate([
+            'enabled' => 'nullable|boolean',
+            'start_time' => 'required|date_format:H:i',
+            'end_time' => 'required|date_format:H:i',
+            'closed_weekdays' => 'nullable|array',
+            'closed_weekdays.*' => 'integer|between:0,6',
+            'closed_message' => 'nullable|string|max:255',
+        ]);
+
+        SystemSetting::setMany([
+            'permit_request_window_enabled' => $request->boolean('enabled') ? '1' : '0',
+            'permit_request_start_time' => $validated['start_time'],
+            'permit_request_end_time' => $validated['end_time'],
+            'permit_request_closed_weekdays' => array_values($validated['closed_weekdays'] ?? []),
+            'permit_request_closed_message' => $validated['closed_message'] ?: 'ثبت درخواست فقط در بازه زمانی مجاز انجمن امکان‌پذیر است.',
+        ]);
+
+        return back()->with('success', 'تنظیمات زمان مجاز ثبت درخواست با موفقیت ذخیره شد.');
     }
 
     // ۲. ثبت قوانین و سقف‌ها (همراه با پیام مدیر)

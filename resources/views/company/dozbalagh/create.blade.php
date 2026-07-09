@@ -62,6 +62,9 @@
         ];
     }
 @endphp
+@php
+    $requestWindowStatus = $requestWindowStatus ?? ['allowed' => true, 'message' => null, 'settings' => []];
+@endphp
 @extends('layouts.app')
 
 @section('header_title')
@@ -74,6 +77,11 @@
 
 @section('content')
 <div class="max-w-4xl mx-auto">
+    @if(!$requestWindowStatus['allowed'])
+        <div class="mb-6 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl p-4 text-sm font-bold leading-7">
+            {{ $requestWindowStatus['message'] }}
+        </div>
+    @endif
     
     {{-- نوار پیشرفت مراحل (Timeline) --}}
     <div class="mb-8 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
@@ -93,7 +101,7 @@
     </div>
 
     {{-- هوشمندسازی اکشن فرم برای سوئیچ بین ذخیره جدید یا آپدیت اصلاحیه --}}
-    <form id="dozoulehForm" action="{{ isset($permitRequest) ? route('dozbalagh.update', $permitRequest->id) : route('dozbalagh.store') }}" method="POST" enctype="multipart/form-data" class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+    <form id="dozoulehForm" action="{{ isset($permitRequest) ? route('dozbalagh.update', $permitRequest->id) : route('dozbalagh.store') }}" method="POST" enctype="multipart/form-data" class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden {{ !$requestWindowStatus['allowed'] && !isset($permitRequest) ? 'opacity-60 pointer-events-none' : '' }}">
         @csrf
         @if(isset($permitRequest))
             @method('PUT')
@@ -122,7 +130,7 @@
                 مرحله قبل
             </button>
             <div class="flex-1"></div>
-            <button type="button" id="nextBtn" class="px-8 py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition" onclick="navigateWizard(1)">
+            <button type="button" id="nextBtn" class="px-8 py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-200 transition" onclick="navigateWizard(1)" @disabled(!$requestWindowStatus['allowed'] && !isset($permitRequest))>
                 مرحله بعد
             </button>
         </div>

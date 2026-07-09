@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Association;
 
+use App\Models\Driver;
+use App\Notifications\DriverPermitIssuedNotification;
+use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -533,6 +536,8 @@ class AssociationController
 
             DB::commit();
 
+            $this->notifyDriverPermitIssued($id, (string) $allocatedSerial, $permit->driver_id, $permit->company_id, $validUntil->toDateString());
+
             $message = $isRenewal
                 ? "تمدید دوزوله با همان شماره {$allocatedSerial} با موفقیت صادر شد."
                 : "سریال {$allocatedSerial} با موفقیت ثبت و پرونده صادر شد.";
@@ -557,6 +562,40 @@ class AssociationController
     {
         return view('association.driver.show', compact('id'));
     } 
+
+    private function notifyDriverPermitIssued(int $permitId, string $serialNumber, mixed $driverId, mixed $companyId, ?string $validUntil): void
+    {
+        try {
+            if (blank($driverId)) {
+                return;
+            }
+
+            $driver = Driver::where(function ($query) use ($driverId) {
+                    $query->where('id', $driverId)
+                        ->orWhere('national_code', $driverId);
+                })
+                ->first();
+
+            if (!$driver) {
+                return;
+            }
+
+            $company = DB::table('companies')->where('id', $companyId)->first();
+            $companyName = $company->name_fa ?? $company->name ?? 'شرکت حمل و نقل';
+
+            $driver->notify(new DriverPermitIssuedNotification(
+                $permitId,
+                $serialNumber,
+                $companyName,
+                $validUntil
+            ));
+
+            $sms = "سامانه دوزوله\nراننده گرامی، دوزوله شماره {$serialNumber} توسط شرکت {$companyName} برای شما صادر شد.";
+            app(SmsService::class)->send($driver->mobile, $sms, 'driver_permit_issued');
+        } catch (\Throwable $e) {
+            Log::warning('Driver permit issued notification failed: ' . $e->getMessage());
+        }
+    }
 
     public function transitPermits()
     {
