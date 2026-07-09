@@ -18,10 +18,16 @@
                 <p class="text-slate-400 text-[11px] mt-0.5">سیستم فینگلیش خودکار و کنترل محدودیت‌های بین‌المللی فعال است.</p>
             </div>
             
-            <button onclick="openDriverModal()" 
-                    class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-5 py-2.5 rounded-xl text-xs shadow-lg transition">
-                ➕ ثبت راننده جدید
-            </button>
+            <div class="flex flex-wrap gap-2 justify-end">
+                <button onclick="openNotifyModal('all')"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-black px-5 py-2.5 rounded-xl text-xs shadow-lg transition">
+                    📣 ارسال گروهی
+                </button>
+                <button onclick="openDriverModal()"
+                        class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-5 py-2.5 rounded-xl text-xs shadow-lg transition">
+                    ➕ ثبت راننده جدید
+                </button>
+            </div>
         </div>
 
         <div class="p-4 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row gap-4 justify-between items-center">
@@ -45,6 +51,7 @@
                         <th class="p-4">شماره موبایل</th>
                         <th class="p-4 text-blue-600">هویت فینگلیش</th>
                         <th class="p-4 text-center">دوزبلاغ فعال</th>
+                        <th class="p-4 text-center">پیام‌ها</th>
                         <th class="p-4 text-center">عملیات</th>
                     </tr>
                 </thead>
@@ -64,7 +71,20 @@
                                 @endif
                             </td>
 
-                            <td class="p-4 text-center flex justify-center gap-2">
+                            <td class="p-4 text-center">
+                                @if($d->unread_company_messages > 0)
+                                    <span class="bg-blue-100 text-blue-700 font-black px-3 py-1 rounded-full text-xs shadow-sm">{{ $d->unread_company_messages }} خوانده‌نشده</span>
+                                @elseif($d->last_company_message_at)
+                                    <span class="bg-slate-100 text-slate-500 font-bold px-3 py-1 rounded-full text-xs">ارسال شده</span>
+                                @else
+                                    <span class="bg-slate-50 text-slate-400 font-bold px-3 py-1 rounded-full text-xs">بدون پیام</span>
+                                @endif
+                            </td>
+
+                            <td class="p-4 text-center flex justify-center gap-2 flex-wrap">
+                                <button onclick="openNotifyModal('selected', {{ $d->id }})"
+                                        class="bg-blue-500 hover:bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition">📣 پیام</button>
+
                                 <button onclick="editDriver('{{ $d->national_code }}', '{{ $d->first_name_fa }}', '{{ $d->last_name_fa }}', '{{ $d->first_name_en }}', '{{ $d->last_name_en }}', '{{ $d->passport_number }}', '{{ $d->mobile }}')" 
                                         class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-3 py-1.5 rounded-lg text-xs transition">✏️ ویرایش</button>
                                 
@@ -73,11 +93,11 @@
                             </td>
                         </tr>
                     @empty
-                        <tr id="no_records_row"><td colspan="6" class="p-8 text-center text-slate-400 font-bold">رکوردی یافت نشد.</td></tr>
+                        <tr id="no_records_row"><td colspan="7" class="p-8 text-center text-slate-400 font-bold">رکوردی یافت نشد.</td></tr>
                     @endforelse
                     
                     <tr id="search_empty_row" class="hidden">
-                        <td colspan="6" class="p-8 text-center text-slate-400 font-bold">هیچ راننده‌ای با مشخصات جستجو شده یافت نشد.</td>
+                        <td colspan="7" class="p-8 text-center text-slate-400 font-bold">هیچ راننده‌ای با مشخصات جستجو شده یافت نشد.</td>
                     </tr>
                 </tbody>
             </table>
@@ -114,12 +134,80 @@
             </div>
         </div>
     </div>
+
+    <div id="notify_modal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden">
+            <div class="bg-slate-950 p-5 text-white flex justify-between items-center">
+                <div>
+                    <h3 class="font-black">ارسال پیام به راننده</h3>
+                    <p id="notify_recipient_label" class="text-slate-400 text-[11px] mt-1">انتخاب مخاطب</p>
+                </div>
+                <button onclick="closeNotifyModal()" class="text-slate-400 hover:text-white text-xl">✕</button>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="notify_scope" value="selected">
+                <input type="hidden" id="notify_driver_id" value="">
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-black text-slate-600 mb-2">عنوان پیام</label>
+                        <input type="text" id="notify_title" maxlength="120" placeholder="مثلا: تغییر برنامه سفر"
+                               class="w-full p-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-500">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-black text-slate-600 mb-2">نوع پیام</label>
+                        <select id="notify_category" class="w-full p-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:border-blue-500">
+                            <option value="general">اطلاعیه عادی</option>
+                            <option value="warning">هشدار مهم</option>
+                            <option value="trip_change">تغییر برنامه سفر</option>
+                            <option value="action_required">نیازمند اقدام راننده</option>
+                            <option value="document">مدارک و مستندات</option>
+                            <option value="settlement">مالی و تسویه</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-black text-slate-600 mb-2">اولویت</label>
+                        <select id="notify_priority" class="w-full p-3 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:border-blue-500">
+                            <option value="normal">عادی</option>
+                            <option value="important">مهم</option>
+                            <option value="urgent">فوری</option>
+                        </select>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-black text-slate-600 mb-2">متن پیام</label>
+                        <textarea id="notify_message" rows="5" maxlength="1000" placeholder="متن قابل مشاهده برای راننده را وارد کنید..."
+                                  class="w-full p-3 border border-slate-200 rounded-xl text-sm leading-7 resize-none focus:outline-none focus:border-blue-500"></textarea>
+                    </div>
+
+                    <label class="md:col-span-2 flex items-center gap-2 bg-blue-50 border border-blue-100 p-3 rounded-xl text-xs font-bold text-blue-900">
+                        <input type="checkbox" id="notify_requires_ack" class="w-4 h-4">
+                        راننده باید پیام را مشاهده/تایید کند.
+                    </label>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button onclick="closeNotifyModal()" class="bg-slate-200 text-slate-800 hover:bg-slate-300 px-6 py-3 rounded-xl text-xs font-bold transition">انصراف</button>
+                    <button onclick="sendDriverNotification(event)" id="btn_send_notification" class="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl text-xs font-bold transition">ارسال پیام</button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('scripts')
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 
 <script>
+    const companyDrivers = @json($drivers->map(fn($driver) => [
+        'id' => $driver->id,
+        'name' => trim(($driver->first_name_fa ?? '') . ' ' . ($driver->last_name_fa ?? '')),
+        'national_code' => $driver->national_code,
+    ])->values());
+
     const finglishDictionary = {
         'محمد': 'Mohammad', 'علی': 'Ali', 'حسن': 'Hassan', 'حسین': 'Hossein', 'رضا': 'Reza', 
         'صادق': 'Sadegh', 'میلاد': 'Milad', 'احمد': 'Ahmad', 'محمود': 'Mahmoud', 'مصطفی': 'Mostafa', 
@@ -174,6 +262,73 @@
     
     function openDriverModal() { $('#driver_modal').removeClass('hidden'); $('#m_national_code').prop('disabled', false); }
     function closeDriverModal() { $('#driver_modal').addClass('hidden'); $('input').val(''); }
+
+    function openNotifyModal(scope = 'selected', driverId = null) {
+        const driver = companyDrivers.find(item => Number(item.id) === Number(driverId));
+        $('#notify_scope').val(scope);
+        $('#notify_driver_id').val(driverId || '');
+        $('#notify_title').val('');
+        $('#notify_message').val('');
+        $('#notify_category').val('general');
+        $('#notify_priority').val(scope === 'all' ? 'important' : 'normal');
+        $('#notify_requires_ack').prop('checked', scope === 'all');
+
+        const label = scope === 'all'
+            ? `ارسال برای همه رانندگان فعال شرکت (${companyDrivers.length.toLocaleString('fa-IR')} نفر)`
+            : `ارسال برای ${driver ? driver.name || driver.national_code : 'راننده انتخاب‌شده'}`;
+
+        $('#notify_recipient_label').text(label);
+        $('#notify_modal').removeClass('hidden');
+        $('#notify_title').focus();
+    }
+
+    function closeNotifyModal() {
+        $('#notify_modal').addClass('hidden');
+    }
+
+    function sendDriverNotification(event) {
+        const btn = $(event.target);
+        const originalText = btn.text();
+        const scope = $('#notify_scope').val();
+        const driverId = $('#notify_driver_id').val();
+
+        const data = {
+            _token: "{{ csrf_token() }}",
+            scope: scope,
+            driver_ids: scope === 'selected' ? [driverId] : [],
+            title: $('#notify_title').val(),
+            message: $('#notify_message').val(),
+            category: $('#notify_category').val(),
+            priority: $('#notify_priority').val(),
+            requires_acknowledgement: $('#notify_requires_ack').is(':checked') ? 1 : 0,
+        };
+
+        if (!data.title.trim() || !data.message.trim()) {
+            Swal.fire({ icon: 'warning', title: 'پیام ناقص است', text: 'عنوان و متن پیام را وارد کنید.', confirmButtonText: 'باشه' });
+            return;
+        }
+
+        btn.prop('disabled', true).text('در حال ارسال...');
+
+        $.post("{{ route('web.company.driver.notify') }}", data, function(res) {
+            if (res.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'پیام ثبت شد',
+                    text: res.message,
+                    confirmButtonText: 'بروزرسانی جدول',
+                    confirmButtonColor: '#2563eb'
+                }).then(() => location.reload());
+            } else {
+                btn.prop('disabled', false).text(originalText);
+                Swal.fire({ icon: 'error', title: 'خطا', text: res.message || 'ارسال پیام انجام نشد.', confirmButtonText: 'تایید' });
+            }
+        }).fail(function(xhr) {
+            btn.prop('disabled', false).text(originalText);
+            let errMsg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'خطا در ارتباط با سرور';
+            Swal.fire({ icon: 'error', title: 'عدم ارسال پیام', text: errMsg, confirmButtonText: 'تایید', confirmButtonColor: '#e11d48' });
+        });
+    }
     
     function editDriver(nc, fnf, lnf, fne, lne, pass, mobile) {
         openDriverModal();

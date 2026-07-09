@@ -30,6 +30,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/web/company/driver/index', [CompanyDriverController::class, 'index'])->name('web.company.driver.index');
         Route::post('/web/company/driver/inquire', [CompanyDriverController::class, 'inquireApi'])->name('web.company.driver.inquire');
         Route::post('/web/company/driver/store', [CompanyDriverController::class, 'store'])->name('web.company.driver.store');
+        Route::post('/web/company/driver/notify', [CompanyDriverController::class, 'notify'])->name('web.company.driver.notify');
         Route::post('/web/company/driver/delete', [CompanyDriverController::class, 'destroy'])->name('web.company.driver.delete');
 
         Route::get('/web/company/fleet/index', [CompanyFleetController::class, 'index'])->name('web.company.fleet.index');

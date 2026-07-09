@@ -3,10 +3,15 @@
 namespace App\Http\Controllers\Company;
 
 use App\Http\Controllers\Controller;
+use App\Models\Driver;
+use App\Notifications\CompanyDriverMessageNotification;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Throwable;
 
 class DriverController extends Controller
@@ -25,11 +30,96 @@ class DriverController extends Controller
                                                  ->where('permit_requests.status', 'صادر شده') 
                                                  ->selectRaw('count(*)')
                      ])
+                     ->addSelect([
+                         'unread_company_messages' => DB::table('notifications')
+                                                 ->whereColumn('notifications.notifiable_id', 'drivers.id')
+                                                 ->where('notifications.notifiable_type', Driver::class)
+                                                 ->whereNull('notifications.read_at')
+                                                 ->where('notifications.type', CompanyDriverMessageNotification::class)
+                                                 ->selectRaw('count(*)')
+                     ])
+                     ->addSelect([
+                         'last_company_message_at' => DB::table('notifications')
+                                                 ->whereColumn('notifications.notifiable_id', 'drivers.id')
+                                                 ->where('notifications.notifiable_type', Driver::class)
+                                                 ->where('notifications.type', CompanyDriverMessageNotification::class)
+                                                 ->selectRaw('max(created_at)')
+                     ])
                      ->where('current_company_id', $companyId) // فیلتر کردن دقیق بر اساس شرکت فعلی
                      ->orderBy('id', 'desc')
                      ->get();
 
         return view('company.driver.index', compact('drivers'));
+    }
+
+    public function notify(Request $request)
+    {
+        $company = auth()->user()->company;
+        $companyId = $company->id ?? auth()->user()->company_id;
+
+        if (!$companyId) {
+            return response()->json(['success' => false, 'message' => 'شرکت کاربر لاگین‌شده شناسایی نشد.'], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'scope' => ['required', Rule::in(['selected', 'all'])],
+            'driver_ids' => ['required_if:scope,selected', 'array'],
+            'driver_ids.*' => ['integer'],
+            'title' => ['required', 'string', 'max:120'],
+            'message' => ['required', 'string', 'max:1000'],
+            'category' => ['required', Rule::in(['general', 'warning', 'trip_change', 'action_required', 'document', 'settlement'])],
+            'priority' => ['required', Rule::in(['normal', 'important', 'urgent'])],
+            'requires_acknowledgement' => ['nullable', 'boolean'],
+            'expires_at' => ['nullable', 'date', 'after:now'],
+        ], [
+            'driver_ids.required_if' => 'حداقل یک راننده را برای ارسال پیام انتخاب کنید.',
+            'title.required' => 'عنوان پیام را وارد کنید.',
+            'message.required' => 'متن پیام را وارد کنید.',
+            'expires_at.after' => 'تاریخ انقضای پیام باید بعد از زمان فعلی باشد.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $query = Driver::query()->where('current_company_id', $companyId);
+
+        if ($request->scope === 'selected') {
+            $query->whereIn('id', $request->input('driver_ids', []));
+        }
+
+        $drivers = $query->get();
+
+        if ($drivers->isEmpty()) {
+            return response()->json(['success' => false, 'message' => 'راننده‌ای برای ارسال پیام یافت نشد.'], 404);
+        }
+
+        $companyName = $company->name_fa ?? $company->name ?? auth()->user()->name ?? 'شرکت حمل و نقل';
+        $expiresAt = $request->filled('expires_at')
+            ? Carbon::parse($request->expires_at)->toDateTimeString()
+            : null;
+
+        foreach ($drivers as $driver) {
+            $driver->notify(new CompanyDriverMessageNotification(
+                companyId: $companyId,
+                companyName: $companyName,
+                title: $request->title,
+                message: $request->message,
+                category: $request->category,
+                priority: $request->priority,
+                requiresAcknowledgement: $request->boolean('requires_acknowledgement'),
+                expiresAt: $expiresAt
+            ));
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'پیام برای ' . $drivers->count() . ' راننده ثبت شد و در وب‌اپ راننده نمایش داده می‌شود.',
+            'sent_count' => $drivers->count(),
+        ]);
     }
 
     // ۲. استعلام زنده راننده با قابلیت رمزگشایی خطای ۴۰۰ بارگرام
