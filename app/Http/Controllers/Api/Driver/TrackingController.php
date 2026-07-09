@@ -5,63 +5,115 @@ namespace App\Http\Controllers\Api\Driver;
 use App\Http\Controllers\Controller;
 use App\Models\DozbalaghItem;
 use App\Models\DriverEvent;
-use Illuminate\Http\Request;
+use App\Models\PermitRequest;
 use App\Notifications\DriverEventNotification;
+use Illuminate\Http\Request;
 
 class TrackingController extends Controller
 {
-    // ۱. ثبت رویداد دستی راننده (مثل اعلام رسیدن به مقصد)
     public function logEvent(Request $request)
     {
         $request->validate([
-            'dozbalagh_item_id' => 'required|exists:dozbalagh_items,id',
-            'event_type' => 'required|string', // e.g., 'at_destination'
+            'dozbalagh_item_id' => 'required|integer',
+            'event_type' => 'required|string',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
         ]);
 
-        $driver = auth()->user(); // راننده‌ای که لاگین کرده (از طریق Sanctum)
+        $driver = auth()->user();
+        $dozbalaghItem = $this->resolveDozbalaghItem((int) $request->dozbalagh_item_id, $driver);
 
-        // ثبت رویداد در دیتابیس
+        if (!$dozbalaghItem) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'دوزبلاغ مرتبط با این راننده یا ناوگان یافت نشد.',
+            ], 404);
+        }
+
         $event = DriverEvent::create([
             'driver_id' => $driver->id,
-            'dozbalagh_item_id' => $request->dozbalagh_item_id,
+            'dozbalagh_item_id' => $dozbalaghItem->id,
             'event_type' => $request->event_type,
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
         ]);
 
-        // پیدا کردن شرکت حمل‌ونقلی که این دوزبلاغ متعلق به اوست
-        $dozbalaghItem = DozbalaghItem::with('permitRequest.company')->find($request->dozbalagh_item_id);
-        $company = $dozbalaghItem->permitRequest->company ?? null;
+        $company = $dozbalaghItem->permitRequest->company ?? $dozbalaghItem->company;
 
-        // ارسال نوتیفیکیشن فوری به پنل شرکت (Filament) یا بازوی بله شرکت
         if ($company) {
             $company->notify(new DriverEventNotification($driver, $event, $dozbalaghItem));
         }
 
         return response()->json([
             'status' => 'success',
-            'message' => 'رویداد با موفقیت ثبت و به شرکت اطلاع داده شد.'
+            'message' => 'رویداد با موفقیت ثبت شد.',
         ]);
     }
 
-    // ۲. دریافت لوکیشن زنده در بک‌گراند (Sync Location)
     public function syncLocation(Request $request)
     {
         $request->validate([
-            'dozbalagh_item_id' => 'required|exists:dozbalagh_items,id',
+            'dozbalagh_item_id' => 'required|integer',
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
         ]);
 
-        auth()->user()->locations()->create([
-            'dozbalagh_item_id' => $request->dozbalagh_item_id,
+        $driver = auth()->user();
+        $dozbalaghItem = $this->resolveDozbalaghItem((int) $request->dozbalagh_item_id, $driver);
+
+        if (!$dozbalaghItem) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'دوزبلاغ مرتبط با این راننده یا ناوگان یافت نشد.',
+            ], 404);
+        }
+
+        $driver->locations()->create([
+            'dozbalagh_item_id' => $dozbalaghItem->id,
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
             'recorded_at' => now(),
         ]);
 
         return response()->json(['status' => 'success']);
+    }
+
+    private function resolveDozbalaghItem(int $id, $driver): ?DozbalaghItem
+    {
+        $item = DozbalaghItem::where('id', $id)
+            ->where(function ($query) use ($driver) {
+                $query->where('driver_id', $driver->id);
+
+                if (!empty($driver->fleet_id)) {
+                    $query->orWhere('fleet_id', $driver->fleet_id);
+                }
+            })
+            ->first();
+
+        if ($item) {
+            return $item;
+        }
+
+        $permit = PermitRequest::where('id', $id)
+            ->where(function ($query) use ($driver) {
+                $query->where('driver_id', $driver->id);
+
+                if (!empty($driver->fleet_id)) {
+                    $query->orWhere('fleet_id', $driver->fleet_id);
+                }
+            })
+            ->first();
+
+        if (!$permit || !$permit->serial_number) {
+            return null;
+        }
+
+        return DozbalaghItem::where('serial_number', $permit->serial_number)
+            ->where(function ($query) use ($permit, $driver) {
+                $query->where('driver_id', $driver->id)
+                    ->orWhere('fleet_id', $permit->fleet_id)
+                    ->orWhereNull('driver_id');
+            })
+            ->first();
     }
 }

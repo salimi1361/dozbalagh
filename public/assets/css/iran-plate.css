@@ -1,0 +1,177 @@
+.iran-plate {
+    --plate-w: 178px;
+    --plate-h: 48px;
+    --blue-w: 26px;
+    --city-w: 42px;
+    --main-size: 22px;
+    --letter-size: 20px;
+    --city-size: 17px;
+    --radius: 8px;
+    width: var(--plate-w);
+    height: var(--plate-h);
+    display: inline-flex;
+    align-items: stretch;
+    overflow: hidden;
+    border: 2px solid #111827;
+    border-radius: var(--radius);
+    background: #f7b915;
+    color: #020617;
+    box-shadow: 0 9px 18px rgba(15, 23, 42, .16), inset 0 1px 0 rgba(255, 255, 255, .55);
+    direction: ltr;
+    font-family: Tahoma, Arial, sans-serif;
+    line-height: 1;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.iran-plate--sm {
+    --plate-w: 136px;
+    --plate-h: 36px;
+    --blue-w: 20px;
+    --city-w: 32px;
+    --main-size: 15px;
+    --letter-size: 14px;
+    --city-size: 12px;
+    --radius: 6px;
+}
+
+.iran-plate--xs {
+    --plate-w: 118px;
+    --plate-h: 31px;
+    --blue-w: 17px;
+    --city-w: 28px;
+    --main-size: 13px;
+    --letter-size: 12px;
+    --city-size: 10px;
+    --radius: 5px;
+}
+
+.iran-plate__blue {
+    width: var(--blue-w);
+    flex: 0 0 var(--blue-w);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 3px;
+    background: linear-gradient(180deg, #0647b8, #002b7f);
+    border-right: 2px solid #111827;
+    color: #fff;
+}
+
+.iran-plate--sm .iran-plate__blue,
+.iran-plate--xs .iran-plate__blue {
+    padding: 3px 2px;
+    border-right-width: 1.5px;
+}
+
+.iran-plate__flag {
+    width: 16px;
+    height: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, .25);
+}
+
+.iran-plate--sm .iran-plate__flag { width: 12px; height: 6px; }
+.iran-plate--xs .iran-plate__flag { width: 10px; height: 5px; }
+
+.iran-plate__flag i { display: block; height: 33.333%; }
+.iran-plate__flag i:nth-child(1) { background: #239f40; }
+.iran-plate__flag i:nth-child(2) { background: #fff; }
+.iran-plate__flag i:nth-child(3) { background: #da0000; }
+
+.iran-plate__en {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    font-size: 6px;
+    font-weight: 900;
+    letter-spacing: 0;
+}
+
+.iran-plate--sm .iran-plate__en { font-size: 4px; }
+.iran-plate--xs .iran-plate__en { font-size: 3px; }
+
+.iran-plate__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .32em;
+    padding: 0 8px;
+    font-size: var(--main-size);
+    font-weight: 900;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, .35);
+}
+
+.iran-plate__main b {
+    display: inline-block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.iran-plate__letter {
+    font-size: var(--letter-size);
+    font-family: Tahoma, Arial, sans-serif;
+    margin-top: -1px;
+}
+
+.iran-plate__city {
+    width: var(--city-w);
+    flex: 0 0 var(--city-w);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: linear-gradient(180deg, #ffc928, #f3b300);
+    border-left: 2px solid #111827;
+}
+
+.iran-plate--sm .iran-plate__city,
+.iran-plate--xs .iran-plate__city {
+    border-left-width: 1.5px;
+}
+
+.iran-plate__city small {
+    width: 100%;
+    padding-bottom: 4px;
+    border-bottom: 1.5px solid #111827;
+    font-size: 8px;
+    font-weight: 900;
+}
+
+.iran-plate--sm .iran-plate__city small,
+.iran-plate--xs .iran-plate__city small {
+    padding-bottom: 2px;
+    font-size: 6px;
+}
+
+.iran-plate__city b {
+    padding-top: 4px;
+    font-size: var(--city-size);
+    font-weight: 900;
+}
+
+.iran-plate--sm .iran-plate__city b,
+.iran-plate--xs .iran-plate__city b {
+    padding-top: 2px;
+}
+
+@media (max-width: 768px) {
+    .iran-plate--md {
+        --plate-w: 154px;
+        --plate-h: 43px;
+        --blue-w: 23px;
+        --city-w: 37px;
+        --main-size: 18px;
+        --letter-size: 17px;
+        --city-size: 15px;
+    }
+}

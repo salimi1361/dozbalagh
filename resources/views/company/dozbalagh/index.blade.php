@@ -135,6 +135,8 @@
                             </td>
                             
                             <td class="p-4 flex justify-center">
+                                <x-iran-plate :plate="optional($item->fleet)->transit_plate" size="sm" />
+                                @if(false)
                                 @php
                                     $rawPlate = optional($item->fleet)->transit_plate ?? '';
                                     $plateParts = !empty($rawPlate) ? explode('-', $rawPlate) : [];
@@ -162,6 +164,7 @@
                                     </div>
                                 @else
                                     <span class="bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg text-xs font-bold">{{ $rawPlate ?: 'بدون پلاک' }}</span>
+                                @endif
                                 @endif
                             </td>
                             
@@ -223,6 +226,8 @@
                                             </div>
 
                                             <div class="flex justify-center my-2">
+                                                <x-iran-plate :plate="optional($item->fleet)->transit_plate" size="md" />
+                                                @if(false)
                                                 @if(count($plateParts) == 4)
                                                     <div dir="ltr" class="inline-flex items-stretch border border-slate-900 rounded-xl bg-[#fab800] text-slate-950 font-black h-12 overflow-hidden shadow-md" style="min-width: 240px;">
                                                         <div class="bg-[#0033a0] flex flex-col items-center justify-between py-1 px-1 text-white border-r border-slate-900" style="width: 24px; min-width: 24px;">
@@ -310,6 +315,7 @@
                                                     <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-bold">مبلغ بلوکه شده</span>
                                                 @else
                                                     <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs font-bold">تسویه نهایی</span>
+                                                @endif
                                                 @endif
                                             </div>
                                         </div>

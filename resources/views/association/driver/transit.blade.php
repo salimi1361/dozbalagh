@@ -51,7 +51,7 @@
                             </td>
 
                             <td class="p-4 text-center font-mono font-black text-xs text-slate-800">
-                                {{ optional($req->fleet)->transit_plate ?? '---' }}
+                                <x-iran-plate :plate="optional($req->fleet)->transit_plate" size="sm" />
                             </td>
 
                             <td class="p-4">

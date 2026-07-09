@@ -75,6 +75,8 @@
                                     💳 کارت هوشمند: <strong class="font-mono text-slate-900 search-target">{{ $req->fleet->smart_card_number ?? $req->fleet_id ?? '---' }}</strong>
                                 </span>
                                 
+                                <x-iran-plate :plate="optional($req->fleet)->transit_plate" size="sm" class="search-target mx-auto" />
+                                @if(false)
                                 @php
                                     $rawPlate = optional($req->fleet)->transit_plate ?? '';
                                     $plateParts = !empty($rawPlate) ? explode('-', $rawPlate) : [];
@@ -102,6 +104,7 @@
                                     </div>
                                 @else
                                     <span class="bg-slate-50 text-slate-500 px-2 py-0.5 rounded border border-slate-100 text-[11px] font-bold search-target">{{ $rawPlate ?: 'بدون پلاک' }}</span>
+                                @endif
                                 @endif
                             </td>
 
@@ -197,6 +200,8 @@ function viewCompanyDocuments(id) {
                 }
                 if (f) {
                     $('#mdl_fleet_smart').text(f.smart_card_number || '---');
+                    $('#mdl_fleet_plate_container').html(window.renderIranPlate(f.transit_plate || '', { size: 'sm' }));
+                    if (false) {
                     let rawPlate = f.transit_plate || '';
                     let plateParts = rawPlate ? rawPlate.split('-') : [];
                     if (plateParts.length === 4) {
@@ -217,6 +222,7 @@ function viewCompanyDocuments(id) {
                             </div>`);
                     } else {
                         $('#mdl_fleet_plate_container').html(`<span class="bg-slate-50 text-slate-500 px-2 py-0.5 rounded border border-slate-100 font-bold text-xs">${rawPlate || 'بدون پلاک'}</span>`);
+                    }
                     }
                 }
 

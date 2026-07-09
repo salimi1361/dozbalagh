@@ -149,6 +149,11 @@
                             <td class="p-4">
                                 @php
                                     $plateRaw = $req->transit_plate ?? $req->plate_number ?? null;
+                                @endphp
+                                <x-iran-plate :plate="$plateRaw" size="xs" />
+                                @if(false)
+                                @php
+                                    $plateRaw = $req->transit_plate ?? $req->plate_number ?? null;
                                     $plateParts = $plateRaw ? preg_split('/[-\s]+/', trim($plateRaw)) : [];
 
                                     $plateLeft   = $plateParts[0] ?? '';
@@ -197,6 +202,7 @@
                                     </div>
                                 @else
                                     <span class="inline-flex items-center px-2 py-1 rounded bg-slate-100 text-slate-400 border border-slate-200 font-black text-[10px]">بدون پلاک</span>
+                                @endif
                                 @endif
                             </td>
                             <td class="p-4 font-mono font-black text-slate-900 text-xs">{{ number_format($req->total_amount) }} <span class="text-[10px] text-slate-400 font-bold mr-0.5">تومان</span></td>

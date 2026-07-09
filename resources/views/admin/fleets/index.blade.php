@@ -39,6 +39,8 @@
                 <tr class="hover:bg-slate-50 transition fleet-row">
                     
                     <td class="px-4 py-3 text-center search-target" dir="ltr">
+                        <x-iran-plate :plate="$fleet->transit_plate" size="sm" />
+                        @if(false)
                         @php
                             $plateParts = explode('-', $fleet->transit_plate ?? '');
                             $p1 = $plateParts[0] ?? '';
@@ -69,6 +71,7 @@
                             <span class="hidden">{{ $fleet->transit_plate }}</span>
                         @else
                             <span class="bg-yellow-100 border border-yellow-400 px-3 py-1 rounded text-sm tracking-widest font-mono font-bold">{{ $fleet->transit_plate ?? 'نامشخص' }}</span>
+                        @endif
                         @endif
                     </td>
                     

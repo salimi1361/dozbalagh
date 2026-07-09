@@ -6,6 +6,7 @@
     <title>پنل مدیریت کل - سامانه جامع دوزوله</title>
     
     <script src="{{ asset('assets/js/tailwindcss.js') }}"></script>
+    <link rel="stylesheet" href="{{ asset('assets/css/iran-plate.css') }}">
     
     <style>
         /* فونت‌های محلی */
@@ -197,6 +198,7 @@
     </main>
     
     <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+    <script src="{{ asset('assets/js/iran-plate.js') }}"></script>
     
     <script>
         const sidebar = document.getElementById('sidebar');

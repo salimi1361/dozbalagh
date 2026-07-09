@@ -47,6 +47,9 @@
                 <tbody class="divide-y divide-slate-200/60 text-sm text-slate-700">
                     @forelse($requests as $index => $req)
                         @php
+                            $archivePlate = optional($req->fleet)->transit_plate ?? '';
+                        @endphp
+                        @php
                             // استخراج بخش‌های مختلف پلاک ترانزیت یا معمولی برای ساخت گرافیک پلاک ایران
                             // فرض می‌کنیم فرمت پلاک در دیتابیس شما شبیه: "32ع93984" یا مشابه است، در غیر این صورت مقدار فیک را با داده مچ می‌کنیم.
                             $plateStr = optional($req->fleet)->transit_plate ?? '۳۲ع۹۳۹۸۴';
@@ -72,6 +75,8 @@
 
                             <!-- 🟨 ساخت پلاک فیزیکی استاندارد زرد عمومی زنده (طراحی کاملاً هماهنگ با تصویر image_9d29e4.png) -->
                             <td class="p-4 flex justify-center">
+                                <x-iran-plate :plate="$archivePlate" size="md" />
+                                @if(false)
                                 <div class="w-[180px] h-[38px] bg-[#fab800] border-2 border-slate-900 rounded-md flex items-center overflow-hidden font-sans font-black text-slate-950 shadow-sm relative select-none" dir="ltr">
                                     <!-- نوار آبی سمت چپ پلاک ایران -->
                                     <div class="w-[18px] h-full bg-[#044391] flex flex-col items-center justify-between py-0.5 text-white text-[7px]">
@@ -97,6 +102,7 @@
                                         <span class="text-xs font-black mt-0.5">{{ $pCityCode }}</span>
                                     </div>
                                 </div>
+                                @endif
                             </td>
 
                             <td class="p-4">
@@ -194,6 +200,8 @@ function viewArchiveDocuments(id) {
             $('#mdl_driver_name').text(`${d.first_name_fa || ''} ${d.last_name_fa || ''}`.trim() || '---');
             $('#mdl_driver_national').text(d.national_code || '---');
             $('#mdl_fleet_smart').text(f.smart_card_number || f.smart_id || '---');
+            $('#mdl_fleet_plate_container').html(window.renderIranPlate(f.transit_plate || '', { size: 'sm' }));
+            if (false)
             $('#mdl_fleet_plate_container').html(`<span class="bg-slate-50 text-slate-500 px-2 py-0.5 rounded border border-slate-100 font-bold text-xs">${f.transit_plate || 'بدون پلاک'}</span>`);
 
             $('#inp_cargo_type').val(db.operation_type || '');
@@ -336,6 +344,10 @@ function archiveInfoRow(label, value) {
     return `<div class="archive-report-item"><span>${archiveEscape(label)}</span><strong>${archiveEscape(value)}</strong></div>`;
 }
 
+function archiveInfoHtmlRow(label, html) {
+    return `<div class="archive-report-item"><span>${archiveEscape(label)}</span><strong>${html}</strong></div>`;
+}
+
 function archiveStep(index, title, owner, date, body, tone) {
     return `
         <div class="archive-report-step ${tone}">
@@ -353,6 +365,7 @@ function buildArchiveReportHtml(req, countryName, printable = false) {
     const details = req.dbDetails || {};
     const driverName = req.driver ? `${archiveValue(req.driver.first_name_fa, '')} ${archiveValue(req.driver.last_name_fa, '')}`.trim() : 'نامشخص';
     const fleetPlate = req.fleet ? archiveValue(req.fleet.transit_plate || req.fleet.plate_number || req.fleet.smart_card_number) : '---';
+    const fleetPlateHtml = window.renderIranPlate(fleetPlate, { size: 'sm' });
     const status = archiveStatus(req);
     const destinations = Array.isArray(req.destinations) ? req.destinations : [];
     const destinationHtml = destinations.length
@@ -390,7 +403,7 @@ function buildArchiveReportHtml(req, countryName, printable = false) {
             <div class="archive-report-head"><div><h3>گزارش تفکیکی چرخه حیات پرونده</h3><p>کد پرونده ${archiveEscape(req.d_code)} | سریال ${archiveEscape(req.serial_number)}</p></div><span class="archive-report-badge ${status.cls}">${archiveEscape(status.text)}</span></div>
             <div class="archive-report-grid">
                 <div class="archive-report-card"><h4>شناسه پرونده</h4>${archiveInfoRow('کد پرونده', req.d_code)}${archiveInfoRow('سریال اختصاصی', req.serial_number)}${archiveInfoRow('نوع درخواست', requestType)}${archiveInfoRow('مرجع تمدید', previousRef)}${archiveInfoRow('کشور مقصد', countryName)}</div>
-                <div class="archive-report-card"><h4>راننده و ناوگان</h4>${archiveInfoRow('راننده', driverName)}${archiveInfoRow('کد ملی', req.driver ? req.driver.national_code : '---')}${archiveInfoRow('ناوگان / پلاک', fleetPlate)}${archiveInfoRow('کارت هوشمند', req.fleet ? (req.fleet.smart_card_number || req.fleet.smart_id || '---') : '---')}</div>
+                <div class="archive-report-card"><h4>راننده و ناوگان</h4>${archiveInfoRow('راننده', driverName)}${archiveInfoRow('کد ملی', req.driver ? req.driver.national_code : '---')}${archiveInfoHtmlRow('ناوگان / پلاک', fleetPlateHtml)}${archiveInfoRow('کارت هوشمند', req.fleet ? (req.fleet.smart_card_number || req.fleet.smart_id || '---') : '---')}</div>
                 <div class="archive-report-card"><h4>لاشه و پیک</h4>${archiveInfoRow('نام پیک', req.courier_name)}${archiveInfoRow('موبایل پیک', req.courier_mobile)}${archiveInfoRow('کد تحویل', req.courier_delivery_code)}${archiveInfoRow('زمان تحویل', archiveDate(req.courier_received_at))}${lashImageUrl ? `<a class="archive-report-link" href="${lashImageUrl}" target="_blank">مشاهده تصویر لاشه</a>` : archiveInfoRow('تصویر لاشه', 'ثبت نشده')}</div>
             </div>
             <div class="archive-report-card"><h4>اطلاعات کنترلی پرونده و مدارک</h4><div class="archive-report-grid" style="margin:0"><div>${archiveInfoRow('نوع عملیات/بار', details.operation_type)}${archiveInfoRow('کد جامع CITS', details.cits_code)}${archiveInfoRow('کد سفر', details.trip_code)}</div><div>${archiveInfoRow('مبدا بارگیری', details.loading_origin)}${archiveInfoRow('مقصد نهایی حمل', details.loading_destination)}${archiveInfoRow('شماره فیش', details.receipt_code)}</div><div>${archiveInfoRow('مبلغ فیش', details.receipt_amount)}${archiveInfoRow('تاریخ CMR', details.cmr_date)}${archiveInfoRow('کارنه تیر', details.tir_carnet_number)}${archiveInfoRow('تاریخ کارنه تیر', details.tir_carnet_date)}</div></div></div>

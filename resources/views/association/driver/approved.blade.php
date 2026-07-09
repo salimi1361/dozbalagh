@@ -74,6 +74,8 @@
                                     💳 کارت هوشمند: <strong class="font-mono text-slate-900">{{ $req->fleet->smart_card_number ?? $req->fleet_id ?? '---' }}</strong>
                                 </span>
                                 
+                                <x-iran-plate :plate="optional($req->fleet)->transit_plate" size="md" class="search-target" />
+                                @if(false)
                                 @php
                                     $rawPlate = optional($req->fleet)->transit_plate ?? '';
                                     $plateParts = !empty($rawPlate) ? explode('-', $rawPlate) : [];
@@ -96,6 +98,7 @@
                                     </div>
                                 @else
                                     <span class="bg-slate-50 text-slate-500 px-2 py-0.5 rounded border border-slate-100 text-[11px] font-bold w-fit search-target">{{ $rawPlate ?: 'بدون پلاک' }}</span>
+                                @endif
                                 @endif
                             </td>
 

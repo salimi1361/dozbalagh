@@ -9,6 +9,16 @@ class PermitRequest extends Model
 {
     use HasFactory;
 
+    protected $casts = [
+        'issued_at' => 'datetime',
+        'permit_valid_until' => 'date',
+        'courier_code_sent_at' => 'datetime',
+        'company_return_submitted_at' => 'datetime',
+        'courier_received_at' => 'datetime',
+        'lost_reported_at' => 'datetime',
+        'closed_at' => 'datetime',
+    ];
+
     protected $fillable = [
         'd_code', // 👈 اضافه شدن این فیلد قفل کل دیتابیس را باز می‌کند
         'company_id',

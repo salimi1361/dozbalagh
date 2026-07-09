@@ -8,6 +8,7 @@
     <link class="hidden" rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
 
     <script src="{{ asset('assets/js/tailwindcss.js') }}"></script>
+    <link rel="stylesheet" href="{{ asset('assets/css/iran-plate.css') }}">
     <style>
         @font-face { font-family: 'Vazirmatn'; src: url('{{ asset('assets/fonts/Vazirmatn-Regular.woff2') }}') format('woff2'); font-weight: 400; font-display: swap; }
         @font-face { font-family: 'Vazirmatn'; src: url('{{ asset('assets/fonts/Vazirmatn-Bold.woff2') }}') format('woff2'); font-weight: 700; font-display: swap; }
@@ -147,6 +148,7 @@
     </main>
 
     <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
+    <script src="{{ asset('assets/js/iran-plate.js') }}"></script>
     <script>
         function toggleSidebar() {
             $('#sidebar').toggleClass('translate-x-full');

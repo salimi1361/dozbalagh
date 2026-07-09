@@ -3,104 +3,160 @@
 namespace App\Http\Controllers\Api\Driver;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\DozbalaghItem;
+use App\Models\PermitRequest;
 
 class PermitController extends Controller
 {
-    // ۱. لیست تمام دوزبلاغ‌های مختص به راننده لاگین شده
     public function index()
     {
-        $driver = auth()->user(); // راننده احراز هویت شده با Sanctum
+        $driver = auth()->user();
 
-        $permits = DozbalaghItem::where('driver_id', $driver->id)
-            ->with(['permitRequest.company', 'country'])
-            ->orderBy('created_at', 'desc')
+        $permits = PermitRequest::where(function ($query) use ($driver) {
+                $query->where('driver_id', $driver->id);
+
+                if (!empty($driver->fleet_id)) {
+                    $query->orWhere('fleet_id', $driver->fleet_id);
+                }
+            })
+            ->with(['company', 'country', 'fleet'])
+            ->orderByDesc('id')
             ->get()
-            ->map(function ($item) {
-                // تبدیل خروجی برای نمایش بهینه‌تر و خوانا در اپلیکیشن راننده
-                return [
-                    'id' => $item->id,
-                    'serial_number' => $this->toPersianNumbers($item->serial_number),
-                    'status_key' => $item->status,
-                    'status_label' => $this->translateStatus($item->status),
-                    'issue_date' => $this->toPersianNumbers($item->created_at->format('Y/m/d')),
-                    'company_name' => $item->permitRequest->company->name ?? 'نامشخص',
-                    'country_name' => $item->country->name ?? 'نامشخص',
-                ];
-            });
+            ->map(fn ($permit) => $this->formatPermit($permit));
 
         return response()->json([
             'status' => 'success',
-            'data' => $permits
+            'data' => $permits,
         ]);
     }
 
-    // ۲. دریافت جزئیات دقیق و لایه‌های اداری یک دوزبلاغ خاص
     public function show($id)
     {
         $driver = auth()->user();
 
-        $permit = DozbalaghItem::where('driver_id', $driver->id)
-            ->with(['permitRequest.company', 'country', 'events'])
+        $permit = PermitRequest::where(function ($query) use ($driver) {
+                $query->where('driver_id', $driver->id);
+
+                if (!empty($driver->fleet_id)) {
+                    $query->orWhere('fleet_id', $driver->fleet_id);
+                }
+            })
+            ->with(['company', 'country', 'fleet'])
             ->find($id);
 
         if (!$permit) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'پروانه مورد نظر یافت نشد یا دسترسی به آن محدود شده است.'
+                'message' => 'پروانه مورد نظر یافت نشد یا دسترسی به آن محدود شده است.',
             ], 404);
         }
 
-        // تبدیل داده‌های دوزبلاغ برای صفحه جزئیات راننده
-        $formattedPermit = [
-            'id' => $permit->id,
-            'serial_number' => $this->toPersianNumbers($permit->serial_number),
-            'status_key' => $permit->status,
-            'status_label' => $this->translateStatus($permit->status),
-            'issue_date' => $this->toPersianNumbers($permit->created_at->format('Y/m/d')),
-            'company_name' => $permit->permitRequest->company->name ?? 'نامشخص',
-            'country_name' => $permit->country->name ?? 'نامشخص',
-            'events' => $permit->events->map(function ($event) {
-                return [
-                    'id' => $event->id,
-                    'event_type' => $event->event_type,
-                    'status_label' => $this->translateStatus($event->event_type),
-                    'latitude' => $event->latitude,
-                    'longitude' => $event->longitude,
-                    'created_at' => $this->toPersianNumbers($event->created_at->format('Y/m/d H:i')),
-                ];
-            })
-        ];
+        $formattedPermit = $this->formatPermit($permit);
+        $formattedPermit['events'] = $this->eventsForPermit($permit);
 
         return response()->json([
             'status' => 'success',
-            'data' => $formattedPermit
+            'data' => $formattedPermit,
         ]);
     }
 
-    // ==========================================
-    // متدهای کمکی برای شکیل‌سازی خروجی راننده
-    // ==========================================
-
-    private function toPersianNumbers($string)
+    private function formatPermit(PermitRequest $permit): array
     {
-        if (!$string) return '';
-        $farsiDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-        $latinDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-        return str_replace($latinDigits, $farsiDigits, $string);
+        $issuedAt = $permit->issued_at ?? $permit->created_at;
+        $serial = $permit->serial_number ?: $permit->d_code;
+
+        $companyName = $permit->company?->name_fa ?: $permit->company?->name;
+        $countryName = $permit->country?->name ?: $permit->destination;
+
+        return [
+            'id' => $permit->id,
+            'serial_number' => $this->toPersianNumbers($serial),
+            'd_code' => $this->toPersianNumbers($permit->d_code),
+            'status_key' => $this->normalizeStatusKey($permit->status),
+            'status_label' => $this->translateStatus($permit->status),
+            'issue_date' => $issuedAt ? $this->toPersianNumbers($issuedAt->format('Y/m/d')) : '---',
+            'valid_until' => $permit->permit_valid_until ? $this->toPersianNumbers($permit->permit_valid_until->format('Y/m/d')) : null,
+            'company_name' => $companyName ?: 'نامشخص',
+            'country_name' => $countryName ?: 'نامشخص',
+            'fleet_plate' => $permit->fleet?->transit_plate,
+            'truck_type' => $permit->fleet?->truck_type,
+        ];
     }
 
-    private function translateStatus($status)
+    private function eventsForPermit(PermitRequest $permit): array
+    {
+        $item = $this->matchingDozbalaghItem($permit);
+
+        if (!$item) {
+            return [];
+        }
+
+        return $item->events()
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn ($event) => [
+                'id' => $event->id,
+                'event_type' => $event->event_type,
+                'status_label' => $this->translateStatus($event->event_type),
+                'latitude' => $event->latitude,
+                'longitude' => $event->longitude,
+                'created_at' => $this->toPersianNumbers($event->created_at->format('Y/m/d H:i')),
+            ])
+            ->all();
+    }
+
+    private function matchingDozbalaghItem(PermitRequest $permit)
+    {
+        if (!$permit->serial_number) {
+            return null;
+        }
+
+        return \App\Models\DozbalaghItem::where('serial_number', $permit->serial_number)
+            ->where(function ($query) use ($permit) {
+                $query->where('driver_id', $permit->driver_id)
+                    ->orWhere('fleet_id', $permit->fleet_id)
+                    ->orWhereNull('driver_id');
+            })
+            ->first();
+    }
+
+    private function toPersianNumbers($string): string
+    {
+        if ($string === null || $string === '') {
+            return '';
+        }
+
+        return str_replace(
+            ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+            ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'],
+            (string) $string
+        );
+    }
+
+    private function normalizeStatusKey($status): string
     {
         return match ($status) {
-            'issued', 'started_trip' => 'صادر شده / در مسیر',
+            'صادر شده' => 'issued',
+            'برگشتی', 'returned', 'collected', 'archived' => 'used',
+            default => (string) $status,
+        };
+    }
+
+    private function translateStatus($status): string
+    {
+        return match ($status) {
+            'pending' => 'در انتظار بررسی',
+            'approved' => 'تایید شده',
+            'issued', 'صادر شده', 'started_trip' => 'صادر شده / در مسیر',
+            'in_transit' => 'در حال ترانزیت',
+            'at_border_out' => 'در مرز خروجی',
+            'at_destination' => 'تحویل گمرک مقصد',
+            'returned', 'collected' => 'عودت شده',
+            'archived' => 'بایگانی شده',
+            'lost' => 'مفقودی',
             'used' => 'استفاده شده',
             'expired' => 'منقضی شده',
-            'at_border_out' => 'در مرز خروجی',
-            'in_transit' => 'در حال ترانزیت',
-            'at_destination' => 'تحویل گمرک مقصد',
-            default => 'وضعیت نامشخص',
+            'rejected' => 'رد شده',
+            default => $status ?: 'وضعیت نامشخص',
         };
     }
 }

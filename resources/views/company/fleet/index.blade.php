@@ -50,6 +50,8 @@
                         <tr class="hover:bg-slate-50 transition fleet-row">
                             
                             <td class="p-4 text-center search-target" dir="ltr">
+                                <x-iran-plate :plate="$f->transit_plate" size="sm" />
+                                @if(false)
                                 @php
                                     $plateParts = explode('-', $f->transit_plate);
                                     $p1 = $plateParts[0] ?? '';
@@ -83,6 +85,7 @@
                                     <span class="hidden">{{ $f->transit_plate }}</span>
                                 @else
                                     <span class="font-mono text-slate-900 font-bold bg-[#ffb800] px-3 py-1 rounded-lg border border-slate-400">{{ $f->transit_plate }}</span>
+                                @endif
                                 @endif
                             </td>
 
