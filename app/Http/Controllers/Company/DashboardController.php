@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Company;
 
 use App\Http\Controllers\Controller;
+use App\Models\AssociationCompanyMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -79,6 +80,15 @@ class DashboardController extends Controller
                 : '---';
         }
 
+        $pendingAssociationMessages = AssociationCompanyMessage::query()
+            ->visibleForCompany($companyId)
+            ->where('is_mandatory', true)
+            ->whereDoesntHave('receipts', function ($query) use ($companyId) {
+                $query->where('company_id', $companyId)->whereNotNull('acknowledged_at');
+            })
+            ->latest()
+            ->get();
+
         return view('company.dashboard', compact(
             'company', 
             'user', 
@@ -88,7 +98,8 @@ class DashboardController extends Controller
             'fleetsCount', 
             'permitStats', 
             'successRate',
-            'recentRequests'
+            'recentRequests',
+            'pendingAssociationMessages'
         ));
     }
 }

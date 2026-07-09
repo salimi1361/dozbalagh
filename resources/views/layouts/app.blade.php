@@ -36,6 +36,7 @@
             
             <a href="{{ route('web.company.driver.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('web.company.driver.index') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">👤 رانندگان</a>
             <a href="{{ route('company.driver_messages.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('company.driver_messages.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">💬 پیام رانندگان</a>
+            <a href="{{ route('company.association_crm.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('company.association_crm.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">پیام‌ها و پشتیبانی انجمن</a>
             <a href="{{ route('web.company.fleet.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->is('*fleet*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">🚛 ناوگان</a>
             <a href="{{ route('report.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->is('*report*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📊 گزارشات</a>
             

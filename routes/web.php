@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\{
     FleetController,
     FinancialController
 };
+use App\Http\Controllers\Admin\AssociationCrmController;
 use App\Http\Controllers\Association\AssociationController;
 // ==========================================
 // روت اصلی
@@ -156,6 +157,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::post('/financial/manual-adjustment', [FinancialController::class, 'manualAdjustment'])->name('financial.manualAdjustment');
     Route::get('/financial/export-excel', [FinancialController::class, 'exportExcel'])->name('financial.exportExcel');
     Route::delete('/financial/manual-adjustment/{id}', [FinancialController::class, 'destroyAdjustment'])->name('financial.destroyAdjustment');
+
+    Route::get('/association-crm', [AssociationCrmController::class, 'index'])->name('association_crm.index');
+    Route::post('/association-crm/messages', [AssociationCrmController::class, 'storeMessage'])->name('association_crm.messages.store');
+    Route::put('/association-crm/messages/{message}/toggle', [AssociationCrmController::class, 'toggleMessage'])->name('association_crm.messages.toggle');
+    Route::put('/association-crm/tickets/{ticket}', [AssociationCrmController::class, 'updateTicket'])->name('association_crm.tickets.update');
     
 });
 

@@ -1,0 +1,183 @@
+@extends('layouts.admin')
+
+@section('header_title', 'CRM انجمن')
+
+@section('content')
+@php
+    $categoryLabels = [
+        'general' => 'عمومی',
+        'financial' => 'مالی',
+        'documents' => 'مدارک',
+        'membership' => 'عضویت',
+        'legal' => 'رسمی',
+        'urgent' => 'فوری',
+        'technical' => 'فنی',
+        'other' => 'سایر',
+    ];
+    $priorityLabels = ['normal' => 'عادی', 'important' => 'مهم', 'urgent' => 'فوری'];
+    $statusLabels = ['open' => 'باز', 'in_progress' => 'در حال بررسی', 'answered' => 'پاسخ داده شده', 'closed' => 'بسته شده'];
+@endphp
+
+<div class="space-y-5" dir="rtl">
+    @if(session('success'))
+        <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{{ session('success') }}</div>
+    @endif
+
+    @if($errors->any())
+        <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{{ $errors->first() }}</div>
+    @endif
+
+    <section class="grid gap-4 md:grid-cols-4">
+        <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+            <p class="text-xs font-black text-slate-500">پیام فعال</p>
+            <b class="mt-2 block font-mono text-3xl font-black text-slate-900">{{ number_format($stats['active_messages']) }}</b>
+        </div>
+        <div class="rounded-lg border border-amber-200 bg-white p-4 shadow-sm">
+            <p class="text-xs font-black text-slate-500">پیام اجباری</p>
+            <b class="mt-2 block font-mono text-3xl font-black text-amber-600">{{ number_format($stats['mandatory_messages']) }}</b>
+        </div>
+        <div class="rounded-lg border border-rose-200 bg-white p-4 shadow-sm">
+            <p class="text-xs font-black text-slate-500">تیکت باز</p>
+            <b class="mt-2 block font-mono text-3xl font-black text-rose-600">{{ number_format($stats['open_tickets']) }}</b>
+        </div>
+        <div class="rounded-lg border border-emerald-200 bg-white p-4 shadow-sm">
+            <p class="text-xs font-black text-slate-500">رسید خواندن</p>
+            <b class="mt-2 block font-mono text-3xl font-black text-emerald-600">{{ number_format($stats['acknowledged_receipts']) }}</b>
+        </div>
+    </section>
+
+    <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 class="mb-4 text-lg font-black text-slate-900">ثبت پیام برای شرکت‌ها</h2>
+        <form action="{{ route('admin.association_crm.messages.store') }}" method="POST" class="grid gap-4 lg:grid-cols-4">
+            @csrf
+            <div>
+                <label class="mb-1 block text-xs font-black text-slate-600">مخاطب</label>
+                <select name="audience" id="audience" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" onchange="document.getElementById('companySelectWrap').classList.toggle('hidden', this.value === 'all')">
+                    <option value="selected">شرکت مشخص</option>
+                    <option value="all">همه شرکت‌ها</option>
+                </select>
+            </div>
+            <div id="companySelectWrap">
+                <label class="mb-1 block text-xs font-black text-slate-600">شرکت</label>
+                <select name="company_id" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    <option value="">انتخاب کنید</option>
+                    @foreach($companies as $company)
+                        <option value="{{ $company->id }}">{{ $company->name_fa ?? $company->name }} - {{ $company->company_code }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-black text-slate-600">دسته‌بندی</label>
+                <select name="category" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    @foreach(['general', 'financial', 'documents', 'membership', 'legal', 'urgent'] as $category)
+                        <option value="{{ $category }}">{{ $categoryLabels[$category] }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="mb-1 block text-xs font-black text-slate-600">اولویت</label>
+                <select name="priority" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                    @foreach($priorityLabels as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="lg:col-span-2">
+                <label class="mb-1 block text-xs font-black text-slate-600">عنوان</label>
+                <input name="title" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" maxlength="180" required>
+            </div>
+            <div class="flex items-end gap-4">
+                <label class="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
+                    <input type="checkbox" name="is_mandatory" value="1" checked class="rounded border-slate-300">
+                    نیازمند تایید خواندن
+                </label>
+                <label class="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
+                    <input type="checkbox" name="is_active" value="1" checked class="rounded border-slate-300">
+                    فعال
+                </label>
+            </div>
+            <div class="lg:col-span-4">
+                <label class="mb-1 block text-xs font-black text-slate-600">متن پیام</label>
+                <textarea name="body" rows="4" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" required></textarea>
+            </div>
+            <div class="lg:col-span-4">
+                <button class="rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-black text-white hover:bg-sky-700">انتشار پیام</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="grid gap-5 xl:grid-cols-2">
+        <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 class="mb-4 text-lg font-black text-slate-900">پیام‌های اخیر</h2>
+            <div class="space-y-3">
+                @forelse($messages as $message)
+                    <div class="rounded-lg border border-slate-200 p-4">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h3 class="font-black text-slate-900">{{ $message->title }}</h3>
+                                <p class="mt-1 text-xs font-bold text-slate-500">
+                                    {{ $message->audience === 'all' ? 'همه شرکت‌ها' : ($message->company->name_fa ?? $message->company->name ?? 'شرکت') }}
+                                    · {{ $categoryLabels[$message->category] ?? $message->category }}
+                                    · {{ $priorityLabels[$message->priority] ?? $message->priority }}
+                                </p>
+                            </div>
+                            <form action="{{ route('admin.association_crm.messages.toggle', $message) }}" method="POST">
+                                @csrf
+                                @method('PUT')
+                                <button class="rounded-lg px-3 py-1.5 text-xs font-black {{ $message->is_active ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700' }}">
+                                    {{ $message->is_active ? 'غیرفعال' : 'فعال' }}
+                                </button>
+                            </form>
+                        </div>
+                        <p class="mt-3 line-clamp-2 text-sm leading-7 text-slate-600">{{ $message->body }}</p>
+                        <div class="mt-3 flex flex-wrap gap-2 text-[11px] font-black text-slate-600">
+                            <span class="rounded-lg bg-slate-100 px-2 py-1">دیده شده: {{ number_format($message->receipts_count) }}</span>
+                            <span class="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700">تایید شده: {{ number_format($message->acknowledged_count) }}</span>
+                            <span class="rounded-lg bg-amber-50 px-2 py-1 text-amber-700">تیکت مرتبط: {{ number_format($message->tickets_count) }}</span>
+                        </div>
+                    </div>
+                @empty
+                    <p class="rounded-lg bg-slate-50 p-4 text-sm font-bold text-slate-500">هنوز پیامی ثبت نشده است.</p>
+                @endforelse
+            </div>
+            <div class="mt-4">{{ $messages->links() }}</div>
+        </div>
+
+        <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 class="mb-4 text-lg font-black text-slate-900">تیکت‌های شرکت‌ها</h2>
+            <div class="space-y-3">
+                @forelse($tickets as $ticket)
+                    <form action="{{ route('admin.association_crm.tickets.update', $ticket) }}" method="POST" class="rounded-lg border border-slate-200 p-4">
+                        @csrf
+                        @method('PUT')
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <h3 class="font-black text-slate-900">{{ $ticket->title }}</h3>
+                                <p class="mt-1 text-xs font-bold text-slate-500">
+                                    {{ $ticket->company->name_fa ?? $ticket->company->name }}
+                                    · {{ $categoryLabels[$ticket->category] ?? $ticket->category }}
+                                    · {{ $priorityLabels[$ticket->priority] ?? $ticket->priority }}
+                                </p>
+                            </div>
+                            <select name="status" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">
+                                @foreach($statusLabels as $value => $label)
+                                    <option value="{{ $value }}" @selected($ticket->status === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        @if($ticket->message)
+                            <p class="mt-2 text-xs font-bold text-sky-700">مرتبط با پیام: {{ $ticket->message->title }}</p>
+                        @endif
+                        <p class="mt-3 text-sm leading-7 text-slate-600">{{ $ticket->description }}</p>
+                        <textarea name="admin_response" rows="2" class="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="پاسخ یا یادداشت پیگیری">{{ $ticket->admin_response }}</textarea>
+                        <button class="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-xs font-black text-white">ثبت پیگیری</button>
+                    </form>
+                @empty
+                    <p class="rounded-lg bg-slate-50 p-4 text-sm font-bold text-slate-500">هنوز تیکتی ثبت نشده است.</p>
+                @endforelse
+            </div>
+            <div class="mt-4">{{ $tickets->links() }}</div>
+        </div>
+    </section>
+</div>
+@endsection

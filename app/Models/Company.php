@@ -53,4 +53,14 @@ class Company extends Model
     {
         return $this->hasMany(Fleet::class);
     }
+
+    public function associationMessages(): HasMany
+    {
+        return $this->hasMany(AssociationCompanyMessage::class);
+    }
+
+    public function associationTickets(): HasMany
+    {
+        return $this->hasMany(AssociationSupportTicket::class);
+    }
 }
