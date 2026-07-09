@@ -897,13 +897,18 @@ public function store(Request $request)
 
         DB::beginTransaction();
         try {
-            $permitRequest->update([
+            $updateData = [
                 'status' => 'lost',
                 'lost_reported_at' => now(),
                 'lost_reason' => $request->lost_reason,
-                'closed_at' => now(),
                 'company_note' => 'مفقودی لاشه توسط شرکت ثبت شد.',
-            ]);
+            ];
+
+            if (Schema::hasColumn('permit_requests', 'closed_at')) {
+                $updateData['closed_at'] = now();
+            }
+
+            $permitRequest->update($updateData);
 
             if ($permitRequest->driver_id && Schema::hasColumn('drivers', 'is_blocked')) {
                 DB::table('drivers')

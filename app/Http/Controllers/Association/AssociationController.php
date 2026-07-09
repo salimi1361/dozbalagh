@@ -237,7 +237,9 @@ class AssociationController
                     $updateData['collected_image'] = 'permits/collected/' . $fileName;
                 }
 
-                $updateData['closed_at'] = $now;
+                if (Schema::hasColumn('permit_requests', 'closed_at')) {
+                    $updateData['closed_at'] = $now;
+                }
 
                 if (isset($permit->driver_id) && Schema::hasColumn('drivers', 'is_blocked')) {
                     DB::table('drivers')->where('id', $permit->driver_id)->orWhere('national_code', $permit->driver_id)->update(['is_blocked' => false]);
