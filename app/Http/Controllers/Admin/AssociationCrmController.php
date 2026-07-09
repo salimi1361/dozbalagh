@@ -19,7 +19,11 @@ class AssociationCrmController extends Controller
             ->get(['id', 'name', 'name_fa', 'company_code']);
 
         $messages = AssociationCompanyMessage::query()
-            ->with(['company:id,name,name_fa,company_code'])
+            ->with([
+                'company:id,name,name_fa,company_code',
+                'receipts.company:id,name,name_fa,company_code',
+                'receipts.user:id,username,mobile',
+            ])
             ->withCount([
                 'receipts',
                 'receipts as acknowledged_count' => fn ($query) => $query->whereNotNull('acknowledged_at'),
@@ -27,6 +31,35 @@ class AssociationCrmController extends Controller
             ])
             ->latest()
             ->paginate(12, ['*'], 'messages_page');
+
+        $messageReceiptDetails = $messages->getCollection()
+            ->mapWithKeys(function (AssociationCompanyMessage $message) use ($companies) {
+                $targetCompanies = $message->audience === 'all'
+                    ? $companies
+                    : $companies->where('id', $message->company_id)->values();
+
+                $receiptsByCompany = $message->receipts->keyBy('company_id');
+
+                $rows = $targetCompanies->map(function (Company $company) use ($receiptsByCompany) {
+                    $receipt = $receiptsByCompany->get($company->id);
+
+                    return [
+                        'company_name' => $company->name_fa ?? $company->name,
+                        'company_code' => $company->company_code,
+                        'seen_at' => optional($receipt?->seen_at)->format('Y/m/d H:i'),
+                        'acknowledged_at' => optional($receipt?->acknowledged_at)->format('Y/m/d H:i'),
+                        'user' => $receipt?->user?->username,
+                        'note' => $receipt?->acknowledgement_note,
+                    ];
+                })->values();
+
+                return [$message->id => [
+                    'total' => $targetCompanies->count(),
+                    'seen' => $rows->whereNotNull('seen_at')->count(),
+                    'acknowledged' => $rows->whereNotNull('acknowledged_at')->count(),
+                    'rows' => $rows,
+                ]];
+            });
 
         $tickets = AssociationSupportTicket::query()
             ->with(['company:id,name,name_fa,company_code', 'message:id,title'])
@@ -40,7 +73,7 @@ class AssociationCrmController extends Controller
             'acknowledged_receipts' => \App\Models\AssociationMessageReceipt::whereNotNull('acknowledged_at')->count(),
         ];
 
-        return view('admin.association_crm.index', compact('companies', 'messages', 'tickets', 'stats'));
+        return view('admin.association_crm.index', compact('companies', 'messages', 'tickets', 'stats', 'messageReceiptDetails'));
     }
 
     public function storeMessage(Request $request)

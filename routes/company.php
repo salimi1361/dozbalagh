@@ -18,16 +18,16 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/web/company/profile', [ProfileController::class, 'update'])->name('company.profile.update');
     Route::put('/web/company/password', [ProfileController::class, 'updatePassword'])->name('company.password.update');
 
-    Route::get('/dozbalagh', [DozbalaghController::class, 'index'])->name('dozbalagh.index');
-    Route::get('/dozbalagh/create', [DozbalaghController::class, 'create'])->name('dozbalagh.create');
-    Route::get('/dozbalagh/renewable-list', [DozbalaghController::class, 'renewableList'])->name('dozbalagh.renewable_list');
-    Route::post('/dozbalagh/store', [DozbalaghController::class, 'store'])->name('dozbalagh.store');
-    Route::get('/dozbalagh/{id}/edit', [DozbalaghController::class, 'edit'])->name('dozbalagh.edit');
-    Route::put('/dozbalagh/{id}/update', [DozbalaghController::class, 'update'])->name('dozbalagh.update');
-    Route::post('/dozbalagh/check-fleet', [DozbalaghController::class, 'checkFleetStatus'])->name('dozbalagh.check_fleet');
-
     Route::middleware([\App\Http\Middleware\CheckCompanyApproval::class])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('/dozbalagh', [DozbalaghController::class, 'index'])->name('dozbalagh.index');
+        Route::get('/dozbalagh/create', [DozbalaghController::class, 'create'])->name('dozbalagh.create');
+        Route::get('/dozbalagh/renewable-list', [DozbalaghController::class, 'renewableList'])->name('dozbalagh.renewable_list');
+        Route::post('/dozbalagh/store', [DozbalaghController::class, 'store'])->name('dozbalagh.store');
+        Route::get('/dozbalagh/{id}/edit', [DozbalaghController::class, 'edit'])->name('dozbalagh.edit');
+        Route::put('/dozbalagh/{id}/update', [DozbalaghController::class, 'update'])->name('dozbalagh.update');
+        Route::post('/dozbalagh/check-fleet', [DozbalaghController::class, 'checkFleetStatus'])->name('dozbalagh.check_fleet');
 
         Route::get('/web/company/driver/index', [CompanyDriverController::class, 'index'])->name('web.company.driver.index');
         Route::post('/web/company/driver/inquire', [CompanyDriverController::class, 'inquireApi'])->name('web.company.driver.inquire');
@@ -42,6 +42,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/web/company/driver-messages/{driverId}', [DriverMessageController::class, 'thread'])->whereNumber('driverId')->name('company.driver_messages.thread');
 
         Route::get('/web/company/association-crm', [AssociationCrmController::class, 'index'])->name('company.association_crm.index');
+        Route::get('/web/company/tickets', [AssociationCrmController::class, 'tickets'])->name('company.association_crm.tickets.index');
         Route::post('/web/company/association-crm/messages/{message}/acknowledge', [AssociationCrmController::class, 'acknowledge'])->name('company.association_crm.messages.acknowledge');
         Route::post('/web/company/association-crm/tickets', [AssociationCrmController::class, 'storeTicket'])->name('company.association_crm.tickets.store');
 

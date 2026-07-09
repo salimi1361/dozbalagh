@@ -13,6 +13,16 @@ class AssociationCrmController extends Controller
 {
     public function index()
     {
+        return $this->show();
+    }
+
+    public function tickets()
+    {
+        return $this->show('tickets');
+    }
+
+    private function show(string $activeTab = 'messages')
+    {
         $companyId = $this->companyId();
 
         $messages = AssociationCompanyMessage::query()
@@ -31,7 +41,7 @@ class AssociationCrmController extends Controller
             ->latest()
             ->paginate(10, ['*'], 'tickets_page');
 
-        return view('company.association_crm.index', compact('messages', 'tickets'));
+        return view('company.association_crm.index', compact('messages', 'tickets', 'activeTab'));
     }
 
     public function acknowledge(Request $request, AssociationCompanyMessage $message)

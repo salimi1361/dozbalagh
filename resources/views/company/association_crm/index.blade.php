@@ -19,6 +19,10 @@
 @endphp
 
 <div class="space-y-5" dir="rtl">
+    @if(session('warning'))
+        <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800">{{ session('warning') }}</div>
+    @endif
+
     @if(session('success'))
         <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{{ session('success') }}</div>
     @endif
@@ -27,7 +31,12 @@
         <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{{ $errors->first() }}</div>
     @endif
 
-    <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <div class="flex flex-wrap gap-2">
+        <a href="{{ route('company.association_crm.index') }}" class="rounded-lg px-4 py-2 text-sm font-black {{ ($activeTab ?? 'messages') === 'messages' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700 border border-slate-200' }}">پیام‌های انجمن</a>
+        <a href="{{ route('company.association_crm.tickets.index') }}" class="rounded-lg px-4 py-2 text-sm font-black {{ ($activeTab ?? 'messages') === 'tickets' ? 'bg-emerald-600 text-white' : 'bg-white text-slate-700 border border-slate-200' }}">تیکت انجمن</a>
+    </div>
+
+    <section id="tickets" class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2 class="mb-4 text-lg font-black text-slate-900">ثبت تیکت جدید</h2>
         <form action="{{ route('company.association_crm.tickets.store') }}" method="POST" class="grid gap-4 lg:grid-cols-4">
             @csrf

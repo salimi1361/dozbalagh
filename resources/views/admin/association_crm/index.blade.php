@@ -52,14 +52,14 @@
             @csrf
             <div>
                 <label class="mb-1 block text-xs font-black text-slate-600">مخاطب</label>
-                <select name="audience" id="audience" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" onchange="document.getElementById('companySelectWrap').classList.toggle('hidden', this.value === 'all')">
+                <select name="audience" id="audience" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" onchange="toggleCompanySelect()">
                     <option value="selected">شرکت مشخص</option>
                     <option value="all">همه شرکت‌ها</option>
                 </select>
             </div>
             <div id="companySelectWrap">
                 <label class="mb-1 block text-xs font-black text-slate-600">شرکت</label>
-                <select name="company_id" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                <select name="company_id" id="company_id" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" required>
                     <option value="">انتخاب کنید</option>
                     @foreach($companies as $company)
                         <option value="{{ $company->id }}">{{ $company->name_fa ?? $company->name }} - {{ $company->company_code }}</option>
@@ -134,6 +134,7 @@
                             <span class="rounded-lg bg-slate-100 px-2 py-1">دیده شده: {{ number_format($message->receipts_count) }}</span>
                             <span class="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-700">تایید شده: {{ number_format($message->acknowledged_count) }}</span>
                             <span class="rounded-lg bg-amber-50 px-2 py-1 text-amber-700">تیکت مرتبط: {{ number_format($message->tickets_count) }}</span>
+                            <button type="button" onclick="openReceiptModal('receipts-{{ $message->id }}')" class="rounded-lg bg-sky-50 px-2 py-1 text-sky-700">مشاهده شرکت‌ها</button>
                         </div>
                     </div>
                 @empty
@@ -179,5 +180,86 @@
             <div class="mt-4">{{ $tickets->links() }}</div>
         </div>
     </section>
+    @foreach($messages as $message)
+        @php $detail = $messageReceiptDetails[$message->id] ?? ['total' => 0, 'seen' => 0, 'acknowledged' => 0, 'rows' => collect()]; @endphp
+        <div id="receipts-{{ $message->id }}" class="fixed inset-0 z-[80] hidden bg-slate-900/60 p-4 backdrop-blur-sm">
+            <div class="mx-auto mt-8 max-h-[85vh] max-w-5xl overflow-hidden rounded-lg bg-white shadow-2xl">
+                <div class="flex items-center justify-between border-b border-slate-200 p-4">
+                    <div>
+                        <h3 class="font-black text-slate-900">وضعیت مشاهده پیام: {{ $message->title }}</h3>
+                        <p class="mt-1 text-xs font-bold text-slate-500">
+                            کل هدف: {{ number_format($detail['total']) }}
+                            · دیده شده: {{ number_format($detail['seen']) }}
+                            · تایید شده: {{ number_format($detail['acknowledged']) }}
+                        </p>
+                    </div>
+                    <button type="button" onclick="closeReceiptModal('receipts-{{ $message->id }}')" class="rounded-lg bg-slate-100 px-3 py-2 text-sm font-black text-slate-700">بستن</button>
+                </div>
+                <div class="max-h-[68vh] overflow-auto p-4">
+                    <table class="min-w-full text-right text-sm">
+                        <thead class="bg-slate-50 text-xs font-black text-slate-500">
+                            <tr>
+                                <th class="px-3 py-2">شرکت</th>
+                                <th class="px-3 py-2">کد</th>
+                                <th class="px-3 py-2">مشاهده</th>
+                                <th class="px-3 py-2">تایید</th>
+                                <th class="px-3 py-2">کاربر</th>
+                                <th class="px-3 py-2">یادداشت</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach($detail['rows'] as $row)
+                                <tr>
+                                    <td class="px-3 py-2 font-bold text-slate-800">{{ $row['company_name'] }}</td>
+                                    <td class="px-3 py-2 font-mono text-slate-500">{{ $row['company_code'] ?? '---' }}</td>
+                                    <td class="px-3 py-2">
+                                        @if($row['seen_at'])
+                                            <span class="rounded-lg bg-sky-50 px-2 py-1 text-xs font-black text-sky-700">{{ $row['seen_at'] }}</span>
+                                        @else
+                                            <span class="rounded-lg bg-slate-100 px-2 py-1 text-xs font-black text-slate-500">ندیده</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        @if($row['acknowledged_at'])
+                                            <span class="rounded-lg bg-emerald-50 px-2 py-1 text-xs font-black text-emerald-700">{{ $row['acknowledged_at'] }}</span>
+                                        @else
+                                            <span class="rounded-lg bg-amber-50 px-2 py-1 text-xs font-black text-amber-700">تایید نشده</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-2 text-slate-600">{{ $row['user'] ?? '---' }}</td>
+                                    <td class="px-3 py-2 text-slate-600">{{ $row['note'] ?? '---' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endforeach
 </div>
+
+<script>
+    function toggleCompanySelect() {
+        const audience = document.getElementById('audience');
+        const wrap = document.getElementById('companySelectWrap');
+        const company = document.getElementById('company_id');
+        const selected = audience.value === 'selected';
+
+        wrap.classList.toggle('hidden', !selected);
+        company.required = selected;
+        if (!selected) {
+            company.value = '';
+        }
+    }
+
+    function openReceiptModal(id) {
+        document.getElementById(id).classList.remove('hidden');
+    }
+
+    function closeReceiptModal(id) {
+        document.getElementById(id).classList.add('hidden');
+    }
+
+    toggleCompanySelect();
+</script>
 @endsection
