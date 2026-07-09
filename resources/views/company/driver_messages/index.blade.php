@@ -32,12 +32,12 @@
             <div class="p-4 border-b border-slate-100 bg-slate-50">
                 <div class="flex items-center justify-between gap-3 mb-3">
                     <h2 class="text-sm font-black text-slate-800">سوابق و مخاطبین</h2>
-                    <button type="button" onclick="selectAllDrivers()" class="text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg">انتخاب همه</button>
+                    <button type="button" id="btn_select_all_drivers" class="text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg">انتخاب همه</button>
                 </div>
                 <div class="grid grid-cols-3 gap-1 mb-3">
-                    <button type="button" id="mode_chats" onclick="setListMode('chats')" class="list-mode-btn bg-slate-100 text-slate-600 rounded-lg py-2 text-[10px] font-black">سوابق گفتگو</button>
-                    <button type="button" id="mode_unread" onclick="setListMode('unread')" class="list-mode-btn bg-slate-100 text-slate-600 rounded-lg py-2 text-[10px] font-black">خوانده‌نشده</button>
-                    <button type="button" id="mode_all" onclick="setListMode('all')" class="list-mode-btn bg-blue-600 text-white rounded-lg py-2 text-[10px] font-black">همه</button>
+                    <button type="button" id="mode_chats" data-mode="chats" class="list-mode-btn bg-slate-100 text-slate-600 rounded-lg py-2 text-[10px] font-black">سوابق گفتگو</button>
+                    <button type="button" id="mode_unread" data-mode="unread" class="list-mode-btn bg-slate-100 text-slate-600 rounded-lg py-2 text-[10px] font-black">خوانده‌نشده</button>
+                    <button type="button" id="mode_all" data-mode="all" class="list-mode-btn bg-blue-600 text-white rounded-lg py-2 text-[10px] font-black">همه</button>
                 </div>
                 <input id="driver_search" type="text" placeholder="جستجو نام، موبایل یا کد ملی..."
                        class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-blue-500">
@@ -47,8 +47,8 @@
                 @forelse($driverPayload as $driver)
                     <div class="driver-item bg-white p-4 hover:bg-slate-50 transition">
                         <div class="flex items-start gap-3">
-                            <input type="checkbox" class="mt-1 w-4 h-4" disabled>
-                            <div class="flex-1 text-right">
+                            <input type="checkbox" class="driver-check mt-1 w-4 h-4" data-driver-id="{{ $driver['id'] }}">
+                            <button type="button" class="driver-open flex-1 text-right" data-driver-id="{{ $driver['id'] }}">
                                 <div class="flex items-center justify-between gap-2">
                                     <b class="text-sm text-slate-800">{{ $driver['name'] }}</b>
                                     @if($driver['unread_count'] > 0)
@@ -57,7 +57,7 @@
                                 </div>
                                 <div class="text-[11px] text-slate-500 mt-1">{{ $driver['mobile'] ?: 'بدون موبایل' }} · {{ $driver['national_code'] }}</div>
                                 <div class="text-[10px] text-slate-400 mt-1">{{ $driver['last_message_at'] ? 'آخرین گفتگو: '.$driver['last_message_at'] : 'بدون سابقه گفتگو' }}</div>
-                            </div>
+                            </button>
                         </div>
                     </div>
                 @empty
@@ -74,9 +74,9 @@
 
             <div class="p-5 space-y-4">
                 <div class="grid grid-cols-2 gap-3">
-                    <button type="button" onclick="setScope('selected')" id="scope_selected"
+                    <button type="button" id="scope_selected" data-scope="selected"
                             class="scope-btn bg-blue-600 text-white rounded-xl px-4 py-3 text-xs font-black">انتخابی</button>
-                    <button type="button" onclick="setScope('all')" id="scope_all"
+                    <button type="button" id="scope_all" data-scope="all"
                             class="scope-btn bg-slate-100 text-slate-700 rounded-xl px-4 py-3 text-xs font-black">همه رانندگان</button>
                 </div>
 
@@ -119,7 +119,7 @@
                     نیازمند تایید مشاهده توسط راننده
                 </label>
 
-                <button type="button" onclick="sendMessage()" id="send_btn"
+                <button type="button" id="send_btn"
                         class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-5 py-3 text-sm font-black transition">
                     ارسال پیام
                 </button>
@@ -144,183 +144,192 @@
 @section('scripts')
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 <script>
-    let drivers = {{ Illuminate\Support\Js::from($driverPayload) }};
-    let selectedDriverIds = [];
-    let currentScope = 'selected';
-    let activeThreadDriverId = null;
-    let currentListMode = 'all';
-    let threadRefreshInFlight = false;
+    var drivers = @json($driverPayload);
+    var selectedDriverIds = [];
+    var currentScope = 'selected';
+    var activeThreadDriverId = null;
+    var currentListMode = 'all';
+    var threadRefreshInFlight = false;
 
-    function escapeText(value) {
-        return String(value ?? '').replace(/[&<>'"]/g, ch => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-        }[ch]));
+    function toSafeText(value) {
+        return String(value == null ? '' : value).replace(/[&<>'"]/g, function(ch) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch];
+        });
+    }
+
+    function toFaNumber(value) {
+        try { return Number(value || 0).toLocaleString('fa-IR'); }
+        catch (e) { return String(value || 0); }
+    }
+
+    function driverExists(driverId) {
+        for (var i = 0; i < drivers.length; i++) {
+            if (Number(drivers[i].id) === Number(driverId)) return true;
+        }
+        return false;
+    }
+
+    function isSelected(driverId) {
+        return selectedDriverIds.indexOf(Number(driverId)) !== -1;
     }
 
     function renderDrivers() {
-        const query = $('#driver_search').val().trim().toLowerCase();
-        const filtered = drivers.filter(driver => {
-            if (currentListMode === 'chats' && !driver.last_message_at) return false;
-            if (currentListMode === 'unread' && Number(driver.unread_count || 0) === 0) return false;
+        var query = ($('#driver_search').val() || '').toLowerCase();
+        var html = '';
 
-            const haystack = `${driver.name} ${driver.mobile || ''} ${driver.national_code || ''}`.toLowerCase();
-            return haystack.includes(query);
-        });
+        for (var i = 0; i < drivers.length; i++) {
+            var driver = drivers[i];
+            var unread = Number(driver.unread_count || 0);
 
-        $('#driver_list').html(filtered.map(driver => {
-            const checked = selectedDriverIds.includes(driver.id);
-            const active = activeThreadDriverId === driver.id;
-            const unread = Number(driver.unread_count || 0);
+            if (currentListMode === 'chats' && !driver.last_message_at) continue;
+            if (currentListMode === 'unread' && unread === 0) continue;
 
-            return `
-                <div class="driver-item ${active ? 'bg-blue-50' : 'bg-white'} p-4 hover:bg-slate-50 transition">
-                    <div class="flex items-start gap-3">
-                        <input type="checkbox" class="mt-1 w-4 h-4" ${checked ? 'checked' : ''} onchange="toggleDriver(${driver.id})">
-                        <button type="button" onclick="loadThread(${driver.id})" class="flex-1 text-right">
-                            <div class="flex items-center justify-between gap-2">
-                                <b class="text-sm text-slate-800">${escapeText(driver.name)}</b>
-                                ${unread > 0 ? `<span class="bg-rose-100 text-rose-700 text-[10px] font-black px-2 py-1 rounded-full">${unread.toLocaleString('fa-IR')} پاسخ</span>` : ''}
-                            </div>
-                            <div class="text-[11px] text-slate-500 mt-1">${escapeText(driver.mobile || 'بدون موبایل')} · ${escapeText(driver.national_code || '')}</div>
-                            <div class="text-[10px] text-slate-400 mt-1">${driver.last_message_at ? `آخرین گفتگو: ${escapeText(driver.last_message_at)}` : 'بدون سابقه گفتگو'}</div>
-                        </button>
-                    </div>
-                </div>`;
-        }).join('') || emptyDriverListHtml();
+            var haystack = String(driver.name || '') + ' ' + String(driver.mobile || '') + ' ' + String(driver.national_code || '');
+            if (query && haystack.toLowerCase().indexOf(query) === -1) continue;
 
+            var activeClass = Number(activeThreadDriverId) === Number(driver.id) ? 'bg-blue-50' : 'bg-white';
+            var checked = isSelected(driver.id) ? 'checked' : '';
+            var lastMessage = driver.last_message_at ? 'آخرین گفتگو: ' + toSafeText(driver.last_message_at) : 'بدون سابقه گفتگو';
+
+            html += '<div class="driver-item ' + activeClass + ' p-4 hover:bg-slate-50 transition">' +
+                '<div class="flex items-start gap-3">' +
+                    '<input type="checkbox" class="driver-check mt-1 w-4 h-4" data-driver-id="' + driver.id + '" ' + checked + '>' +
+                    '<button type="button" class="driver-open flex-1 text-right" data-driver-id="' + driver.id + '">' +
+                        '<div class="flex items-center justify-between gap-2">' +
+                            '<b class="text-sm text-slate-800">' + toSafeText(driver.name) + '</b>' +
+                            (unread > 0 ? '<span class="bg-rose-100 text-rose-700 text-[10px] font-black px-2 py-1 rounded-full">' + toFaNumber(unread) + ' پاسخ</span>' : '') +
+                        '</div>' +
+                        '<div class="text-[11px] text-slate-500 mt-1">' + toSafeText(driver.mobile || 'بدون موبایل') + ' · ' + toSafeText(driver.national_code || '') + '</div>' +
+                        '<div class="text-[10px] text-slate-400 mt-1">' + lastMessage + '</div>' +
+                    '</button>' +
+                '</div>' +
+            '</div>';
+        }
+
+        $('#driver_list').html(html || emptyDriverListHtml());
         updateSummary();
     }
 
     function emptyDriverListHtml() {
-        const labels = {
-            chats: 'هنوز سابقه گفتگویی ثبت نشده است. از تب «همه» راننده را انتخاب کنید.',
-            unread: 'پاسخ خوانده‌نشده‌ای وجود ندارد.',
-            all: 'راننده‌ای یافت نشد.',
-        };
-
-        return `<div class="p-8 text-center text-xs font-bold text-slate-400 leading-7">${labels[currentListMode]}</div>`;
+        var label = 'راننده‌ای یافت نشد.';
+        if (currentListMode === 'chats') label = 'هنوز سابقه گفتگویی ثبت نشده است. از تب «همه» راننده را انتخاب کنید.';
+        if (currentListMode === 'unread') label = 'پاسخ خوانده‌نشده‌ای وجود ندارد.';
+        return '<div class="p-8 text-center text-xs font-bold text-slate-400 leading-7">' + label + '</div>';
     }
 
     function setListMode(mode) {
         currentListMode = mode;
-        ['chats', 'unread', 'all'].forEach(item => {
-            $(`#mode_${item}`)
-                .toggleClass('bg-blue-600 text-white', item === mode)
-                .toggleClass('bg-slate-100 text-slate-600', item !== mode);
-        });
+        $('.list-mode-btn').removeClass('bg-blue-600 text-white').addClass('bg-slate-100 text-slate-600');
+        $('#mode_' + mode).removeClass('bg-slate-100 text-slate-600').addClass('bg-blue-600 text-white');
         renderDrivers();
     }
 
     function toggleDriver(driverId) {
-        selectedDriverIds = selectedDriverIds.includes(driverId)
-            ? selectedDriverIds.filter(id => id !== driverId)
-            : [...selectedDriverIds, driverId];
-        renderDrivers();
+        driverId = Number(driverId);
+        var index = selectedDriverIds.indexOf(driverId);
+        if (index === -1) selectedDriverIds.push(driverId);
+        else selectedDriverIds.splice(index, 1);
+        updateSummary();
     }
 
     function selectAllDrivers() {
-        selectedDriverIds = drivers.map(driver => driver.id);
+        selectedDriverIds = [];
+        for (var i = 0; i < drivers.length; i++) selectedDriverIds.push(Number(drivers[i].id));
         setScope('all');
         renderDrivers();
     }
 
     function setScope(scope) {
         currentScope = scope;
-        $('#scope_selected')
-            .toggleClass('bg-blue-600 text-white', scope === 'selected')
-            .toggleClass('bg-slate-100 text-slate-700', scope !== 'selected');
-        $('#scope_all')
-            .toggleClass('bg-blue-600 text-white', scope === 'all')
-            .toggleClass('bg-slate-100 text-slate-700', scope !== 'all');
+        $('#scope_selected, #scope_all').removeClass('bg-blue-600 text-white').addClass('bg-slate-100 text-slate-700');
+        $('#scope_' + scope).removeClass('bg-slate-100 text-slate-700').addClass('bg-blue-600 text-white');
         updateSummary();
     }
 
     function updateSummary() {
-        const count = currentScope === 'all' ? drivers.length : selectedDriverIds.length;
-        $('#selected_summary').text(
-            currentScope === 'all'
-                ? `ارسال برای همه رانندگان فعال (${count.toLocaleString('fa-IR')} نفر)`
-                : count > 0 ? `${count.toLocaleString('fa-IR')} راننده انتخاب شده است.` : 'هیچ راننده‌ای انتخاب نشده است.'
-        );
+        var count = currentScope === 'all' ? drivers.length : selectedDriverIds.length;
+        var text = currentScope === 'all'
+            ? 'ارسال برای همه رانندگان فعال (' + toFaNumber(count) + ' نفر)'
+            : (count > 0 ? toFaNumber(count) + ' راننده انتخاب شده است.' : 'هیچ راننده‌ای انتخاب نشده است.');
+        $('#selected_summary').text(text);
     }
 
     function sendMessage() {
-        const btn = $('#send_btn');
-        const originalText = btn.text();
-        const data = {
-            _token: "{{ csrf_token() }}",
-            scope: currentScope,
-            driver_ids: currentScope === 'selected' ? selectedDriverIds : [],
-            title: $('#message_title').val(),
-            message: $('#message_body').val(),
-            category: $('#message_category').val(),
-            priority: $('#message_priority').val(),
-            requires_acknowledgement: $('#message_ack').is(':checked') ? 1 : 0,
-        };
+        var btn = $('#send_btn');
+        var originalText = btn.text();
+        var title = $('#message_title').val() || '';
+        var body = $('#message_body').val() || '';
 
         if (currentScope === 'selected' && selectedDriverIds.length === 0) {
             Swal.fire({ icon: 'warning', title: 'راننده انتخاب نشده', text: 'حداقل یک راننده را انتخاب کنید.' });
             return;
         }
 
-        if (!data.title.trim() || !data.message.trim()) {
+        if (!title.trim() || !body.trim()) {
             Swal.fire({ icon: 'warning', title: 'پیام ناقص است', text: 'عنوان و متن پیام را وارد کنید.' });
             return;
         }
 
         btn.prop('disabled', true).text('در حال ارسال...');
 
-        $.post("{{ route('company.driver_messages.store') }}", data, function(res) {
+        $.post("{{ route('company.driver_messages.store') }}", {
+            _token: "{{ csrf_token() }}",
+            scope: currentScope,
+            driver_ids: currentScope === 'selected' ? selectedDriverIds : [],
+            title: title,
+            message: body,
+            category: $('#message_category').val(),
+            priority: $('#message_priority').val(),
+            requires_acknowledgement: $('#message_ack').is(':checked') ? 1 : 0
+        }, function(res) {
+            btn.prop('disabled', false).text(originalText);
             if (res.success) {
                 $('#message_title').val('');
                 $('#message_body').val('');
                 $('#message_ack').prop('checked', false);
                 Swal.fire({ icon: 'success', title: 'ارسال شد', text: res.message, confirmButtonColor: '#2563eb' });
                 refreshSummary();
-                btn.prop('disabled', false).text(originalText);
             } else {
-                btn.prop('disabled', false).text(originalText);
                 Swal.fire({ icon: 'error', title: 'خطا', text: res.message || 'ارسال انجام نشد.' });
             }
         }).fail(function(xhr) {
             btn.prop('disabled', false).text(originalText);
-            const message = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'خطا در ارتباط با سرور';
+            var message = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'خطا در ارتباط با سرور';
             Swal.fire({ icon: 'error', title: 'عدم ارسال پیام', text: message });
         });
     }
 
-    function loadThread(driverId, silent = false) {
+    function loadThread(driverId, silent) {
         if (threadRefreshInFlight) return;
         threadRefreshInFlight = true;
-        activeThreadDriverId = driverId;
+        activeThreadDriverId = Number(driverId);
         renderDrivers();
-        if (!silent) {
-            $('#thread_body').html('<div class="p-8 text-center text-xs font-bold text-slate-400">در حال دریافت گفتگو...</div>');
-        }
 
-        $.get(`{{ url('/web/company/driver-messages') }}/${driverId}`, function(res) {
+        if (!silent) $('#thread_body').html('<div class="p-8 text-center text-xs font-bold text-slate-400">در حال دریافت گفتگو...</div>');
+
+        $.get("{{ url('/web/company/driver-messages') }}/" + driverId, function(res) {
             if (!res.success) return;
 
-            $('#thread_title').text(`${res.driver.name} · ${res.driver.mobile || 'بدون موبایل'}`);
-            drivers = drivers.map(driver => {
-                if (driver.id !== driverId) return driver;
-                driver.unread_count = 0;
-                return driver;
-            });
+            $('#thread_title').text((res.driver.name || 'راننده') + ' · ' + (res.driver.mobile || 'بدون موبایل'));
 
-            const html = res.messages.length
-                ? res.messages.map(item => `
-                    <div class="mb-3 flex ${item.sender === 'company' ? 'justify-start' : 'justify-end'}">
-                        <div class="max-w-[86%] rounded-2xl px-4 py-3 shadow-sm ${item.sender === 'company' ? 'bg-white border border-slate-200 text-slate-700' : 'bg-blue-600 text-white'}">
-                            ${item.title ? `<div class="text-xs font-black mb-1">${escapeText(item.title)}</div>` : ''}
-                            <div class="text-sm leading-7 whitespace-pre-wrap">${escapeText(item.message)}</div>
-                            <div class="text-[10px] mt-2 opacity-70">${escapeText(item.created_at || '')}</div>
-                        </div>
-                    </div>
-                `).join('')
-                : '<div class="h-full flex items-center justify-center text-center text-slate-400 text-xs font-bold">هنوز پیامی با این راننده ثبت نشده است.</div>';
+            for (var i = 0; i < drivers.length; i++) {
+                if (Number(drivers[i].id) === Number(driverId)) drivers[i].unread_count = 0;
+            }
 
-            $('#thread_body').html(html);
+            var html = '';
+            for (var j = 0; j < res.messages.length; j++) {
+                var item = res.messages[j];
+                var isCompany = item.sender === 'company';
+                html += '<div class="mb-3 flex ' + (isCompany ? 'justify-start' : 'justify-end') + '">' +
+                    '<div class="max-w-[86%] rounded-2xl px-4 py-3 shadow-sm ' + (isCompany ? 'bg-white border border-slate-200 text-slate-700' : 'bg-blue-600 text-white') + '">' +
+                        (item.title ? '<div class="text-xs font-black mb-1">' + toSafeText(item.title) + '</div>' : '') +
+                        '<div class="text-sm leading-7 whitespace-pre-wrap">' + toSafeText(item.message) + '</div>' +
+                        '<div class="text-[10px] mt-2 opacity-70">' + toSafeText(item.created_at || '') + '</div>' +
+                    '</div>' +
+                '</div>';
+            }
+
+            $('#thread_body').html(html || '<div class="h-full flex items-center justify-center text-center text-slate-400 text-xs font-bold">هنوز پیامی با این راننده ثبت نشده است.</div>');
             $('#thread_body').scrollTop($('#thread_body')[0].scrollHeight);
         }).always(function() {
             threadRefreshInFlight = false;
@@ -331,16 +340,43 @@
         $.get("{{ route('company.driver_messages.summary') }}", function(res) {
             if (!res.success) return;
             drivers = res.drivers || [];
-            $('#stat_drivers').text(Number(res.stats.drivers_count || 0).toLocaleString('fa-IR'));
-            $('#stat_unread').text(Number(res.stats.unread_count || 0).toLocaleString('fa-IR'));
-            $('#stat_threads').text(Number(res.stats.threads_count || 0).toLocaleString('fa-IR'));
-            selectedDriverIds = selectedDriverIds.filter(id => drivers.some(driver => driver.id === id));
+            $('#stat_drivers').text(toFaNumber(res.stats.drivers_count));
+            $('#stat_unread').text(toFaNumber(res.stats.unread_count));
+            $('#stat_threads').text(toFaNumber(res.stats.threads_count));
+
+            var nextSelected = [];
+            for (var i = 0; i < selectedDriverIds.length; i++) {
+                if (driverExists(selectedDriverIds[i])) nextSelected.push(selectedDriverIds[i]);
+            }
+            selectedDriverIds = nextSelected;
             renderDrivers();
         });
     }
 
-    $('#driver_search').on('input', renderDrivers);
-    $(document).ready(function() {
+    window.setListMode = setListMode;
+    window.setScope = setScope;
+    window.selectAllDrivers = selectAllDrivers;
+    window.sendMessage = sendMessage;
+    window.loadThread = loadThread;
+    window.toggleDriver = toggleDriver;
+
+    $(function() {
+        $('#driver_list').on('change', '.driver-check', function() {
+            toggleDriver($(this).data('driver-id'));
+        });
+        $('#driver_list').on('click', '.driver-open', function() {
+            loadThread($(this).data('driver-id'), false);
+        });
+        $('.list-mode-btn').on('click', function() {
+            setListMode($(this).data('mode'));
+        });
+        $('.scope-btn').on('click', function() {
+            setScope($(this).data('scope'));
+        });
+        $('#btn_select_all_drivers').on('click', selectAllDrivers);
+        $('#send_btn').on('click', sendMessage);
+        $('#driver_search').on('input', renderDrivers);
+
         renderDrivers();
         setInterval(function() {
             refreshSummary();
