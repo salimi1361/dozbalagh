@@ -146,6 +146,55 @@ class DriverMessageController extends Controller
         ]);
     }
 
+    public function reply(Request $request, int $driverId)
+    {
+        $company = auth()->user()->company;
+        $companyId = $company->id ?? auth()->user()->company_id;
+
+        $validator = Validator::make($request->all(), [
+            'message' => ['required', 'string', 'max:1000'],
+        ], [
+            'message.required' => 'متن پاسخ را وارد کنید.',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
+        }
+
+        $driver = Driver::query()
+            ->where('current_company_id', $companyId)
+            ->findOrFail($driverId);
+
+        $message = CompanyDriverMessage::create([
+            'company_id' => $companyId,
+            'driver_id' => $driver->id,
+            'sender' => 'company',
+            'title' => 'پاسخ شرکت',
+            'message' => $request->message,
+            'category' => 'reply',
+            'priority' => 'normal',
+            'requires_acknowledgement' => false,
+        ]);
+
+        $companyName = $company->name_fa ?? $company->name ?? auth()->user()->name ?? 'شرکت حمل و نقل';
+
+        $driver->notify(new CompanyDriverMessageNotification(
+            companyId: $companyId,
+            companyName: $companyName,
+            title: 'پاسخ شرکت',
+            message: $request->message,
+            category: 'reply',
+            priority: 'normal',
+            requiresAcknowledgement: false,
+            messageId: $message->id
+        ));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'پاسخ برای راننده ارسال شد.',
+        ]);
+    }
+
     private function messageOverview(int $companyId): array
     {
         $drivers = Driver::query()

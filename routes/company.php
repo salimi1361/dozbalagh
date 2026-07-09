@@ -37,6 +37,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/web/company/driver-messages', [DriverMessageController::class, 'index'])->name('company.driver_messages.index');
         Route::get('/web/company/driver-messages/summary', [DriverMessageController::class, 'summary'])->name('company.driver_messages.summary');
         Route::post('/web/company/driver-messages', [DriverMessageController::class, 'store'])->name('company.driver_messages.store');
+        Route::post('/web/company/driver-messages/{driverId}/reply', [DriverMessageController::class, 'reply'])->whereNumber('driverId')->name('company.driver_messages.reply');
         Route::get('/web/company/driver-messages/{driverId}', [DriverMessageController::class, 'thread'])->whereNumber('driverId')->name('company.driver_messages.thread');
 
         Route::get('/web/company/fleet/index', [CompanyFleetController::class, 'index'])->name('web.company.fleet.index');

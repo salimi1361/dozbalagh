@@ -131,10 +131,20 @@
                 <h2 class="text-sm font-black text-slate-800">گفتگو با راننده</h2>
                 <p id="thread_title" class="text-[11px] text-slate-500 mt-1">از لیست رانندگان یک نفر را انتخاب کنید.</p>
             </div>
-            <div id="thread_body" class="h-[620px] overflow-y-auto p-5 bg-slate-50/60">
+            <div id="thread_body" class="h-[470px] overflow-y-auto p-5 bg-slate-50/60">
                 <div class="h-full flex items-center justify-center text-center text-slate-400 text-xs font-bold">
                     هنوز گفتگویی انتخاب نشده است.
                 </div>
+            </div>
+            <div class="border-t border-slate-100 bg-white p-4">
+                <label class="block text-xs font-black text-slate-600 mb-2">پاسخ سریع در همین گفتگو</label>
+                <textarea id="quick_reply_body" rows="3" maxlength="1000" disabled
+                          placeholder="ابتدا یک راننده را از لیست انتخاب کنید..."
+                          class="w-full border border-slate-200 rounded-xl px-3 py-3 text-sm leading-7 resize-none bg-slate-50 focus:outline-none focus:border-blue-500"></textarea>
+                <button type="button" id="quick_reply_btn" disabled
+                        class="mt-3 w-full bg-slate-300 text-white rounded-xl px-5 py-3 text-sm font-black transition">
+                    ارسال پاسخ به همین راننده
+                </button>
             </div>
         </section>
     </div>
@@ -311,6 +321,13 @@
             if (!res.success) return;
 
             $('#thread_title').text((res.driver.name || 'راننده') + ' · ' + (res.driver.mobile || 'بدون موبایل'));
+            $('#quick_reply_body')
+                .prop('disabled', false)
+                .attr('placeholder', 'پاسخ به ' + (res.driver.name || 'راننده') + '...');
+            $('#quick_reply_btn')
+                .prop('disabled', false)
+                .removeClass('bg-slate-300')
+                .addClass('bg-blue-600 hover:bg-blue-700');
 
             for (var i = 0; i < drivers.length; i++) {
                 if (Number(drivers[i].id) === Number(driverId)) drivers[i].unread_count = 0;
@@ -336,6 +353,51 @@
         });
     }
 
+    function reloadActiveThread() {
+        if (!activeThreadDriverId) return;
+        if (threadRefreshInFlight) {
+            setTimeout(reloadActiveThread, 350);
+            return;
+        }
+        loadThread(activeThreadDriverId, true);
+    }
+
+    function sendQuickReply() {
+        if (!activeThreadDriverId) {
+            Swal.fire({ icon: 'warning', title: 'گفتگو انتخاب نشده', text: 'ابتدا یک راننده را از لیست انتخاب کنید.' });
+            return;
+        }
+
+        var body = $('#quick_reply_body').val() || '';
+        if (!body.trim()) {
+            Swal.fire({ icon: 'warning', title: 'پاسخ خالی است', text: 'متن پاسخ را وارد کنید.' });
+            return;
+        }
+
+        var btn = $('#quick_reply_btn');
+        var originalText = btn.text();
+        btn.prop('disabled', true).text('در حال ارسال...');
+
+        $.post("{{ url('/web/company/driver-messages') }}/" + activeThreadDriverId + "/reply", {
+            _token: "{{ csrf_token() }}",
+            message: body
+        }, function(res) {
+            btn.prop('disabled', false).text(originalText);
+
+            if (res.success) {
+                $('#quick_reply_body').val('');
+                reloadActiveThread();
+                refreshSummary();
+            } else {
+                Swal.fire({ icon: 'error', title: 'خطا', text: res.message || 'ارسال پاسخ انجام نشد.' });
+            }
+        }).fail(function(xhr) {
+            btn.prop('disabled', false).text(originalText);
+            var message = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'خطا در ارتباط با سرور';
+            Swal.fire({ icon: 'error', title: 'عدم ارسال پاسخ', text: message });
+        });
+    }
+
     function refreshSummary() {
         $.get("{{ route('company.driver_messages.summary') }}", function(res) {
             if (!res.success) return;
@@ -357,6 +419,7 @@
     window.setScope = setScope;
     window.selectAllDrivers = selectAllDrivers;
     window.sendMessage = sendMessage;
+    window.sendQuickReply = sendQuickReply;
     window.loadThread = loadThread;
     window.toggleDriver = toggleDriver;
 
@@ -375,6 +438,10 @@
         });
         $('#btn_select_all_drivers').on('click', selectAllDrivers);
         $('#send_btn').on('click', sendMessage);
+        $('#quick_reply_btn').on('click', sendQuickReply);
+        $('#quick_reply_body').on('keydown', function(event) {
+            if (event.ctrlKey && event.keyCode === 13) sendQuickReply();
+        });
         $('#driver_search').on('input', renderDrivers);
 
         renderDrivers();
