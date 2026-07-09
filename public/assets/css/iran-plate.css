@@ -25,24 +25,24 @@
 }
 
 .iran-plate--sm {
-    --plate-w: 136px;
-    --plate-h: 36px;
-    --blue-w: 20px;
-    --city-w: 32px;
-    --main-size: 15px;
-    --letter-size: 14px;
-    --city-size: 12px;
+    --plate-w: 158px;
+    --plate-h: 39px;
+    --blue-w: 22px;
+    --city-w: 36px;
+    --main-size: 18px;
+    --letter-size: 17px;
+    --city-size: 14px;
     --radius: 6px;
 }
 
 .iran-plate--xs {
-    --plate-w: 118px;
-    --plate-h: 31px;
-    --blue-w: 17px;
-    --city-w: 28px;
-    --main-size: 13px;
-    --letter-size: 12px;
-    --city-size: 10px;
+    --plate-w: 144px;
+    --plate-h: 35px;
+    --blue-w: 20px;
+    --city-w: 33px;
+    --main-size: 16px;
+    --letter-size: 15px;
+    --city-size: 12px;
     --radius: 5px;
 }
 
@@ -102,8 +102,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: .32em;
-    padding: 0 8px;
+    gap: .28em;
+    padding: 0 6px;
     font-size: var(--main-size);
     font-weight: 900;
     text-shadow: 0 1px 0 rgba(255, 255, 255, .35);
@@ -111,9 +111,8 @@
 
 .iran-plate__main b {
     display: inline-block;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex: 0 0 auto;
+    min-width: max-content;
 }
 
 .iran-plate__letter {

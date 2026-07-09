@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Api\Driver;
 
 use App\Http\Controllers\Controller;
 use App\Models\PermitRequest;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Facades\DB;
+use Morilog\Jalali\Jalalian;
 
 class PermitController extends Controller
 {
@@ -62,23 +65,99 @@ class PermitController extends Controller
     private function formatPermit(PermitRequest $permit): array
     {
         $issuedAt = $permit->issued_at ?? $permit->created_at;
-        $serial = $permit->serial_number ?: $permit->d_code;
+        $validUntil = $permit->permit_valid_until;
+        $items = $this->permitItems($permit->id);
+        $firstItem = $items[0] ?? null;
+        $cmrDate = $permit->cmr_date ?? ($firstItem['cmr_date_raw'] ?? null);
+        $tirCarnetDate = $permit->tir_carnet_date ?? ($firstItem['tir_carnet_date_raw'] ?? null);
+        $serial = $permit->serial_number ?: ($firstItem['d_serial_number'] ?? null) ?: $permit->d_code;
 
         $companyName = $permit->company?->name_fa ?: $permit->company?->name;
-        $countryName = $permit->country?->name ?: $permit->destination;
+        $countryName = $permit->country?->name ?: ($firstItem['country_name'] ?? null) ?: $permit->destination;
+        $issueDates = $this->formatDatePair($issuedAt);
+        $validUntilDates = $this->formatDatePair($validUntil);
+        $cmrDates = $this->formatDatePair($cmrDate);
+        $tirCarnetDates = $this->formatDatePair($tirCarnetDate);
 
         return [
             'id' => $permit->id,
             'serial_number' => $this->toPersianNumbers($serial),
+            'raw_serial_number' => $permit->serial_number,
             'd_code' => $this->toPersianNumbers($permit->d_code),
             'status_key' => $this->normalizeStatusKey($permit->status),
             'status_label' => $this->translateStatus($permit->status),
-            'issue_date' => $issuedAt ? $this->toPersianNumbers($issuedAt->format('Y/m/d')) : '---',
-            'valid_until' => $permit->permit_valid_until ? $this->toPersianNumbers($permit->permit_valid_until->format('Y/m/d')) : null,
+            'issue_date' => $issueDates['jalali'] ?? '---',
+            'issue_date_jalali' => $issueDates['jalali'],
+            'issue_date_gregorian' => $issueDates['gregorian'],
+            'valid_until' => $validUntilDates['jalali'],
+            'valid_until_jalali' => $validUntilDates['jalali'],
+            'valid_until_gregorian' => $validUntilDates['gregorian'],
+            'validity_days' => $permit->validity_days ? $this->toPersianNumbers($permit->validity_days) : null,
             'company_name' => $companyName ?: 'نامشخص',
             'country_name' => $countryName ?: 'نامشخص',
+            'origin' => $permit->origin ?: ($firstItem['loading_origin'] ?? null),
+            'destination' => $permit->destination ?: ($firstItem['loading_destination'] ?? null),
+            'cargo_type' => $permit->cargo_type ?: ($firstItem['operation_type'] ?? null),
+            'permit_type' => $permit->permit_type ?: ($firstItem['permit_type'] ?? null),
+            'request_type' => $permit->request_type,
+            'cits_code' => $permit->cits_code ?: ($firstItem['cits_code'] ?? null),
+            'trip_code' => $permit->trip_code ?: ($firstItem['trip_code'] ?? null),
+            'receipt_code' => $permit->receipt_code ?: ($firstItem['receipt_code'] ?? null),
+            'cmr_date_jalali' => $cmrDates['jalali'],
+            'cmr_date_gregorian' => $cmrDates['gregorian'],
+            'tir_carnet_number' => $permit->tir_carnet_number ?: ($firstItem['tir_carnet_number'] ?? null),
+            'tir_carnet_date_jalali' => $tirCarnetDates['jalali'],
+            'tir_carnet_date_gregorian' => $tirCarnetDates['gregorian'],
+            'total_amount' => $permit->total_amount ? $this->toPersianNumbers(number_format((float) $permit->total_amount)) : null,
+            'payment_status' => $permit->payment_status,
+            'company_note' => $permit->company_note,
+            'dozoleh_items' => array_map(fn ($item) => $this->formatPermitItem($item), $items),
             'fleet_plate' => $permit->fleet?->transit_plate,
+            'fleet_smart_card' => $permit->fleet?->smart_card_number,
             'truck_type' => $permit->fleet?->truck_type,
+        ];
+    }
+
+    private function permitItems(int $permitId): array
+    {
+        return DB::table('permit_request_items as pri')
+            ->leftJoin('countries as c', 'pri.country_id', '=', 'c.id')
+            ->where('pri.permit_request_id', $permitId)
+            ->orderBy('pri.id')
+            ->select([
+                'pri.*',
+                'c.name as country_name',
+                'pri.cmr_date as cmr_date_raw',
+                'pri.tir_carnet_date as tir_carnet_date_raw',
+            ])
+            ->get()
+            ->map(fn ($item) => (array) $item)
+            ->all();
+    }
+
+    private function formatPermitItem(array $item): array
+    {
+        $cmrDates = $this->formatDatePair($item['cmr_date_raw'] ?? null);
+        $tirDates = $this->formatDatePair($item['tir_carnet_date_raw'] ?? null);
+
+        return [
+            'country_name' => $item['country_name'] ?? null,
+            'permit_type' => $item['permit_type'] ?? null,
+            'operation_type' => $item['operation_type'] ?? null,
+            'loading_origin' => $item['loading_origin'] ?? null,
+            'loading_destination' => $item['loading_destination'] ?? null,
+            'cits_code' => $item['cits_code'] ?? null,
+            'trip_code' => $item['trip_code'] ?? null,
+            'receipt_code' => $item['receipt_code'] ?? null,
+            'serial_number' => isset($item['d_serial_number']) ? $this->toPersianNumbers($item['d_serial_number']) : null,
+            'allocation_status' => $item['allocation_status'] ?? null,
+            'return_status' => $item['return_status'] ?? null,
+            'cmr_date_jalali' => $cmrDates['jalali'],
+            'cmr_date_gregorian' => $cmrDates['gregorian'],
+            'tir_carnet_number' => $item['tir_carnet_number'] ?? null,
+            'tir_carnet_date_jalali' => $tirDates['jalali'],
+            'tir_carnet_date_gregorian' => $tirDates['gregorian'],
+            'price' => isset($item['price']) ? $this->toPersianNumbers(number_format((float) $item['price'])) : null,
         ];
     }
 
@@ -130,6 +209,25 @@ class PermitController extends Controller
             ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'],
             (string) $string
         );
+    }
+
+    private function formatDatePair($date): array
+    {
+        if (!$date) {
+            return [
+                'jalali' => null,
+                'gregorian' => null,
+            ];
+        }
+
+        if (!$date instanceof CarbonInterface) {
+            $date = \Carbon\Carbon::parse($date);
+        }
+
+        return [
+            'jalali' => $this->toPersianNumbers(Jalalian::fromCarbon($date)->format('Y/m/d')),
+            'gregorian' => $date->format('Y/m/d'),
+        ];
     }
 
     private function normalizeStatusKey($status): string

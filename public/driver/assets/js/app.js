@@ -65,6 +65,29 @@ function escapeHtml(value) {
     }[ch]));
 }
 
+function displayValue(value, fallback = '—') {
+    const text = String(value ?? '').trim();
+    return text ? escapeHtml(text) : fallback;
+}
+
+function detailRow(label, value) {
+    return `
+        <div class="info-row">
+            <span>${escapeHtml(label)}</span>
+            <b>${displayValue(value)}</b>
+        </div>`;
+}
+
+function datePairHtml(label, jalali, gregorian) {
+    if (!jalali && !gregorian) return '';
+    return `
+        <div class="date-duo">
+            <span class="date-duo__label">${escapeHtml(label)}</span>
+            <span><b>شمسی</b>${displayValue(jalali)}</span>
+            <span><b>میلادی</b>${displayValue(gregorian)}</span>
+        </div>`;
+}
+
 function toEnglishDigits(value) {
     const fa = '۰۱۲۳۴۵۶۷۸۹';
     const ar = '٠١٢٣٤٥٦٧٨٩';
@@ -111,6 +134,8 @@ function renderPlate(plateStr) {
 
 function statusBadgeClass(statusKey) {
     const map = {
+        pending: 'badge--pending',
+        approved: 'badge--active',
         issued: 'badge--active',
         started_trip: 'badge--transit',
         in_transit: 'badge--transit',
@@ -118,6 +143,8 @@ function statusBadgeClass(statusKey) {
         at_destination: 'badge--used',
         used: 'badge--used',
         expired: 'badge--expired',
+        lost: 'badge--expired',
+        rejected: 'badge--expired',
     };
     return map[statusKey] || 'badge--active';
 }
@@ -147,7 +174,7 @@ function renderHomeTab(main, driver) {
                         <i class="fa-solid fa-file-lines"></i>
                     </div>
                     <div>
-                        <span class="metric-card__label">پروانه‌های فعال</span>
+                        <span class="metric-card__label">دوزوله‌های متصل</span>
                         <div class="metric-card__value" id="home-active-badge">—</div>
                     </div>
                 </div>
@@ -168,7 +195,7 @@ function renderHomeTab(main, driver) {
             </button>
 
             <div>
-                <div class="section-title">پروانه‌های دوزبلاغ</div>
+                <div class="section-title">گزارش دوزوله‌های متصل</div>
                 <div id="permits-container" class="stack-sm">
                     <div class="loader-wrap"><div class="loader"></div></div>
                 </div>
@@ -279,17 +306,28 @@ function fetchPermits() {
                 <div class="card permit-card" onclick="showPermitDetail(${p.id})">
                     <div class="permit-card__header">
                         <div>
-                            <span class="permit-card__serial-label">شماره سریال</span>
-                            <div class="permit-card__serial">${p.serial_number}</div>
+                            <span class="permit-card__serial-label">کد پرونده دوزوله</span>
+                            <div class="permit-card__serial">${displayValue(p.d_code || p.serial_number)}</div>
+                            <div class="permit-card__subserial">سریال: ${displayValue(p.serial_number)}</div>
                         </div>
-                        <span class="badge ${statusBadgeClass(p.status_key)}">${p.status_label}</span>
+                        <span class="badge ${statusBadgeClass(p.status_key)}">${displayValue(p.status_label)}</span>
+                    </div>
+                    <div class="permit-card__meta-grid">
+                        <div>
+                            <span>مقصد</span>
+                            <b>${displayValue(p.country_name || p.destination)}</b>
+                        </div>
+                        <div>
+                            <span>نوع بار</span>
+                            <b>${displayValue(p.cargo_type || p.permit_type)}</b>
+                        </div>
+                    </div>
+                    <div class="permit-card__dates">
+                        ${datePairHtml('صدور', p.issue_date_jalali || p.issue_date, p.issue_date_gregorian)}
                     </div>
                     <div class="permit-card__row">
-                        <span><i class="fa-solid fa-earth-americas" style="margin-left:4px;color:#0369a1"></i>مقصد: <b>${p.country_name}</b></span>
-                    </div>
-                    <div class="permit-card__row">
-                        <span>شرکت: <b>${p.company_name}</b></span>
-                        <span>صدور: <b>${p.issue_date}</b></span>
+                        <span>شرکت: <b>${displayValue(p.company_name)}</b></span>
+                        <span>ناوگان: <b>${displayValue(p.fleet_plate || p.truck_type)}</b></span>
                     </div>
                 </div>
             `).join('');
@@ -300,7 +338,7 @@ function fetchPermits() {
             container.innerHTML = `
                 <div class="card empty-state">
                     <i class="fa-solid fa-wifi-slash"></i>
-                    <p>خطا در دریافت پروانه‌ها. اتصال را بررسی کنید.</p>
+                    <p>خطا در دریافت دوزوله‌ها. اتصال را بررسی کنید.</p>
                 </div>`;
             setConnectionStatus(false);
         });
@@ -310,7 +348,7 @@ function emptyPermitsHtml() {
     return `
         <div class="card empty-state">
             <i class="fa-solid fa-folder-open"></i>
-            <p>پروانه فعالی برای شما ثبت نشده است.</p>
+            <p>دوزوله‌ای برای راننده یا ناوگان شما ثبت نشده است.</p>
         </div>`;
 }
 
@@ -319,31 +357,69 @@ function showPermitDetail(id) {
         .then(res => res.json())
         .then(data => {
             if (data.status !== 'success') {
-                showToast('جزئیات پروانه یافت نشد.', 'error');
+                showToast('جزئیات دوزوله یافت نشد.', 'error');
                 return;
             }
             const p = data.data;
             const events = (p.events || []).map(e => `
                 <div class="info-row">
-                    <span>${e.status_label || e.event_type}</span>
-                    <b>${e.created_at}</b>
+                    <span>${displayValue(e.status_label || e.event_type)}</span>
+                    <b>${displayValue(e.created_at)}</b>
                 </div>
-            `).join('') || '<p style="font-size:10px;color:#94a3b8;text-align:center">رویدادی ثبت نشده</p>';
+            `).join('') || '<p class="modal-empty-text">رویدادی ثبت نشده</p>';
+            const dozolehItems = (p.dozoleh_items || []).map((item, index) => `
+                <div class="dozoleh-item">
+                    <div class="dozoleh-item__head">
+                        <span>ردیف ${Number(index + 1).toLocaleString('fa-IR')}</span>
+                        <b>${displayValue(item.serial_number || item.allocation_status)}</b>
+                    </div>
+                    <div class="dozoleh-item__grid">
+                        <div><span>کشور</span><b>${displayValue(item.country_name)}</b></div>
+                        <div><span>نوع دوزوله</span><b>${displayValue(item.permit_type)}</b></div>
+                        <div><span>نوع بار</span><b>${displayValue(item.operation_type)}</b></div>
+                        <div><span>مبدا</span><b>${displayValue(item.loading_origin)}</b></div>
+                        <div><span>مقصد</span><b>${displayValue(item.loading_destination)}</b></div>
+                        <div><span>کد سفر</span><b>${displayValue(item.trip_code)}</b></div>
+                    </div>
+                    ${datePairHtml('CMR', item.cmr_date_jalali, item.cmr_date_gregorian)}
+                    ${datePairHtml('کارنه تیر', item.tir_carnet_date_jalali, item.tir_carnet_date_gregorian)}
+                </div>
+            `).join('');
 
             document.getElementById('modal-container').innerHTML = `
                 <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
                     <div class="modal-sheet">
                         <div class="modal-handle"></div>
-                        <div class="modal-title">جزئیات پروانه</div>
+                        <div class="modal-title">جزئیات دوزوله</div>
                         <div class="stack-sm">
-                            <div class="info-block">
-                                <span class="info-block__label">شماره سریال</span>
-                                <span class="info-block__value">${p.serial_number}</span>
+                            <div class="info-block info-block--highlight">
+                                <span class="info-block__label">کد پرونده</span>
+                                <span class="info-block__value">${displayValue(p.d_code || p.serial_number)}</span>
+                                <small>سریال دوزوله: ${displayValue(p.serial_number)}</small>
                             </div>
-                            <div class="info-row"><span>وضعیت</span><b>${p.status_label}</b></div>
-                            <div class="info-row"><span>کشور مقصد</span><b>${p.country_name}</b></div>
-                            <div class="info-row"><span>شرکت</span><b>${p.company_name}</b></div>
-                            <div class="info-row"><span>تاریخ صدور</span><b>${p.issue_date}</b></div>
+                            <div class="modal-date-grid">
+                                ${datePairHtml('تاریخ صدور', p.issue_date_jalali || p.issue_date, p.issue_date_gregorian)}
+                                ${datePairHtml('اعتبار تا', p.valid_until_jalali || p.valid_until, p.valid_until_gregorian)}
+                            </div>
+                            ${detailRow('وضعیت', p.status_label)}
+                            ${detailRow('کشور مقصد', p.country_name)}
+                            ${detailRow('مبدا بارگیری', p.origin)}
+                            ${detailRow('مقصد بارگیری', p.destination)}
+                            ${detailRow('نوع دوزوله', p.permit_type)}
+                            ${detailRow('نوع بار', p.cargo_type)}
+                            ${detailRow('کد CITS', p.cits_code)}
+                            ${detailRow('کد سفر', p.trip_code)}
+                            ${detailRow('کد فیش', p.receipt_code)}
+                            ${detailRow('اعتبار روزانه', p.validity_days)}
+                            ${detailRow('ناوگان', p.fleet_plate || p.truck_type)}
+                            ${detailRow('کارت هوشمند ناوگان', p.fleet_smart_card)}
+                            ${detailRow('شرکت', p.company_name)}
+                            ${detailRow('مبلغ', p.total_amount ? `${p.total_amount} ریال` : null)}
+                            ${datePairHtml('تاریخ CMR', p.cmr_date_jalali, p.cmr_date_gregorian)}
+                            ${detailRow('شماره کارنه تیر', p.tir_carnet_number)}
+                            ${datePairHtml('تاریخ کارنه تیر', p.tir_carnet_date_jalali, p.tir_carnet_date_gregorian)}
+                            ${p.company_note ? `<div class="info-block"><span class="info-block__label">یادداشت شرکت</span><span class="info-block__value">${displayValue(p.company_note)}</span></div>` : ''}
+                            ${dozolehItems ? `<div class="section-title" style="margin-top:8px">ردیف‌های دوزوله</div>${dozolehItems}` : ''}
                             <div class="section-title" style="margin-top:8px">تاریخچه رویدادها</div>
                             ${events}
                             <button type="button" onclick="selectPermitForTrip(${p.id}); closeModal();" class="btn btn--outline" style="margin-top:8px">
@@ -359,7 +435,7 @@ function showPermitDetail(id) {
 
 function selectPermitForTrip(id) {
     localStorage.setItem('active_permit_id', id);
-    showToast('پروانه برای ردیابی انتخاب شد.', 'success');
+    showToast('دوزوله برای ردیابی انتخاب شد.', 'success');
 }
 
 function toggleTripState() {
@@ -371,7 +447,7 @@ function toggleTripState() {
     } else {
         const permitId = localStorage.getItem('active_permit_id') || (permitsCache[0] && permitsCache[0].id);
         if (!permitId) {
-            showToast('ابتدا یک پروانه انتخاب کنید.', 'error');
+            showToast('ابتدا یک دوزوله انتخاب کنید.', 'error');
             return;
         }
         if (!navigator.geolocation) {

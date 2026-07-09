@@ -12,6 +12,8 @@ class PermitRequest extends Model
     protected $casts = [
         'issued_at' => 'datetime',
         'permit_valid_until' => 'date',
+        'cmr_date' => 'date',
+        'tir_carnet_date' => 'date',
         'courier_code_sent_at' => 'datetime',
         'company_return_submitted_at' => 'datetime',
         'courier_received_at' => 'datetime',
