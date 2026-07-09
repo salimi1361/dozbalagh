@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\AssociationCompanyMessage;
 use App\Models\AssociationMessageReceipt;
 use App\Models\AssociationSupportTicket;
+use App\Models\AssociationTicketMessage;
 use App\Models\Company;
 use App\Models\Role;
 use App\Models\User;
@@ -94,5 +95,6 @@ class AssociationCrmTest extends TestCase
         ]);
 
         $this->assertSame(1, AssociationSupportTicket::count());
+        $this->assertSame(1, AssociationTicketMessage::count());
     }
 }

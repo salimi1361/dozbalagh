@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AssociationCompanyMessage;
 use App\Models\AssociationMessageReceipt;
 use App\Models\AssociationSupportTicket;
+use App\Models\AssociationTicketMessage;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -14,11 +15,6 @@ class AssociationCrmController extends Controller
     public function index()
     {
         return $this->show();
-    }
-
-    public function tickets()
-    {
-        return $this->show('tickets');
     }
 
     private function show(string $activeTab = 'messages')
@@ -37,7 +33,7 @@ class AssociationCrmController extends Controller
 
         $tickets = AssociationSupportTicket::query()
             ->where('company_id', $companyId)
-            ->with('message:id,title')
+            ->with(['message:id,title', 'messages' => fn ($query) => $query->orderBy('created_at')])
             ->latest()
             ->paginate(10, ['*'], 'tickets_page');
 
@@ -53,12 +49,21 @@ class AssociationCrmController extends Controller
             'acknowledgement_note' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $this->receiptFor($message, $companyId)->update([
+        $receipt = $this->receiptFor($message, $companyId);
+        $receipt->update([
             'user_id' => auth()->id(),
             'seen_at' => now(),
             'acknowledged_at' => now(),
             'acknowledgement_note' => $validated['acknowledgement_note'] ?? null,
         ]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'مطالعه شد.',
+                'acknowledged_at' => verta($receipt->fresh()->acknowledged_at)->format('Y/m/d H:i'),
+            ]);
+        }
 
         return back()->with('success', 'تایید خواندن پیام ثبت شد.');
     }
@@ -81,14 +86,55 @@ class AssociationCrmController extends Controller
             $this->receiptFor($message, $companyId);
         }
 
-        AssociationSupportTicket::create([
+        $ticket = AssociationSupportTicket::create([
             ...$validated,
             'company_id' => $companyId,
             'created_by' => auth()->id(),
             'status' => 'open',
         ]);
 
+        $ticket->messages()->create([
+            'user_id' => auth()->id(),
+            'sender' => 'company',
+            'body' => $validated['description'],
+        ]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'تیکت شما برای انجمن ثبت شد.',
+                'ticket' => $this->ticketPayload($ticket->fresh(['messages'])),
+            ]);
+        }
+
         return back()->with('success', 'تیکت شما برای انجمن ثبت شد.');
+    }
+
+    public function replyTicket(Request $request, AssociationSupportTicket $ticket)
+    {
+        $companyId = $this->companyId();
+        abort_unless((int) $ticket->company_id === $companyId, 404);
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:3000'],
+        ]);
+
+        $message = $ticket->messages()->create([
+            'user_id' => auth()->id(),
+            'sender' => 'company',
+            'body' => $validated['body'],
+        ]);
+
+        $ticket->update(['status' => 'open']);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $this->ticketMessagePayload($message),
+            ]);
+        }
+
+        return back()->with('success', 'پیام شما ثبت شد.');
     }
 
     private function companyId(): int
@@ -114,5 +160,25 @@ class AssociationCrmController extends Controller
             ['message_id' => $message->id, 'company_id' => $companyId],
             ['user_id' => auth()->id(), 'seen_at' => now()]
         );
+    }
+    private function ticketPayload(AssociationSupportTicket $ticket): array
+    {
+        return [
+            'id' => $ticket->id,
+            'title' => $ticket->title,
+            'status' => $ticket->status,
+            'created_at' => verta($ticket->created_at)->format('Y/m/d H:i'),
+            'messages' => $ticket->messages->map(fn (AssociationTicketMessage $message) => $this->ticketMessagePayload($message))->values(),
+        ];
+    }
+
+    private function ticketMessagePayload(AssociationTicketMessage $message): array
+    {
+        return [
+            'id' => $message->id,
+            'sender' => $message->sender,
+            'body' => $message->body,
+            'created_at' => verta($message->created_at)->format('Y/m/d H:i'),
+        ];
     }
 }

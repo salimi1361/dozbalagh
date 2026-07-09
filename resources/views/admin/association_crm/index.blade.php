@@ -109,7 +109,7 @@
     <section class="grid gap-5 xl:grid-cols-2">
         <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <h2 class="mb-4 text-lg font-black text-slate-900">پیام‌های اخیر</h2>
-            <div class="space-y-3">
+            <div class="max-h-[680px] space-y-3 overflow-y-auto pr-1">
                 @forelse($messages as $message)
                     <div class="rounded-lg border border-slate-200 p-4">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -119,15 +119,23 @@
                                     {{ $message->audience === 'all' ? 'همه شرکت‌ها' : ($message->company->name_fa ?? $message->company->name ?? 'شرکت') }}
                                     · {{ $categoryLabels[$message->category] ?? $message->category }}
                                     · {{ $priorityLabels[$message->priority] ?? $message->priority }}
+                                    · {{ verta($message->published_at ?? $message->created_at)->format('Y/m/d H:i') }}
                                 </p>
                             </div>
-                            <form action="{{ route('admin.association_crm.messages.toggle', $message) }}" method="POST">
-                                @csrf
-                                @method('PUT')
-                                <button class="rounded-lg px-3 py-1.5 text-xs font-black {{ $message->is_active ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700' }}">
-                                    {{ $message->is_active ? 'غیرفعال' : 'فعال' }}
-                                </button>
-                            </form>
+                            <div class="flex shrink-0 gap-2">
+                                <form action="{{ route('admin.association_crm.messages.toggle', $message) }}" method="POST">
+                                    @csrf
+                                    @method('PUT')
+                                    <button class="rounded-lg px-3 py-1.5 text-xs font-black {{ $message->is_active ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700' }}">
+                                        {{ $message->is_active ? 'غیرفعال' : 'فعال' }}
+                                    </button>
+                                </form>
+                                <form action="{{ route('admin.association_crm.messages.destroy', $message) }}" method="POST" onsubmit="return confirm('این پیام و رسیدهای آن حذف شود؟')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700">حذف</button>
+                                </form>
+                            </div>
                         </div>
                         <p class="mt-3 line-clamp-2 text-sm leading-7 text-slate-600">{{ $message->body }}</p>
                         <div class="mt-3 flex flex-wrap gap-2 text-[11px] font-black text-slate-600">
@@ -146,7 +154,7 @@
 
         <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <h2 class="mb-4 text-lg font-black text-slate-900">تیکت‌های شرکت‌ها</h2>
-            <div class="space-y-3">
+            <div class="max-h-[680px] space-y-3 overflow-y-auto pr-1">
                 @forelse($tickets as $ticket)
                     <form action="{{ route('admin.association_crm.tickets.update', $ticket) }}" method="POST" class="rounded-lg border border-slate-200 p-4">
                         @csrf
@@ -170,7 +178,20 @@
                             <p class="mt-2 text-xs font-bold text-sky-700">مرتبط با پیام: {{ $ticket->message->title }}</p>
                         @endif
                         <p class="mt-3 text-sm leading-7 text-slate-600">{{ $ticket->description }}</p>
-                        <textarea name="admin_response" rows="2" class="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="پاسخ یا یادداشت پیگیری">{{ $ticket->admin_response }}</textarea>
+                        @if($ticket->messages->isNotEmpty())
+                            <div class="mt-3 max-h-48 space-y-2 overflow-auto rounded-lg bg-slate-50 p-3">
+                                @foreach($ticket->messages as $chatMessage)
+                                    <div class="rounded-lg {{ $chatMessage->sender === 'association' ? 'bg-sky-50 text-sky-900' : 'bg-white text-slate-700' }} p-2 text-xs font-bold leading-6">
+                                        <div class="mb-1 flex items-center justify-between gap-2 text-[10px] text-slate-500">
+                                            <span>{{ $chatMessage->sender === 'association' ? 'انجمن' : 'شرکت' }}</span>
+                                            <span>{{ verta($chatMessage->created_at)->format('Y/m/d H:i') }}</span>
+                                        </div>
+                                        {{ $chatMessage->body }}
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endif
+                        <textarea name="admin_response" rows="2" class="mt-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="پاسخ جدید یا یادداشت پیگیری"></textarea>
                         <button class="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-xs font-black text-white">ثبت پیگیری</button>
                     </form>
                 @empty

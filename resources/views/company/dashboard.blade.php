@@ -48,7 +48,25 @@
 
 <div class="space-y-5" dir="rtl">
     @if(($pendingAssociationMessages ?? collect())->isNotEmpty())
-        <section class="rounded-lg border border-amber-300 bg-amber-50 p-5 shadow-sm">
+        <div id="associationNoticeModal" class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm">
+            <div class="w-full max-w-2xl rounded-lg bg-white shadow-2xl">
+                <div class="border-b border-slate-200 p-5">
+                    <div class="mb-2 inline-flex rounded-lg bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">اطلاعیه انجمن</div>
+                    <h2 class="text-xl font-black text-slate-900">لطفا اطلاعیه‌های انجمن را مطالعه کنید.</h2>
+                </div>
+                <div class="max-h-[58vh] space-y-3 overflow-auto p-5">
+                    @foreach($pendingAssociationMessages as $message)
+                        <div id="notice-message-{{ $message->id }}" class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <h3 class="font-black text-slate-900">{{ $message->title }}</h3>
+                            <p class="mt-3 whitespace-pre-line text-sm font-bold leading-7 text-slate-700">{{ $message->body }}</p>
+                            <button type="button" data-url="{{ route('company.association_crm.messages.acknowledge', $message) }}" data-message-id="{{ $message->id }}" class="ack-notice-btn mt-4 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-black text-white hover:bg-emerald-700">مطالعه شد</button>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+
+        <section class="hidden">
             <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                     <div class="mb-2 inline-flex rounded-lg bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">پیام مهم انجمن</div>
@@ -248,4 +266,40 @@
         </div>
     </section>
 </div>
+@endsection
+
+@section('scripts')
+<script>
+    document.querySelectorAll('.ack-notice-btn').forEach((button) => {
+        button.addEventListener('click', async () => {
+            button.disabled = true;
+            button.textContent = 'در حال ثبت...';
+
+            try {
+                const response = await fetch(button.dataset.url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                    },
+                });
+
+                if (!response.ok) {
+                    throw new Error('request failed');
+                }
+
+                const card = document.getElementById(`notice-message-${button.dataset.messageId}`);
+                card?.remove();
+
+                if (!document.querySelector('[id^="notice-message-"]')) {
+                    document.getElementById('associationNoticeModal')?.remove();
+                }
+            } catch (error) {
+                button.disabled = false;
+                button.textContent = 'مطالعه شد';
+                alert('ثبت تایید انجام نشد. لطفا دوباره تلاش کنید.');
+            }
+        });
+    });
+</script>
 @endsection

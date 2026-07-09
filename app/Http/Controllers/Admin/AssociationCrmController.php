@@ -46,8 +46,8 @@ class AssociationCrmController extends Controller
                     return [
                         'company_name' => $company->name_fa ?? $company->name,
                         'company_code' => $company->company_code,
-                        'seen_at' => optional($receipt?->seen_at)->format('Y/m/d H:i'),
-                        'acknowledged_at' => optional($receipt?->acknowledged_at)->format('Y/m/d H:i'),
+                        'seen_at' => $receipt?->seen_at ? verta($receipt->seen_at)->format('Y/m/d H:i') : null,
+                        'acknowledged_at' => $receipt?->acknowledged_at ? verta($receipt->acknowledged_at)->format('Y/m/d H:i') : null,
                         'user' => $receipt?->user?->username,
                         'note' => $receipt?->acknowledgement_note,
                     ];
@@ -62,7 +62,7 @@ class AssociationCrmController extends Controller
             });
 
         $tickets = AssociationSupportTicket::query()
-            ->with(['company:id,name,name_fa,company_code', 'message:id,title'])
+            ->with(['company:id,name,name_fa,company_code', 'message:id,title', 'messages' => fn ($query) => $query->orderBy('created_at')])
             ->latest()
             ->paginate(10, ['*'], 'tickets_page');
 
@@ -108,6 +108,13 @@ class AssociationCrmController extends Controller
         return back()->with('success', $message->is_active ? 'پیام فعال شد.' : 'پیام غیرفعال شد.');
     }
 
+    public function destroyMessage(AssociationCompanyMessage $message)
+    {
+        $message->delete();
+
+        return back()->with('success', 'پیام از CRM انجمن حذف شد.');
+    }
+
     public function updateTicket(Request $request, AssociationSupportTicket $ticket)
     {
         $validated = $request->validate([
@@ -120,6 +127,14 @@ class AssociationCrmController extends Controller
             'assigned_to' => auth()->id(),
             'closed_at' => $validated['status'] === 'closed' ? now() : null,
         ]);
+
+        if (filled($validated['admin_response'])) {
+            $ticket->messages()->create([
+                'user_id' => auth()->id(),
+                'sender' => 'association',
+                'body' => $validated['admin_response'],
+            ]);
+        }
 
         return back()->with('success', 'وضعیت تیکت بروزرسانی شد.');
     }
