@@ -32,10 +32,7 @@ class CompanyQuota extends Model
 
     public function getEffectiveLimitAttribute()
     {
-        if (!is_null($this->custom_limit)) {
-            return $this->custom_limit;
-        }
-        return $this->country->default_quota;
+        return $this->custom_limit;
     }
 
     public function hasAvailableQuota($requestedAmount)

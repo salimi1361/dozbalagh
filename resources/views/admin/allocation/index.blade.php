@@ -5,9 +5,9 @@
 @endsection
 
 @section('content')
-<div class="max-w-6xl mx-auto space-y-6">
+<div class="max-w-6xl mx-auto flex flex-col gap-6">
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+    <div class="order-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="bg-slate-800 p-5 text-white flex justify-between items-center">
             <h2 class="text-sm font-black flex items-center gap-2">⚙️ مدیریت سقف درخواست‌ها و مسدودی</h2>
         </div>
@@ -56,7 +56,7 @@
         </form>
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+    <div class="order-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="bg-slate-800 p-5 text-white flex justify-between items-center">
             <h2 class="text-sm font-black flex items-center gap-2">⏰ تنظیم زمان مجاز ثبت درخواست شرکت‌ها</h2>
         </div>
@@ -108,7 +108,7 @@
         </form>
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-6">
+    <div class="order-3 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-5 border-b border-slate-100 bg-slate-50">
             <h3 class="font-bold text-slate-700 text-sm">🌍 قوانین پیش‌فرض کشورها (روی همه شرکت‌ها اعمال می‌شود)</h3>
         </div>
@@ -154,7 +154,7 @@
         </div>
     </div>
 
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="order-4 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-5 border-b border-slate-100 bg-slate-50">
             <h3 class="font-bold text-slate-700 text-sm">🏢 استثناهای ثبت شده برای شرکت‌های خاص</h3>
         </div>

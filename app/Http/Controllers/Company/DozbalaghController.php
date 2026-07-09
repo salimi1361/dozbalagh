@@ -8,6 +8,7 @@ use App\Models\Driver;
 use App\Models\Fleet;
 use App\Models\Wallet;
 use App\Models\PermitRequest;
+use App\Models\CompanyQuota;
 use App\Models\CargoDocumentRule; 
 use App\Models\WorldCountry; 
 use App\Services\PermitRequestWindowService;
@@ -533,6 +534,13 @@ public function store(Request $request)
         $user = auth()->user();
         $companyId = optional($user->company)->id ?? $user->company_id ?? null;
 
+        $quotaError = $this->quotaErrorForDestinations((int) $companyId, $request->destinations);
+        if ($quotaError) {
+            return back()
+                ->withErrors(['error' => $quotaError])
+                ->withInput();
+        }
+
         $renewalSource = null;
 
         if ($request->input('request_type') === 'renewal') {
@@ -634,6 +642,65 @@ public function store(Request $request)
             DB::rollBack();
             return back()->withErrors(['error' => 'خطای سرور: ' . $e->getMessage()]);
         }
+    }
+
+    private function quotaErrorForDestinations(int $companyId, array $destinations, ?int $excludePermitId = null): ?string
+    {
+        $requestedByCountry = collect($destinations)
+            ->pluck('country_id')
+            ->filter()
+            ->map(fn ($countryId) => (int) $countryId)
+            ->countBy();
+
+        if ($requestedByCountry->isEmpty()) {
+            return null;
+        }
+
+        $countryIds = $requestedByCountry->keys()->all();
+        $countries = Country::whereIn('id', $countryIds)->get()->keyBy('id');
+        $companyQuotas = CompanyQuota::where('company_id', $companyId)
+            ->whereIn('country_id', $countryIds)
+            ->get()
+            ->keyBy('country_id');
+
+        $activeCounts = DB::table('permit_request_items as pri')
+            ->join('permit_requests as pr', 'pri.permit_request_id', '=', 'pr.id')
+            ->where('pr.company_id', $companyId)
+            ->whereIn('pr.status', $this->activePermitStatuses())
+            ->whereIn('pri.country_id', $countryIds)
+            ->when($excludePermitId, fn ($query) => $query->where('pr.id', '<>', $excludePermitId))
+            ->select('pri.country_id', DB::raw('count(*) as total'))
+            ->groupBy('pri.country_id')
+            ->pluck('total', 'country_id');
+
+        foreach ($requestedByCountry as $countryId => $requestedCount) {
+            $country = $countries->get((int) $countryId);
+            if (!$country) {
+                continue;
+            }
+
+            $companyQuota = $companyQuotas->get((int) $countryId);
+            $limit = $companyQuota ? $companyQuota->custom_limit : $country->default_quota;
+
+            if (is_null($limit)) {
+                continue;
+            }
+
+            $message = $companyQuota?->reject_message
+                ?: $country->reject_message
+                ?: "امکان ثبت درخواست دوزوله برای {$country->name} وجود ندارد یا سقف مجاز تکمیل شده است.";
+
+            if ((int) $limit === 0) {
+                return $message;
+            }
+
+            $usedCount = (int) ($activeCounts[(int) $countryId] ?? 0);
+            if (($usedCount + (int) $requestedCount) > (int) $limit) {
+                return $message;
+            }
+        }
+
+        return null;
     }
 
     public function checkFleetStatus(Request $request)
@@ -757,6 +824,13 @@ public function store(Request $request)
             ->where('company_id', $companyId)
             ->where('status', 'returned')
             ->firstOrFail();
+
+        $quotaError = $this->quotaErrorForDestinations((int) $companyId, $request->destinations, $permitRequest->id);
+        if ($quotaError) {
+            return back()
+                ->withErrors(['error' => $quotaError])
+                ->withInput();
+        }
 
         $filePaths = [];
         if ($request->hasFile('receipt_file')) $filePaths['receipt_file'] = $request->file('receipt_file')->store('permits/receipts', 'public');
