@@ -201,12 +201,18 @@
 @section('scripts')
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 
+@php
+    $companyDriversForNotification = $drivers->map(function ($driver) {
+        return [
+            'id' => $driver->id,
+            'name' => trim(($driver->first_name_fa ?? '') . ' ' . ($driver->last_name_fa ?? '')),
+            'national_code' => $driver->national_code,
+        ];
+    })->values();
+@endphp
+
 <script>
-    const companyDrivers = @json($drivers->map(fn($driver) => [
-        'id' => $driver->id,
-        'name' => trim(($driver->first_name_fa ?? '') . ' ' . ($driver->last_name_fa ?? '')),
-        'national_code' => $driver->national_code,
-    ])->values());
+    const companyDrivers = @json($companyDriversForNotification);
 
     const finglishDictionary = {
         'محمد': 'Mohammad', 'علی': 'Ali', 'حسن': 'Hassan', 'حسین': 'Hossein', 'رضا': 'Reza', 
