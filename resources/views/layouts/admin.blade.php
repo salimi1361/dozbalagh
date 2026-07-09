@@ -78,6 +78,9 @@
                 </button>
 
                 <div id="subDozbalaghMenu" class="{{ $isDozbalaghActive ? '' : 'hidden' }} mt-1 mr-3 pr-2 border-r-2 border-slate-800 space-y-1">
+                    <a href="/web/association/dashboard" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->is('web/association/dashboard') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}">
+                        <span>📊</span> داشبورد انجمن
+                    </a>
                     <a href="/web/association/driver/list" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->is('web/association/driver/list') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}">
                         <span>⏳</span> درخواست‌های معلق
                     </a>

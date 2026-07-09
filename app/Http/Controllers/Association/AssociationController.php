@@ -11,6 +11,181 @@ use Throwable;
 
 class AssociationController
 {
+    public function dashboard()
+    {
+        try {
+            $today = Carbon::now()->startOfDay();
+            $lastWeekStart = Carbon::now()->subDays(6)->startOfDay();
+            $lastMonthStart = Carbon::now()->subDays(29)->startOfDay();
+
+            $stats = [
+                'companies' => DB::table('companies')->count(),
+                'pending' => DB::table('permit_requests')->where('status', 'pending')->count(),
+                'approved_waiting_serial' => DB::table('permit_requests')
+                    ->where('status', 'approved')
+                    ->whereNull('serial_number')
+                    ->count(),
+                'issued' => DB::table('permit_requests')->where('status', 'issued')->count(),
+                'events_today' => DB::table('driver_events')->where('created_at', '>=', $today)->count(),
+                'events_week' => DB::table('driver_events')->where('created_at', '>=', $lastWeekStart)->count(),
+                'active_drivers_week' => DB::table('driver_events')
+                    ->where('created_at', '>=', $lastWeekStart)
+                    ->distinct('driver_id')
+                    ->count('driver_id'),
+                'requests_week' => DB::table('permit_requests')->where('created_at', '>=', $lastWeekStart)->count(),
+            ];
+
+            $dailyRequests = DB::table('permit_requests')
+                ->selectRaw('DATE(created_at) as day_key, COUNT(*) as total')
+                ->where('created_at', '>=', $lastWeekStart)
+                ->groupBy('day_key')
+                ->pluck('total', 'day_key');
+
+            $dailyEvents = DB::table('driver_events')
+                ->selectRaw('DATE(created_at) as day_key, COUNT(*) as total')
+                ->where('created_at', '>=', $lastWeekStart)
+                ->groupBy('day_key')
+                ->pluck('total', 'day_key');
+
+            $weekdays = [
+                0 => 'یکشنبه',
+                1 => 'دوشنبه',
+                2 => 'سه‌شنبه',
+                3 => 'چهارشنبه',
+                4 => 'پنجشنبه',
+                5 => 'جمعه',
+                6 => 'شنبه',
+            ];
+
+            $trendLabels = [];
+            $requestTrend = [];
+            $eventTrend = [];
+            for ($i = 6; $i >= 0; $i--) {
+                $date = Carbon::now()->subDays($i);
+                $key = $date->toDateString();
+                $trendLabels[] = $weekdays[$date->dayOfWeek] ?? $date->format('Y/m/d');
+                $requestTrend[] = (int) ($dailyRequests[$key] ?? 0);
+                $eventTrend[] = (int) ($dailyEvents[$key] ?? 0);
+            }
+
+            $eventTypeLabels = $this->driverEventTypeLabels();
+            $eventRows = DB::table('driver_events')
+                ->select('event_type', DB::raw('COUNT(*) as total'))
+                ->where('created_at', '>=', $lastMonthStart)
+                ->groupBy('event_type')
+                ->orderByDesc('total')
+                ->limit(6)
+                ->get();
+
+            $eventTypeChart = [
+                'labels' => $eventRows->map(fn ($row) => $eventTypeLabels[$row->event_type] ?? $row->event_type)->values(),
+                'series' => $eventRows->map(fn ($row) => (int) $row->total)->values(),
+            ];
+
+            $destinationRows = DB::table('permit_request_items as pri')
+                ->leftJoin('countries as c', 'pri.country_id', '=', 'c.id')
+                ->selectRaw("COALESCE(c.name, 'نامشخص') as country_name, COUNT(*) as total")
+                ->groupBy('country_name')
+                ->orderByDesc('total')
+                ->limit(6)
+                ->get();
+
+            $destinationChart = [
+                'labels' => $destinationRows->pluck('country_name')->values(),
+                'series' => $destinationRows->map(fn ($row) => (int) $row->total)->values(),
+            ];
+
+            $statusLabels = $this->permitStatusLabels();
+            $statusCards = DB::table('permit_requests')
+                ->select('status', DB::raw('COUNT(*) as total'))
+                ->groupBy('status')
+                ->orderByDesc('total')
+                ->get()
+                ->map(fn ($row) => [
+                    'label' => $statusLabels[$row->status] ?? ($row->status ?: 'نامشخص'),
+                    'value' => (int) $row->total,
+                    'key' => $row->status ?: 'unknown',
+                ]);
+
+            $companyEventLeaders = DB::table('driver_events as de')
+                ->leftJoin('dozbalagh_items as di', 'de.dozbalagh_item_id', '=', 'di.id')
+                ->leftJoin('permit_requests as pr', 'di.serial_number', '=', 'pr.serial_number')
+                ->leftJoin('companies as c', 'di.company_id', '=', 'c.id')
+                ->leftJoin('companies as pc', 'pr.company_id', '=', 'pc.id')
+                ->selectRaw("COALESCE(c.name_fa, c.name, pc.name_fa, pc.name, 'بدون شرکت') as company_name, COUNT(de.id) as total")
+                ->where('de.created_at', '>=', $lastMonthStart)
+                ->groupBy('company_name')
+                ->orderByDesc('total')
+                ->limit(5)
+                ->get();
+
+            $latestEvents = DB::table('driver_events as de')
+                ->leftJoin('drivers as d', 'de.driver_id', '=', 'd.id')
+                ->leftJoin('dozbalagh_items as di', 'de.dozbalagh_item_id', '=', 'di.id')
+                ->leftJoin('permit_requests as pr', 'di.serial_number', '=', 'pr.serial_number')
+                ->leftJoin('companies as c', 'di.company_id', '=', 'c.id')
+                ->leftJoin('companies as pc', 'pr.company_id', '=', 'pc.id')
+                ->select([
+                    'de.id',
+                    'de.event_type',
+                    'de.latitude',
+                    'de.longitude',
+                    'de.created_at',
+                    'di.serial_number',
+                    'pr.d_code',
+                    'c.name_fa as company_name_fa',
+                    'c.name as company_name',
+                    'pc.name_fa as permit_company_name_fa',
+                    'pc.name as permit_company_name',
+                    'd.first_name_fa',
+                    'd.last_name_fa',
+                    'd.national_code',
+                ])
+                ->orderByDesc('de.created_at')
+                ->limit(8)
+                ->get()
+                ->map(function ($event) use ($eventTypeLabels) {
+                    $driverName = trim(($event->first_name_fa ?? '') . ' ' . ($event->last_name_fa ?? ''));
+                    $event->event_label = $eventTypeLabels[$event->event_type] ?? $event->event_type;
+                    $event->driver_name = $driverName !== '' ? $driverName : 'راننده نامشخص';
+                    $event->company_display = $event->company_name_fa
+                        ?: ($event->company_name ?: ($event->permit_company_name_fa ?: ($event->permit_company_name ?: 'بدون شرکت')));
+                    return $event;
+                });
+
+            $lowStockCountries = DB::table('dozbalagh_items as di')
+                ->join('dozbalagh_batches as db', 'di.batch_id', '=', 'db.id')
+                ->join('countries as c', 'db.country_id', '=', 'c.id')
+                ->where(function ($query) {
+                    $query->whereNull('di.lifecycle_status')
+                        ->orWhere('di.lifecycle_status', 'raw')
+                        ->orWhereNotIn('di.lifecycle_status', ['consumed', 'issued', 'collected', 'archived', 'lost']);
+                })
+                ->selectRaw('c.name as country_name, COUNT(di.id) as available_count')
+                ->groupBy('c.name')
+                ->having('available_count', '<=', 50)
+                ->orderBy('available_count')
+                ->limit(4)
+                ->get();
+
+            return view('association.dashboard', compact(
+                'stats',
+                'trendLabels',
+                'requestTrend',
+                'eventTrend',
+                'eventTypeChart',
+                'destinationChart',
+                'statusCards',
+                'companyEventLeaders',
+                'latestEvents',
+                'lowStockCountries'
+            ));
+        } catch (Throwable $e) {
+            Log::error('Association Dashboard Error: ' . $e->getMessage());
+            return abort(500, 'خطا در بارگذاری داشبورد انجمن: ' . $e->getMessage());
+        }
+    }
+
     /**
      * نمایش لیست درخواست‌های منتظر بررسی (Pending) در کارتابل انجمن
      */
@@ -557,6 +732,35 @@ class AssociationController
     {
         return view('association.driver.show', compact('id'));
     } 
+
+    private function driverEventTypeLabels(): array
+    {
+        return [
+            'started_trip' => 'شروع سفر',
+            'in_transit' => 'در حال تردد',
+            'at_border_out' => 'مرز خروجی',
+            'reached_border' => 'رسیده به مرز',
+            'at_destination' => 'گمرک مقصد',
+            'delivered' => 'تحویل مقصد',
+            'returned' => 'بازگشت لاشه',
+            'problem' => 'اعلام مشکل',
+            'delay' => 'اعلام تاخیر',
+        ];
+    }
+
+    private function permitStatusLabels(): array
+    {
+        return [
+            'pending' => 'در انتظار بررسی',
+            'approved' => 'منتظر تخصیص سریال',
+            'issued' => 'صادر شده / در تردد',
+            'rejected' => 'رد شده',
+            'collected' => 'تحویل شده',
+            'archived' => 'بایگانی شده',
+            'lost' => 'مفقودی',
+            'returned' => 'برگشتی',
+        ];
+    }
 
     public function transitPermits()
     {

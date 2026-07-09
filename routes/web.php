@@ -94,6 +94,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 // 🏛️ روت‌های کارتابل و مدیریت پروانه‌های انجمن صنفی
 // ==========================================
 Route::middleware(['auth'])->group(function () {
+    Route::get('/web/association/dashboard', [AssociationController::class, 'dashboard'])->name('association.dashboard');
     Route::get('/web/association/driver/list', [AssociationController::class, 'index'])->name('association.pending.index');
     Route::post('/web/association/request/process/{id}', [AssociationController::class, 'updateRequestStatus']);
     
