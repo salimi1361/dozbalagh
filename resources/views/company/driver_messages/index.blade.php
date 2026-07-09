@@ -35,15 +35,35 @@
                     <button type="button" onclick="selectAllDrivers()" class="text-[11px] font-black text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg">انتخاب همه</button>
                 </div>
                 <div class="grid grid-cols-3 gap-1 mb-3">
-                    <button type="button" id="mode_chats" onclick="setListMode('chats')" class="list-mode-btn bg-blue-600 text-white rounded-lg py-2 text-[10px] font-black">سوابق گفتگو</button>
+                    <button type="button" id="mode_chats" onclick="setListMode('chats')" class="list-mode-btn bg-slate-100 text-slate-600 rounded-lg py-2 text-[10px] font-black">سوابق گفتگو</button>
                     <button type="button" id="mode_unread" onclick="setListMode('unread')" class="list-mode-btn bg-slate-100 text-slate-600 rounded-lg py-2 text-[10px] font-black">خوانده‌نشده</button>
-                    <button type="button" id="mode_all" onclick="setListMode('all')" class="list-mode-btn bg-slate-100 text-slate-600 rounded-lg py-2 text-[10px] font-black">همه</button>
+                    <button type="button" id="mode_all" onclick="setListMode('all')" class="list-mode-btn bg-blue-600 text-white rounded-lg py-2 text-[10px] font-black">همه</button>
                 </div>
                 <input id="driver_search" type="text" placeholder="جستجو نام، موبایل یا کد ملی..."
                        class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-blue-500">
             </div>
 
-            <div id="driver_list" class="max-h-[620px] overflow-y-auto divide-y divide-slate-100"></div>
+            <div id="driver_list" class="max-h-[620px] overflow-y-auto divide-y divide-slate-100">
+                @forelse($driverPayload as $driver)
+                    <div class="driver-item bg-white p-4 hover:bg-slate-50 transition">
+                        <div class="flex items-start gap-3">
+                            <input type="checkbox" class="mt-1 w-4 h-4" disabled>
+                            <div class="flex-1 text-right">
+                                <div class="flex items-center justify-between gap-2">
+                                    <b class="text-sm text-slate-800">{{ $driver['name'] }}</b>
+                                    @if($driver['unread_count'] > 0)
+                                        <span class="bg-rose-100 text-rose-700 text-[10px] font-black px-2 py-1 rounded-full">{{ $driver['unread_count'] }} پاسخ</span>
+                                    @endif
+                                </div>
+                                <div class="text-[11px] text-slate-500 mt-1">{{ $driver['mobile'] ?: 'بدون موبایل' }} · {{ $driver['national_code'] }}</div>
+                                <div class="text-[10px] text-slate-400 mt-1">{{ $driver['last_message_at'] ? 'آخرین گفتگو: '.$driver['last_message_at'] : 'بدون سابقه گفتگو' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                @empty
+                    <div class="p-8 text-center text-xs font-bold text-slate-400">راننده‌ای برای شرکت ثبت نشده است.</div>
+                @endforelse
+            </div>
         </aside>
 
         <section class="xl:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
@@ -124,11 +144,11 @@
 @section('scripts')
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 <script>
-    let drivers = @json($driverPayload);
+    let drivers = {{ Illuminate\Support\Js::from($driverPayload) }};
     let selectedDriverIds = [];
     let currentScope = 'selected';
     let activeThreadDriverId = null;
-    let currentListMode = 'chats';
+    let currentListMode = 'all';
     let threadRefreshInFlight = false;
 
     function escapeText(value) {
@@ -282,7 +302,11 @@
             if (!res.success) return;
 
             $('#thread_title').text(`${res.driver.name} · ${res.driver.mobile || 'بدون موبایل'}`);
-            drivers = drivers.map(driver => driver.id === driverId ? { ...driver, unread_count: 0 } : driver);
+            drivers = drivers.map(driver => {
+                if (driver.id !== driverId) return driver;
+                driver.unread_count = 0;
+                return driver;
+            });
 
             const html = res.messages.length
                 ? res.messages.map(item => `
