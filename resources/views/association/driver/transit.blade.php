@@ -80,9 +80,6 @@
                                         مفقودی
                                     </button>
 
-                                    <button onclick="openExtensionModal({{ $req->id }}, '{{ $req->d_code }}')" class="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg text-xs font-black transition-all shadow-sm">
-                                        تمدید مسیر
-                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -154,7 +151,7 @@ function receiveLash(id, serial, courierName, courierMobile) {
         }
     }).then((result) => {
         if (result.isConfirmed) {
-            executeSettleRequest(id, 'collected', null, result.value);
+            executeSettleRequest(id, 'archived', null, result.value);
         }
     });
 }

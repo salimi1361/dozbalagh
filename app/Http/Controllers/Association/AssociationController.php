@@ -207,7 +207,7 @@ class AssociationController
                 $updateData['approved_at'] = $now;
             }
             elseif ($status === 'collected' || $status === 'lost' || $status === 'archived') {
-                if ($status === 'collected') {
+                if ($status === 'collected' || $status === 'archived') {
                     if (empty($permit->company_return_image) || empty($permit->courier_delivery_code)) {
                         DB::rollBack();
                         return response()->json([
