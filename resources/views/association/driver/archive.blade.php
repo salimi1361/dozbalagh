@@ -135,7 +135,7 @@
                                         کنترل/تکمیل
                                     </button>
 
-                                    @if(isset($req->collected_image))
+                                    @if(!empty($req->collected_image))
                                         <a href="{{ asset('storage/' . $req->collected_image) }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-black transition-all border border-indigo-100">
                                             👁️ تصویر لاشه
                                         </a>

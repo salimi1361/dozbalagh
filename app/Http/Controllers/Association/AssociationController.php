@@ -905,12 +905,101 @@ class AssociationController
     public function archivePermits()
     {
         try {
-            $requests = DB::table('permit_requests')
-                ->whereIn('status', ['archived', 'collected', 'lost'])
-                ->orderBy('updated_at', 'desc')
-                ->paginate(10);
+            $hasItemStatus = Schema::hasColumn('permit_request_items', 'item_status');
+            $hasCompanyReturnImage = Schema::hasColumn('permit_request_items', 'company_return_image');
+            $hasCourierName = Schema::hasColumn('permit_request_items', 'courier_name');
+            $hasCourierMobile = Schema::hasColumn('permit_request_items', 'courier_mobile');
+            $hasCourierDeliveryCode = Schema::hasColumn('permit_request_items', 'courier_delivery_code');
+            $hasCourierReceivedAt = Schema::hasColumn('permit_request_items', 'courier_received_at');
+            $hasCollectedImage = Schema::hasColumn('permit_request_items', 'collected_image');
+            $hasClosedAt = Schema::hasColumn('permit_request_items', 'closed_at');
+            $hasParentClosedAt = Schema::hasColumn('permit_requests', 'closed_at');
+
+            $selects = [
+                'pr.*',
+                'pri.id as item_id',
+                'pri.country_id as item_country_id',
+                'pri.permit_type as item_permit_type',
+                'pri.operation_type as item_operation_type',
+                'pri.d_serial_number as item_serial_number',
+                'pri.return_status',
+                'pri.return_cmr_file',
+                'pri.rejection_reason as item_return_meta',
+                'c.name as item_country_name',
+            ];
+
+            $selects[] = $hasItemStatus
+                ? 'pri.item_status'
+                : DB::raw('pri.return_status as item_status');
+            $selects[] = $hasCompanyReturnImage
+                ? 'pri.company_return_image as item_company_return_image'
+                : DB::raw('pri.return_cmr_file as item_company_return_image');
+            $selects[] = $hasCourierName
+                ? 'pri.courier_name as item_courier_name'
+                : DB::raw('NULL as item_courier_name');
+            $selects[] = $hasCourierMobile
+                ? 'pri.courier_mobile as item_courier_mobile'
+                : DB::raw('NULL as item_courier_mobile');
+            $selects[] = $hasCourierDeliveryCode
+                ? 'pri.courier_delivery_code as item_courier_delivery_code'
+                : DB::raw('NULL as item_courier_delivery_code');
+            $selects[] = $hasCourierReceivedAt
+                ? 'pri.courier_received_at as item_courier_received_at'
+                : DB::raw('NULL as item_courier_received_at');
+            $selects[] = $hasCollectedImage
+                ? 'pri.collected_image as item_collected_image'
+                : DB::raw('pri.return_cmr_file as item_collected_image');
+            $selects[] = $hasClosedAt
+                ? 'pri.closed_at as item_closed_at'
+                : ($hasParentClosedAt ? DB::raw('pr.closed_at as item_closed_at') : DB::raw('NULL as item_closed_at'));
+
+            $query = DB::table('permit_request_items as pri')
+                ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
+                ->leftJoin('countries as c', 'c.id', '=', 'pri.country_id')
+                ->whereIn('pr.status', ['archived', 'collected', 'lost'])
+                ->whereNotNull('pri.d_serial_number')
+                ->orderBy('pri.updated_at', 'desc')
+                ->select($selects);
+
+            if ($hasItemStatus) {
+                $query->where(function ($query) {
+                    $query->whereIn('pri.item_status', ['archived', 'collected', 'lost'])
+                        ->orWhereIn('pri.return_status', ['archived', 'collected', 'lost'])
+                        ->orWhereNull('pri.item_status');
+                });
+            } else {
+                $query->where(function ($query) {
+                    $query->whereIn('pri.return_status', ['archived', 'collected', 'lost'])
+                        ->orWhereNull('pri.return_status');
+                });
+            }
+
+            $requests = $query->paginate(10);
 
             foreach ($requests as $req) {
+                $itemStatus = in_array($req->item_status, ['archived', 'collected', 'lost'], true)
+                    ? $req->item_status
+                    : (in_array($req->return_status, ['archived', 'collected', 'lost'], true) ? $req->return_status : $req->status);
+                $req->status = in_array($itemStatus, ['archived', 'collected', 'lost'], true) ? $itemStatus : $req->status;
+                $req->serial_number = $req->item_serial_number ?: $req->serial_number;
+                $req->country_name = $req->item_country_name ?: 'نامشخص';
+                $req->company_return_image = $req->item_company_return_image;
+                $req->collected_image = $req->item_collected_image ?: ($req->item_company_return_image ?: $req->return_cmr_file);
+                $req->courier_name = $req->item_courier_name;
+                $req->courier_mobile = $req->item_courier_mobile;
+                $req->courier_delivery_code = $req->item_courier_delivery_code;
+                $req->courier_received_at = $req->item_courier_received_at;
+                $req->closed_at = $req->item_closed_at ?: ($req->closed_at ?? null);
+
+                if ((!$req->courier_name || !$req->courier_mobile || !$req->courier_delivery_code) && !empty($req->item_return_meta)) {
+                    $meta = json_decode($req->item_return_meta, true);
+                    if (is_array($meta)) {
+                        $req->courier_name = $req->courier_name ?: ($meta['cn'] ?? null);
+                        $req->courier_mobile = $req->courier_mobile ?: ($meta['cm'] ?? null);
+                        $req->courier_delivery_code = $req->courier_delivery_code ?: ($meta['dc'] ?? null);
+                    }
+                }
+
                 $req->driver = null;
                 if (isset($req->driver_id)) {
                     $req->driver = DB::table('drivers')->where('id', $req->driver_id)->first() 
@@ -922,15 +1011,6 @@ class AssociationController
                     $req->fleet = DB::table('fleets')->where('id', $req->fleet_id)->first() 
                                ?? DB::table('fleets')->where('smart_card_number', $req->fleet_id)->first();
                 }
-
-                $destination = DB::table('permit_request_items')->where('permit_request_id', $req->id)->first();
-                $req->country_name = 'نامشخص';
-                if ($destination) {
-                    $countryInfo = DB::table('countries')->where('id', $destination->country_id)->first();
-                    if ($countryInfo) {
-                        $req->country_name = $countryInfo->name;
-                    }
-                }
             }
 
             foreach ($requests as $req) {
@@ -938,7 +1018,7 @@ class AssociationController
                     ->where('permit_request_id', $req->id)
                     ->get();
 
-                $req->dbDetails = $items->first();
+                $req->dbDetails = $items->firstWhere('id', $req->item_id) ?: $items->first();
                 $req->destinations = $items->map(function ($item) {
                     $country = DB::table('countries')->where('id', $item->country_id)->first();
 
