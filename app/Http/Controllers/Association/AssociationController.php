@@ -956,7 +956,6 @@ class AssociationController
             $query = DB::table('permit_request_items as pri')
                 ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
                 ->leftJoin('countries as c', 'c.id', '=', 'pri.country_id')
-                ->whereIn('pr.status', ['archived', 'collected', 'lost'])
                 ->whereNotNull('pri.d_serial_number')
                 ->orderBy('pri.updated_at', 'desc')
                 ->select($selects);
@@ -965,12 +964,12 @@ class AssociationController
                 $query->where(function ($query) {
                     $query->whereIn('pri.item_status', ['archived', 'collected', 'lost'])
                         ->orWhereIn('pri.return_status', ['archived', 'collected', 'lost'])
-                        ->orWhereNull('pri.item_status');
+                        ->orWhereIn('pr.status', ['archived', 'collected', 'lost']);
                 });
             } else {
                 $query->where(function ($query) {
                     $query->whereIn('pri.return_status', ['archived', 'collected', 'lost'])
-                        ->orWhereNull('pri.return_status');
+                        ->orWhereIn('pr.status', ['archived', 'collected', 'lost']);
                 });
             }
 
