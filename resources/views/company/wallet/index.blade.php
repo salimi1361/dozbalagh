@@ -27,13 +27,13 @@
                 <div class="text-xs text-orange-100 mt-2">مبالغ بلوکه شده بابت درخواست‌های در انتظار تایید.</div>
             </div>
 
-            <div class="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative overflow-hidden">
+            <div class="bg-slate-100 border border-slate-300 rounded-2xl p-6 text-slate-900 shadow-inner relative overflow-hidden">
                 <div class="text-slate-500 text-sm font-bold mb-2">موجودی کل (دفتر کل)</div>
                 <div class="flex items-baseline gap-2" dir="ltr">
-                    <span class="text-3xl font-black font-mono text-slate-800">{{ number_format($wallet->balance ?? 0) }}</span>
-                    <span class="font-sans text-sm font-bold text-slate-400">ریال</span>
+                    <span class="text-3xl font-black font-mono text-emerald-700">{{ number_format($wallet->balance ?? 0) }}</span>
+                    <span class="font-sans text-sm font-bold text-emerald-700">ریال</span>
                 </div>
-                <div class="text-xs text-slate-400 mt-2">مجموع موجودی قابل استفاده و مسدود شده.</div>
+                <div class="text-xs text-slate-500 mt-2">مجموع موجودی قابل استفاده و مسدود شده.</div>
             </div>
         </div>
 
