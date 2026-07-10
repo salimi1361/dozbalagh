@@ -8,6 +8,7 @@ use App\Models\Country;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ReportController extends Controller
 {
@@ -57,6 +58,13 @@ class ReportController extends Controller
 
     private function buildQuery(Request $request): Builder
     {
+        $issuedAtColumn = Schema::hasColumn('permit_request_items', 'issued_at')
+            ? 'pri.issued_at'
+            : DB::raw('NULL as issued_at');
+        $validUntilColumn = Schema::hasColumn('permit_request_items', 'permit_valid_until')
+            ? 'pri.permit_valid_until'
+            : DB::raw('NULL as permit_valid_until');
+
         $query = DB::table('permit_request_items as pri')
             ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
             ->leftJoin('companies as co', 'co.id', '=', 'pr.company_id')
@@ -71,7 +79,7 @@ class ReportController extends Controller
                 'd.national_code as driver_national_code', 'f.smart_card_number as fleet_smart_card',
                 'f.transit_plate as fleet_plate', 'c.name as country_name', 'pr.request_type',
                 'pri.permit_type', DB::raw($this->statusExpression('pri') . ' as report_status'),
-                'pr.created_at', 'pri.issued_at', 'pri.permit_valid_until',
+                'pr.created_at', $issuedAtColumn, $validUntilColumn,
             ]);
 
         if ($request->filled('search')) {
@@ -89,8 +97,14 @@ class ReportController extends Controller
             ->when($request->filled('request_type'), fn (Builder $q) => $q->where('pr.request_type', $request->input('request_type')))
             ->when($request->filled('company_id'), fn (Builder $q) => $q->where('pr.company_id', $request->integer('company_id')))
             ->when($request->filled('country_id'), fn (Builder $q) => $q->where('pri.country_id', $request->integer('country_id')))
-            ->when($request->filled('date_from'), fn (Builder $q) => $q->whereDate('pri.issued_at', '>=', $request->input('date_from')))
-            ->when($request->filled('date_to'), fn (Builder $q) => $q->whereDate('pri.issued_at', '<=', $request->input('date_to')));
+            ->when($request->filled('date_from'), function (Builder $q) use ($request) {
+                $column = Schema::hasColumn('permit_request_items', 'issued_at') ? 'pri.issued_at' : 'pr.created_at';
+                $q->whereDate($column, '>=', $request->input('date_from'));
+            })
+            ->when($request->filled('date_to'), function (Builder $q) use ($request) {
+                $column = Schema::hasColumn('permit_request_items', 'issued_at') ? 'pri.issued_at' : 'pr.created_at';
+                $q->whereDate($column, '<=', $request->input('date_to'));
+            });
 
         return $query;
     }
@@ -109,6 +123,14 @@ class ReportController extends Controller
     private function statusExpression(string $alias = ''): string
     {
         $prefix = $alias === '' ? '' : $alias . '.';
-        return "CASE WHEN {$prefix}item_status IN ('lost', 'collected', 'archived', 'extended', 'cancelled') THEN {$prefix}item_status WHEN {$prefix}company_return_submitted_at IS NOT NULL THEN 'company_returned' ELSE 'issued' END";
+        $statusColumn = Schema::hasColumn('permit_request_items', 'item_status')
+            ? $prefix . 'item_status'
+            : (Schema::hasColumn('permit_request_items', 'return_status') ? $prefix . 'return_status' : "'issued'");
+
+        $returnCondition = Schema::hasColumn('permit_request_items', 'company_return_submitted_at')
+            ? "{$prefix}company_return_submitted_at IS NOT NULL"
+            : (Schema::hasColumn('permit_request_items', 'return_status') ? "{$prefix}return_status = 'company_returned'" : '1 = 0');
+
+        return "CASE WHEN {$statusColumn} IN ('lost', 'collected', 'archived', 'extended', 'cancelled') THEN {$statusColumn} WHEN {$returnCondition} THEN 'company_returned' ELSE 'issued' END";
     }
 }
