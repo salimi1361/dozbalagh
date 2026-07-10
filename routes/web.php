@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\{
 };
 use App\Http\Controllers\Admin\AssociationCrmController;
 use App\Http\Controllers\Association\AssociationController;
+use App\Http\Controllers\Association\ReportController as AssociationReportController;
 // ==========================================
 // روت اصلی
 // ==========================================
@@ -156,6 +157,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::post('/financial/store-settlement', [FinancialController::class, 'storeSettlement'])->name('financial.storeSettlement');
     Route::post('/financial/manual-adjustment', [FinancialController::class, 'manualAdjustment'])->name('financial.manualAdjustment');
     Route::get('/financial/export-excel', [FinancialController::class, 'exportExcel'])->name('financial.exportExcel');
+    Route::get('/financial/dozbalagh-monthly-report', [FinancialController::class, 'exportMonthlyDozbalaghReport'])->name('financial.dozbalaghMonthlyReport');
     Route::delete('/financial/manual-adjustment/{id}', [FinancialController::class, 'destroyAdjustment'])->name('financial.destroyAdjustment');
 
     Route::get('/association-crm', [AssociationCrmController::class, 'index'])->name('association_crm.index');
@@ -189,6 +191,9 @@ Route::middleware(['auth'])->group(function () {
 
     // آرشیو لاشه‌ها و پروانه‌ها
     Route::get('/web/association/permits/archive', [AssociationController::class, 'archivePermits'])->name('association.archive.index'); 
+
+    Route::get('/web/association/reports', [AssociationReportController::class, 'index'])->name('association.reports.index');
+    Route::get('/web/association/reports/export', [AssociationReportController::class, 'exportExcel'])->name('association.reports.export');
     
     // روت نمایش صفحه چاپ واقعی برگه دوزبلاغ
     Route::get('/web/association/request/print/{id}', [AssociationController::class, 'printPermit'])->name('association.permit.print');

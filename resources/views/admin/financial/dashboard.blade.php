@@ -173,6 +173,35 @@
     {{-- ======================================= --}}
     {{-- بخش سوم: دفتر کل تراکنش‌ها (Master Ledger) --}}
     {{-- ======================================= --}}
+    <div class="bg-white rounded-2xl border border-emerald-200 shadow-sm p-5 mb-5">
+        <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+            <div>
+                <h3 class="font-black text-slate-800 text-lg">گزارش مالی ماهانه دوزوله‌های صادرشده</h3>
+                <p class="text-xs text-slate-500 mt-1">شامل شرکت صادرکننده، شماره دوزوله، کد رهگیری، مقصد و مبلغ کسرشده؛ با جمع کنترل نهایی.</p>
+            </div>
+            <form action="{{ route('admin.financial.dozbalaghMonthlyReport') }}" method="GET" class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3 items-end">
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 mb-1">از تاریخ</label>
+                    <input type="date" name="date_from" required value="{{ now()->startOfMonth()->format('Y-m-d') }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 mb-1">تا تاریخ</label>
+                    <input type="date" name="date_to" required value="{{ now()->endOfMonth()->format('Y-m-d') }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 mb-1">شرکت (اختیاری)</label>
+                    <select name="company_id" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs">
+                        <option value="">همه شرکت‌ها</option>
+                        @foreach($companies as $company)
+                            <option value="{{ $company->id }}">{{ $company->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-xl text-xs">خروجی Excel ماهانه</button>
+            </form>
+        </div>
+    </div>
+
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="bg-slate-50 p-5 border-b border-slate-200">
             <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">

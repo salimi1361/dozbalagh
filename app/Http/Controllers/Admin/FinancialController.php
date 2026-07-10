@@ -10,6 +10,8 @@ use App\Models\Settlement;
 use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class FinancialController extends Controller
 {
@@ -224,6 +226,110 @@ class FinancialController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Auditable monthly report of issued Dozbalagh items.
+     *
+     * The source of truth is permit_request_items: every issued serial is one
+     * financial row and its frozen price is the deducted amount for that item.
+     */
+    public function exportMonthlyDozbalaghReport(Request $request)
+    {
+        $validated = $request->validate([
+            'date_from' => ['required', 'date_format:Y-m-d'],
+            'date_to' => ['required', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'company_id' => ['nullable', 'integer', 'exists:companies,id'],
+        ]);
+
+        $from = $validated['date_from'];
+        $to = $validated['date_to'];
+
+        if (Carbon::parse($from)->diffInDays(Carbon::parse($to)) > 31) {
+            throw ValidationException::withMessages([
+                'date_to' => 'بازه گزارش ماهانه نمی‌تواند بیشتر از ۳۱ روز باشد.',
+            ]);
+        }
+
+        $query = DB::table('permit_request_items as item')
+            ->join('permit_requests as permit', 'permit.id', '=', 'item.permit_request_id')
+            ->join('companies as company', 'company.id', '=', 'permit.company_id')
+            ->leftJoin('countries as country', 'country.id', '=', 'item.country_id')
+            ->whereNotNull('item.d_serial_number')
+            ->whereNotNull('item.issued_at')
+            ->whereBetween('item.issued_at', ["{$from} 00:00:00", "{$to} 23:59:59"])
+            ->when($validated['company_id'] ?? null, fn ($q, $companyId) => $q->where('permit.company_id', $companyId))
+            ->orderBy('item.issued_at')
+            ->orderBy('item.id')
+            ->select([
+                'item.id as item_id',
+                'permit.d_code as tracking_code',
+                'item.d_serial_number as serial_number',
+                'company.name as company_name',
+                'company.name_fa as company_name_fa',
+                'country.name as country_name',
+                'item.loading_destination',
+                'item.operation_type',
+                'item.permit_type',
+                'item.price as deducted_amount',
+                'item.issued_at',
+            ]);
+
+        $rows = $query->get();
+        $total = $rows->sum(fn ($row) => (float) $row->deducted_amount);
+        $fileName = "dozbalagh-financial-report-{$from}-to-{$to}.csv";
+
+        return response()->streamDownload(function () use ($rows, $total, $from, $to) {
+            $file = fopen('php://output', 'wb');
+            fwrite($file, "\xEF\xBB\xBF");
+            $safeText = static function ($value): string {
+                $value = (string) ($value ?? '');
+
+                return preg_match('/^[=+\-@]/u', $value) ? "'{$value}" : $value;
+            };
+
+            fputcsv($file, ['گزارش مالی دوزوله‌های صادرشده']);
+            fputcsv($file, ['از تاریخ', $from, 'تا تاریخ', $to]);
+            fputcsv($file, ['تعداد ردیف', $rows->count(), 'جمع مبلغ کسرشده (ریال)', $total]);
+            fputcsv($file, []);
+            fputcsv($file, [
+                'ردیف',
+                'کد رهگیری پرونده',
+                'شماره دوزوله',
+                'شرکت صادرکننده',
+                'کشور مقصد',
+                'مقصد بارگیری',
+                'نوع عملیات',
+                'نوع دوزوله',
+                'مبلغ کسرشده (ریال)',
+                'تاریخ و ساعت صدور (شمسی)',
+                'شناسه سیستمی ردیف',
+            ]);
+
+            foreach ($rows as $index => $row) {
+                $issuedAt = \Illuminate\Support\Carbon::parse($row->issued_at);
+                fputcsv($file, [
+                    $index + 1,
+                    $safeText($row->tracking_code),
+                    $safeText($row->serial_number),
+                    $safeText($row->company_name_fa ?: $row->company_name ?: 'نامشخص'),
+                    $safeText($row->country_name ?: 'نامشخص'),
+                    $safeText($row->loading_destination ?: '---'),
+                    $safeText($row->operation_type ?: '---'),
+                    $safeText($row->permit_type ?: '---'),
+                    (float) $row->deducted_amount,
+                    \Morilog\Jalali\Jalalian::fromCarbon($issuedAt)->format('Y/m/d H:i'),
+                    $row->item_id,
+                ]);
+            }
+
+            fputcsv($file, []);
+            fputcsv($file, ['', '', '', '', '', '', '', 'جمع کل', $total]);
+            fclose($file);
+        }, $fileName, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'no-store, no-cache, must-revalidate',
+        ]);
     }
 
     public function destroyAdjustment($id)

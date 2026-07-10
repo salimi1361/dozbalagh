@@ -90,6 +90,9 @@
                     <a href="/web/association/permits/archive" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->is('web/association/permits/archive') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}">
                         <span>🗂️</span> بایگانی کل پروانه‌ها
                     </a>
+                    <a href="{{ route('association.reports.index') }}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->routeIs('association.reports.*') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}">
+                        <span>📊</span> گزارش دوزوله‌ها
+                    </a>
                 </div>
             </div>
 
