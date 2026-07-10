@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\{
 use App\Http\Controllers\Admin\AssociationCrmController;
 use App\Http\Controllers\Association\AssociationController;
 use App\Http\Controllers\Association\ReportController as AssociationReportController;
+use App\Http\Controllers\Association\IssuedDozbalaghFinancialReportController;
 // ==========================================
 // روت اصلی
 // ==========================================
@@ -153,12 +154,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::delete('/fleets/{id}', [FleetController::class, 'destroy'])->name('fleets.destroy');
     
     // 🏛️ مدیریت مالی ادمین
-    Route::get('/financial/dashboard', [FinancialController::class, 'dashboard'])->name('financial.dashboard');
-    Route::post('/financial/store-settlement', [FinancialController::class, 'storeSettlement'])->name('financial.storeSettlement');
-    Route::post('/financial/manual-adjustment', [FinancialController::class, 'manualAdjustment'])->name('financial.manualAdjustment');
-    Route::get('/financial/export-excel', [FinancialController::class, 'exportExcel'])->name('financial.exportExcel');
-    Route::get('/financial/dozbalagh-monthly-report', [FinancialController::class, 'exportMonthlyDozbalaghReport'])->name('financial.dozbalaghMonthlyReport');
-    Route::delete('/financial/manual-adjustment/{id}', [FinancialController::class, 'destroyAdjustment'])->name('financial.destroyAdjustment');
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/financial/dashboard', [FinancialController::class, 'dashboard'])->name('financial.dashboard');
+        Route::post('/financial/store-settlement', [FinancialController::class, 'storeSettlement'])->name('financial.storeSettlement');
+        Route::post('/financial/manual-adjustment', [FinancialController::class, 'manualAdjustment'])->name('financial.manualAdjustment');
+        Route::get('/financial/export-excel', [FinancialController::class, 'exportExcel'])->name('financial.exportExcel');
+        Route::get('/financial/dozbalagh-monthly-report', [FinancialController::class, 'exportMonthlyDozbalaghReport'])->name('financial.dozbalaghMonthlyReport');
+        Route::delete('/financial/manual-adjustment/{id}', [FinancialController::class, 'destroyAdjustment'])->name('financial.destroyAdjustment');
+    });
 
     Route::get('/association-crm', [AssociationCrmController::class, 'index'])->name('association_crm.index');
     Route::get('/association-crm/tickets/live', [AssociationCrmController::class, 'liveTickets'])->name('association_crm.tickets.live');
@@ -194,6 +197,10 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/web/association/reports', [AssociationReportController::class, 'index'])->name('association.reports.index');
     Route::get('/web/association/reports/export', [AssociationReportController::class, 'exportExcel'])->name('association.reports.export');
+    Route::middleware('role:admin,association')->group(function () {
+        Route::get('/web/association/issued-financial-report', [IssuedDozbalaghFinancialReportController::class, 'index'])->name('association.issued-financial.index');
+        Route::get('/web/association/issued-financial-report/export', [IssuedDozbalaghFinancialReportController::class, 'export'])->name('association.issued-financial.export');
+    });
     
     // روت نمایش صفحه چاپ واقعی برگه دوزبلاغ
     Route::get('/web/association/request/print/{id}', [AssociationController::class, 'printPermit'])->name('association.permit.print');
