@@ -627,12 +627,38 @@ class AssociationController
     public function transitPermits()
     {
         try {
-            $requests = DB::table('permit_requests')
-                ->where('status', 'issued')
-                ->orderBy('updated_at', 'desc')
+            $requests = DB::table('permit_request_items as pri')
+                ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
+                ->leftJoin('countries as c', 'c.id', '=', 'pri.country_id')
+                ->where('pr.status', 'issued')
+                ->whereNotNull('pri.d_serial_number')
+                ->where(function ($query) {
+                    $query->whereNull('pri.item_status')
+                        ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived']);
+                })
+                ->orderBy('pri.updated_at', 'desc')
+                ->select(
+                    'pr.*',
+                    'pri.id as item_id',
+                    'pri.country_id as item_country_id',
+                    'pri.permit_type as item_permit_type',
+                    'pri.d_serial_number as item_serial_number',
+                    'pri.item_status',
+                    'pri.company_return_image as item_company_return_image',
+                    'pri.courier_name as item_courier_name',
+                    'pri.courier_mobile as item_courier_mobile',
+                    'pri.courier_delivery_code as item_courier_delivery_code',
+                    'c.name as item_country_name'
+                )
                 ->paginate(10);
 
             foreach ($requests as $req) {
+                $req->serial_number = $req->item_serial_number ?: $req->serial_number;
+                $req->company_return_image = $req->item_company_return_image;
+                $req->courier_name = $req->item_courier_name;
+                $req->courier_mobile = $req->item_courier_mobile;
+                $req->courier_delivery_code = $req->item_courier_delivery_code;
+
                 $req->driver = null;
                 if (isset($req->driver_id)) {
                     $req->driver = DB::table('drivers')->where('id', $req->driver_id)->first() 
@@ -646,14 +672,7 @@ class AssociationController
                                ?? DB::table('fleets')->where('smart_card_number', $req->fleet_id)->first();
                 }
 
-                $destination = DB::table('permit_request_items')->where('permit_request_id', $req->id)->first();
-                $req->country_name = 'نامشخص';
-                if ($destination) {
-                    $countryInfo = DB::table('countries')->where('id', $destination->country_id)->first();
-                    if ($countryInfo) {
-                        $req->country_name = $countryInfo->name;
-                    }
-                }
+                $req->country_name = $req->item_country_name ?: 'نامشخص';
             }
 
             return view('association.driver.transit', compact('requests'));
@@ -665,7 +684,153 @@ class AssociationController
 
     public function settleTransitPermit(Request $request, $id)
     {
-        return $this->updateRequestStatus($request, $id);
+        $request->validate([
+            'status' => 'required|string',
+            'courier_code' => 'nullable|string',
+            'image' => 'nullable|image|max:5120'
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $status = $request->input('status');
+            if (!in_array($status, ['collected', 'archived', 'lost'], true)) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'وضعیت انتخاب شده برای تحویل لاشه معتبر نیست.',
+                ], 422);
+            }
+
+            $now = Carbon::now();
+            $userId = auth()->id() ?? null;
+            $item = DB::table('permit_request_items as pri')
+                ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
+                ->where('pri.id', $id)
+                ->where('pr.status', 'issued')
+                ->whereNotNull('pri.d_serial_number')
+                ->select('pri.*', 'pr.driver_id', 'pr.fleet_id', 'pr.d_code')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$item) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'مجوز کشور مورد نظر پیدا نشد یا قبلا تعیین تکلیف شده است.',
+                ], 404);
+            }
+
+            $itemStatus = $item->item_status ?? 'issued';
+            if (in_array($itemStatus, ['collected', 'archived', 'lost'], true)) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'این مجوز قبلا تعیین تکلیف شده است.',
+                ], 422);
+            }
+
+            $updateData = [
+                'item_status' => $status,
+                'updated_at' => $now,
+            ];
+
+            if ($status === 'collected' || $status === 'archived') {
+                if (empty($item->company_return_image) || empty($item->courier_delivery_code)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'شرکت هنوز لاشه و مشخصات پیک را برای این کشور ثبت نکرده است.',
+                    ], 422);
+                }
+
+                if (trim((string) $request->input('courier_code')) !== trim((string) $item->courier_delivery_code)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'کد تحویل پیک صحیح نیست.',
+                    ], 422);
+                }
+
+                $updateData['courier_received_at'] = $now;
+                $updateData['courier_received_by_user_id'] = $userId;
+                $updateData['collected_image'] = $item->company_return_image;
+                $updateData['closed_at'] = $now;
+            }
+
+            if ($status === 'lost') {
+                $updateData['lost_reported_at'] = $now;
+                $updateData['closed_at'] = $now;
+            }
+
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                $serialClean = $item->d_serial_number ?? 'serial';
+                $fileName = $serialClean . '-' . $item->d_code . '.' . $file->getClientOriginalExtension();
+                $file->storeAs('permits/collected', $fileName, 'public');
+                $updateData['collected_image'] = 'permits/collected/' . $fileName;
+            }
+
+            DB::table('permit_request_items')->where('id', $item->id)->update($updateData);
+
+            DB::table('dozbalagh_items')
+                ->where('serial_number', $item->d_serial_number)
+                ->update([
+                    'lifecycle_status' => $status,
+                    'returned_at' => $now,
+                    'updated_at' => $now,
+                ]);
+
+            $activeItems = DB::table('permit_request_items')
+                ->where('permit_request_id', $item->permit_request_id)
+                ->whereNotNull('d_serial_number')
+                ->where(function ($query) {
+                    $query->whereNull('item_status')
+                        ->orWhereNotIn('item_status', ['lost', 'collected', 'archived']);
+                })
+                ->count();
+
+            if ($activeItems === 0) {
+                $terminalStatuses = DB::table('permit_request_items')
+                    ->where('permit_request_id', $item->permit_request_id)
+                    ->whereNotNull('d_serial_number')
+                    ->pluck('item_status')
+                    ->filter()
+                    ->values();
+
+                $parentStatus = $terminalStatuses->every(fn ($value) => $value === 'lost') ? 'lost' : 'archived';
+                $parentUpdate = [
+                    'status' => $parentStatus,
+                    'updated_at' => $now,
+                ];
+
+                if (Schema::hasColumn('permit_requests', 'closed_at')) {
+                    $parentUpdate['closed_at'] = $now;
+                }
+
+                DB::table('permit_requests')->where('id', $item->permit_request_id)->update($parentUpdate);
+
+                if ($item->driver_id && Schema::hasColumn('drivers', 'is_blocked')) {
+                    DB::table('drivers')->where('id', $item->driver_id)->orWhere('national_code', $item->driver_id)->update(['is_blocked' => false]);
+                }
+                if ($item->fleet_id && Schema::hasColumn('fleets', 'is_blocked')) {
+                    DB::table('fleets')->where('id', $item->fleet_id)->orWhere('smart_card_number', $item->fleet_id)->update(['is_blocked' => false]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'لاشه همین کشور با موفقیت تحویل و ثبت شد.',
+            ]);
+        } catch (Throwable $e) {
+            DB::rollBack();
+            Log::error('Settle Transit Permit Item Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'خطا در ثبت تحویل لاشه: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function archivePermits()

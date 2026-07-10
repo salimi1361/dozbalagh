@@ -850,22 +850,33 @@ public function store(Request $request)
         $user = auth()->user();
         $companyId = optional($user->company)->id ?? $user->company_id ?? null;
 
-        $permitRequest = PermitRequest::where('id', $id)
-            ->where('company_id', $companyId)
-            ->where('status', 'issued')
-            ->firstOrFail();
+        $permitItem = DB::table('permit_request_items as pri')
+            ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
+            ->where('pri.id', $id)
+            ->where('pr.company_id', $companyId)
+            ->where('pr.status', 'issued')
+            ->whereNotNull('pri.d_serial_number')
+            ->where(function ($query) {
+                $query->whereNull('pri.item_status')
+                    ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived']);
+            })
+            ->select('pri.*', 'pr.d_code', 'pr.company_id')
+            ->first();
+
+        abort_if(!$permitItem, 404);
 
         $file = $request->file('return_image');
-        $fileName = ($permitRequest->serial_number ?: $permitRequest->d_code) . '-company-return-' . time() . '.' . $file->getClientOriginalExtension();
+        $serial = $permitItem->d_serial_number ?: $permitItem->d_code;
+        $fileName = $serial . '-company-return-' . time() . '.' . $file->getClientOriginalExtension();
         $imagePath = $file->storeAs('permits/company-returns', $fileName, 'public');
         $deliveryCode = (string) random_int(100000, 999999);
         $smsSent = $this->sendCourierDeliveryCode(
             $request->courier_mobile,
             $deliveryCode,
-            $permitRequest->serial_number ?: $permitRequest->d_code
+            $serial
         );
 
-        $permitRequest->update([
+        DB::table('permit_request_items')->where('id', $permitItem->id)->update([
             'company_return_image' => $imagePath,
             'courier_name' => $request->courier_name,
             'courier_mobile' => $request->courier_mobile,
@@ -874,7 +885,12 @@ public function store(Request $request)
             'courier_delivery_code' => $deliveryCode,
             'courier_code_sent_at' => $smsSent ? now() : null,
             'company_return_submitted_at' => now(),
-            'company_note' => 'لاشه توسط شرکت ثبت و برای تحویل به انجمن به پیک سپرده شد.',
+            'updated_at' => now(),
+        ]);
+
+        DB::table('permit_requests')->where('id', $permitItem->permit_request_id)->update([
+            'company_note' => 'لاشه یکی از مجوزهای این پرونده توسط شرکت ثبت و برای تحویل به انجمن به پیک سپرده شد.',
+            'updated_at' => now(),
         ]);
 
         return response()->json([
@@ -924,43 +940,46 @@ public function store(Request $request)
         $user = auth()->user();
         $companyId = optional($user->company)->id ?? $user->company_id ?? null;
 
-        $permitRequest = PermitRequest::where('id', $id)
-            ->where('company_id', $companyId)
-            ->where('status', 'issued')
-            ->firstOrFail();
-
         DB::beginTransaction();
         try {
-            $updateData = [
-                'status' => 'lost',
+            $permitItem = DB::table('permit_request_items as pri')
+                ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
+                ->where('pri.id', $id)
+                ->where('pr.company_id', $companyId)
+                ->where('pr.status', 'issued')
+                ->whereNotNull('pri.d_serial_number')
+                ->where(function ($query) {
+                    $query->whereNull('pri.item_status')
+                        ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived']);
+                })
+                ->select('pri.*', 'pr.driver_id', 'pr.fleet_id', 'pr.d_code')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$permitItem) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'مجوز کشور مورد نظر پیدا نشد یا در وضعیت قابل ثبت مفقودی نیست.',
+                ], 404);
+            }
+
+            DB::table('permit_request_items')->where('id', $permitItem->id)->update([
+                'item_status' => 'lost',
                 'lost_reported_at' => now(),
                 'lost_reason' => $request->lost_reason,
-                'company_note' => 'مفقودی لاشه توسط شرکت ثبت شد.',
-            ];
+                'closed_at' => now(),
+                'updated_at' => now(),
+            ]);
 
-            if (Schema::hasColumn('permit_requests', 'closed_at')) {
-                $updateData['closed_at'] = now();
-            }
+            DB::table('permit_requests')->where('id', $permitItem->permit_request_id)->update([
+                'company_note' => 'مفقودی لاشه یکی از مجوزهای این پرونده توسط شرکت ثبت شد.',
+                'updated_at' => now(),
+            ]);
 
-            $permitRequest->update($updateData);
-
-            if ($permitRequest->driver_id && Schema::hasColumn('drivers', 'is_blocked')) {
-                DB::table('drivers')
-                    ->where('id', $permitRequest->driver_id)
-                    ->orWhere('national_code', $permitRequest->driver_id)
-                    ->update(['is_blocked' => false]);
-            }
-
-            if ($permitRequest->fleet_id && Schema::hasColumn('fleets', 'is_blocked')) {
-                DB::table('fleets')
-                    ->where('id', $permitRequest->fleet_id)
-                    ->orWhere('smart_card_number', $permitRequest->fleet_id)
-                    ->update(['is_blocked' => false]);
-            }
-
-            if (!empty($permitRequest->serial_number)) {
+            if (!empty($permitItem->d_serial_number)) {
                 DB::table('dozbalagh_items')
-                    ->where('serial_number', $permitRequest->serial_number)
+                    ->where('serial_number', $permitItem->d_serial_number)
                     ->update([
                         'lifecycle_status' => 'lost',
                         'returned_at' => now(),
@@ -968,10 +987,48 @@ public function store(Request $request)
                     ]);
             }
 
+            $activeItems = DB::table('permit_request_items')
+                ->where('permit_request_id', $permitItem->permit_request_id)
+                ->whereNotNull('d_serial_number')
+                ->where(function ($query) {
+                    $query->whereNull('item_status')
+                        ->orWhereNotIn('item_status', ['lost', 'collected', 'archived']);
+                })
+                ->count();
+
+            if ($activeItems === 0) {
+                $parentUpdate = [
+                    'status' => 'lost',
+                    'lost_reported_at' => now(),
+                    'lost_reason' => $request->lost_reason,
+                    'updated_at' => now(),
+                ];
+
+                if (Schema::hasColumn('permit_requests', 'closed_at')) {
+                    $parentUpdate['closed_at'] = now();
+                }
+
+                DB::table('permit_requests')->where('id', $permitItem->permit_request_id)->update($parentUpdate);
+
+                if ($permitItem->driver_id && Schema::hasColumn('drivers', 'is_blocked')) {
+                    DB::table('drivers')
+                        ->where('id', $permitItem->driver_id)
+                        ->orWhere('national_code', $permitItem->driver_id)
+                        ->update(['is_blocked' => false]);
+                }
+
+                if ($permitItem->fleet_id && Schema::hasColumn('fleets', 'is_blocked')) {
+                    DB::table('fleets')
+                        ->where('id', $permitItem->fleet_id)
+                        ->orWhere('smart_card_number', $permitItem->fleet_id)
+                        ->update(['is_blocked' => false]);
+                }
+            }
+
             DB::commit();
             return response()->json([
                 'success' => true,
-                'message' => 'مفقودی لاشه ثبت شد و پرونده از چرخه تردد خارج شد.',
+                'message' => 'مفقودی لاشه برای همین کشور ثبت شد و سایر کشورهای پرونده فعال می‌مانند.',
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();

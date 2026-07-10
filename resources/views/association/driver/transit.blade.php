@@ -36,7 +36,7 @@
                 </thead>
                 <tbody class="divide-y divide-slate-200/60 text-sm text-slate-700">
                     @forelse($requests as $index => $req)
-                        <tr id="req-row-{{ $req->id }}" class="transition-all duration-200 {{ $index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60' }} hover:bg-indigo-50/30">
+                        <tr id="req-row-{{ $req->item_id }}" class="transition-all duration-200 {{ $index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60' }} hover:bg-indigo-50/30">
                             
                             <td class="p-4 font-mono font-black text-indigo-600 text-sm">شماره {{ $req->serial_number }}</td>
                             <td class="p-4 font-mono text-xs font-bold text-slate-500">{{ $req->d_code }}</td>
@@ -62,12 +62,12 @@
 
                             <td class="p-4">
                                 <div class="flex items-center justify-center gap-1.5">
-                                    <button onclick="window.open('/web/association/request/print/{{ $req->id }}', '_blank')" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all" title="باز کردن صفحه چاپ رسمی">
+                                    <button onclick="window.open('/web/association/request/print-item/{{ $req->item_id }}', '_blank')" class="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-all" title="باز کردن صفحه چاپ رسمی">
                                         چاپ
                                     </button>
 
                                     @if(!empty($req->company_return_image))
-                                        <button onclick='receiveLash(@json($req->id), @json($req->serial_number), @json($req->courier_name ?? ""), @json($req->courier_mobile ?? ""))' class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black transition-all">
+                                        <button onclick='receiveLash(@json($req->item_id), @json($req->serial_number), @json($req->courier_name ?? ""), @json($req->courier_mobile ?? ""))' class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black transition-all">
                                             تحویل لاشه
                                         </button>
                                     @else
@@ -144,7 +144,7 @@ function executeSettleRequest(id, status, fileBlob, courierCode = null) {
     // باز کردن لودینگ در حین آپلود
     Swal.fire({ title: 'در حال ثبت وضعیت تردد...', didOpen: () => { Swal.showLoading(); } });
 
-    fetch(`/web/association/request/process/${id}`, {
+    fetch(`/web/association/transit/settle/${id}`, {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': '{{ csrf_token() }}'

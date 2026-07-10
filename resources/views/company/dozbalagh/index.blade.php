@@ -135,6 +135,20 @@
                             ];
                             [$statusText, $statusClass] = $statusLabels[$item->status] ?? ['نامشخص: ' . $item->status, 'bg-slate-100 text-slate-700 border-slate-200'];
                             $associationNote = $item->reject_reason ?: null;
+                            $returnItems = collect();
+                            if ($item->status === 'issued') {
+                                $returnItems = \Illuminate\Support\Facades\DB::table('permit_request_items as pri')
+                                    ->leftJoin('countries as c', 'c.id', '=', 'pri.country_id')
+                                    ->where('pri.permit_request_id', $item->id)
+                                    ->whereNotNull('pri.d_serial_number')
+                                    ->where(function ($query) {
+                                        $query->whereNull('pri.item_status')
+                                            ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived']);
+                                    })
+                                    ->select('pri.*', 'c.name as country_name')
+                                    ->orderBy('pri.id')
+                                    ->get();
+                            }
                         @endphp
                         <tr class="hover:bg-slate-50/70 transition-colors">
                             <td class="p-4 font-mono font-bold text-slate-900">
@@ -203,19 +217,26 @@
                                     </button>
 
                                     @if($item->status === 'issued')
-                                        @if(empty($item->company_return_image))
-                                            <button onclick='openReturnLashModal(@json($item->id), @json($item->d_code))' class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-md shadow-emerald-100">
-                                                ثبت لاشه
-                                            </button>
-                                        @else
-                                            <span class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-black">
-                                                کد پیک: {{ $item->courier_delivery_code ?? '---' }}
-                                            </span>
-                                        @endif
+                                        @foreach($returnItems as $returnItem)
+                                            <div class="flex flex-wrap items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
+                                                <span class="px-2 py-1 rounded-lg bg-slate-50 text-slate-700 text-[11px] font-black">
+                                                    {{ $returnItem->country_name ?? 'کشور مقصد' }}
+                                                </span>
+                                                @if(empty($returnItem->company_return_image))
+                                                    <button onclick='openReturnLashModal(@json($returnItem->id), @json(($item->d_code ?? "") . " / " . ($returnItem->country_name ?? "")))' class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-md shadow-emerald-100">
+                                                        ثبت لاشه
+                                                    </button>
+                                                @else
+                                                    <span class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-black">
+                                                        کد پیک: {{ $returnItem->courier_delivery_code ?? '---' }}
+                                                    </span>
+                                                @endif
 
-                                        <button onclick='reportLost(@json($item->id), @json($item->d_code))' class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-md shadow-rose-100">
-                                            مفقودی
-                                        </button>
+                                                <button onclick='reportLost(@json($returnItem->id), @json(($item->d_code ?? "") . " / " . ($returnItem->country_name ?? "")))' class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-md shadow-rose-100">
+                                                    مفقودی
+                                                </button>
+                                            </div>
+                                        @endforeach
                                     @endif
                                 </div>
                             </td>
@@ -301,7 +322,7 @@
                                         
                                         <div class="space-y-3">
                                             @php
-                                                $items = DB::table('permit_request_items')
+                                                $items = \Illuminate\Support\Facades\DB::table('permit_request_items')
                                                     ->where('permit_request_id', $item->id)
                                                     ->get();
                                             @endphp
@@ -310,18 +331,30 @@
                                                 @php
                                                     $countryInfo = \App\Models\Country::find($subItem->country_id);
                                                 @endphp
-                                                <div class="flex justify-between items-center text-xs bg-slate-50 border border-slate-100 p-3 rounded-xl shadow-inner font-bold">
-                                                    <span class="text-slate-700 flex items-center gap-1">
-                                                        {{ $countryInfo->name ?? 'کشور مقصد' }} 
-                                                        <span class="text-slate-400 text-[10px]">[{{ str_replace('_', '-', $subItem->permit_type) }}]</span>
-                                                    </span>
-                                                    
-                                                    @if(!empty($subItem->document_path) || !empty($subItem->document))
-                                                        <a href="{{ asset('storage/' . ($subItem->document_path ?? $subItem->document)) }}" target="_blank" class="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg border border-emerald-200 transition-colors">
-                                                            مشاهده مدرک پیوست
-                                                        </a>
-                                                    @else
-                                                        <span class="text-slate-400 font-medium text-[11px]">بدون فایل پیوست</span>
+                                                <div class="text-xs bg-slate-50 border border-slate-100 p-3 rounded-xl shadow-inner font-bold space-y-2">
+                                                    <div class="flex justify-between items-center gap-2">
+                                                        <span class="text-slate-700 flex items-center gap-1">
+                                                            {{ $countryInfo->name ?? 'کشور مقصد' }}
+                                                            <span class="text-slate-400 text-[10px]">[{{ str_replace('_', '-', $subItem->permit_type) }}]</span>
+                                                        </span>
+
+                                                        @if(!empty($subItem->document_path) || !empty($subItem->document))
+                                                            <a href="{{ asset('storage/' . ($subItem->document_path ?? $subItem->document)) }}" target="_blank" class="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg border border-emerald-200 transition-colors">
+                                                                مشاهده مدرک پیوست
+                                                            </a>
+                                                        @else
+                                                            <span class="text-slate-400 font-medium text-[11px]">بدون فایل پیوست</span>
+                                                        @endif
+                                                    </div>
+                                                    @if(!empty($subItem->company_return_image))
+                                                        <div class="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-2 text-emerald-800">
+                                                            <span>لاشه ثبت شده</span>
+                                                            <span>پیک: {{ $subItem->courier_name ?? '---' }}</span>
+                                                            <span>کد: <span class="font-mono">{{ $subItem->courier_delivery_code ?? '---' }}</span></span>
+                                                            <a href="{{ asset('storage/' . $subItem->company_return_image) }}" target="_blank" class="px-2 py-1 rounded-md bg-emerald-600 text-white">
+                                                                تصویر لاشه
+                                                            </a>
+                                                        </div>
                                                     @endif
                                                 </div>
                                             @empty
