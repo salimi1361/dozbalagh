@@ -31,6 +31,34 @@
             </h3>
         </div>
 
+        <div class="px-5 py-4 border-b border-slate-100 bg-white">
+            <div class="mb-3 flex items-center justify-between gap-3">
+                <h4 class="text-xs font-black text-slate-600">تفکیک بر اساس کشور مقصد</h4>
+                <span class="rounded-lg bg-slate-100 px-3 py-1 text-[11px] font-black text-slate-500">
+                    {{ number_format($archiveTotalCount ?? 0) }} ردیف
+                </span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <a href="{{ route('association.archive.index') }}"
+                   class="rounded-lg border px-3 py-2 text-xs font-black transition {{ ($archiveCountryFilter ?? 'all') === 'all' ? 'border-sky-200 bg-sky-50 text-sky-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100' }}">
+                    همه درخواست‌ها
+                    <span class="mr-1 font-mono">{{ number_format($archiveTotalCount ?? 0) }}</span>
+                </a>
+
+                @foreach(($archiveCountries ?? collect()) as $country)
+                    @php
+                        $countryId = (string) ($country->country_id ?? 0);
+                        $isActiveCountry = (string) ($archiveCountryFilter ?? 'all') === $countryId;
+                    @endphp
+                    <a href="{{ route('association.archive.index', ['country_id' => $countryId]) }}"
+                       class="rounded-lg border px-3 py-2 text-xs font-black transition {{ $isActiveCountry ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50' }}">
+                        {{ $country->country_name }}
+                        <span class="mr-1 font-mono">{{ number_format($country->total) }}</span>
+                    </a>
+                @endforeach
+            </div>
+        </div>
+
         <div class="overflow-x-auto">
             <table class="w-full text-right border-collapse" id="archiveTable">
                 <thead>

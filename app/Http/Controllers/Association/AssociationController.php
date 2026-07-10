@@ -902,7 +902,7 @@ class AssociationController
         }
     }
 
-    public function archivePermits()
+    public function archivePermits(Request $request)
     {
         try {
             $hasItemStatus = Schema::hasColumn('permit_request_items', 'item_status');
@@ -914,6 +914,35 @@ class AssociationController
             $hasCollectedImage = Schema::hasColumn('permit_request_items', 'collected_image');
             $hasClosedAt = Schema::hasColumn('permit_request_items', 'closed_at');
             $hasParentClosedAt = Schema::hasColumn('permit_requests', 'closed_at');
+            $archiveCountryFilter = $request->query('country_id', 'all');
+
+            $applyArchiveStatusFilter = function ($query) use ($hasItemStatus) {
+                $query->where(function ($query) use ($hasItemStatus) {
+                    if ($hasItemStatus) {
+                        $query->whereIn('pri.item_status', ['archived', 'collected', 'lost'])
+                            ->orWhereIn('pri.return_status', ['archived', 'collected', 'lost'])
+                            ->orWhereIn('pr.status', ['archived', 'collected', 'lost']);
+                    } else {
+                        $query->whereIn('pri.return_status', ['archived', 'collected', 'lost'])
+                            ->orWhereIn('pr.status', ['archived', 'collected', 'lost']);
+                    }
+                });
+            };
+
+            $archiveCountriesQuery = DB::table('permit_request_items as pri')
+                ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
+                ->leftJoin('countries as c', 'c.id', '=', 'pri.country_id')
+                ->whereNotNull('pri.d_serial_number');
+
+            $applyArchiveStatusFilter($archiveCountriesQuery);
+
+            $archiveCountries = $archiveCountriesQuery
+                ->selectRaw("COALESCE(pri.country_id, 0) as country_id, COALESCE(c.name, 'نامشخص') as country_name, COUNT(*) as total")
+                ->groupByRaw("COALESCE(pri.country_id, 0), COALESCE(c.name, 'نامشخص')")
+                ->orderBy('country_name')
+                ->get();
+
+            $archiveTotalCount = (int) $archiveCountries->sum('total');
 
             $selects = [
                 'pr.*',
@@ -960,20 +989,17 @@ class AssociationController
                 ->orderBy('pri.updated_at', 'desc')
                 ->select($selects);
 
-            if ($hasItemStatus) {
-                $query->where(function ($query) {
-                    $query->whereIn('pri.item_status', ['archived', 'collected', 'lost'])
-                        ->orWhereIn('pri.return_status', ['archived', 'collected', 'lost'])
-                        ->orWhereIn('pr.status', ['archived', 'collected', 'lost']);
-                });
-            } else {
-                $query->where(function ($query) {
-                    $query->whereIn('pri.return_status', ['archived', 'collected', 'lost'])
-                        ->orWhereIn('pr.status', ['archived', 'collected', 'lost']);
-                });
+            $applyArchiveStatusFilter($query);
+
+            if ($archiveCountryFilter !== 'all') {
+                if ((string) $archiveCountryFilter === '0') {
+                    $query->whereNull('pri.country_id');
+                } elseif (is_numeric($archiveCountryFilter)) {
+                    $query->where('pri.country_id', (int) $archiveCountryFilter);
+                }
             }
 
-            $requests = $query->paginate(10);
+            $requests = $query->paginate(10)->withQueryString();
 
             foreach ($requests as $req) {
                 $itemStatus = in_array($req->item_status, ['archived', 'collected', 'lost'], true)
@@ -1038,7 +1064,12 @@ class AssociationController
                 })->values();
             }
 
-            return view('association.driver.archive', compact('requests'));
+            return view('association.driver.archive', compact(
+                'requests',
+                'archiveCountries',
+                'archiveCountryFilter',
+                'archiveTotalCount'
+            ));
         } catch (\Throwable $e) {
             Log::error('Archive Permits Load Error: ' . $e->getMessage());
             return abort(500, 'خطا در بارگذاری بایگانی کل: ' . $e->getMessage());
