@@ -45,9 +45,9 @@
                 </thead>
                 <tbody class="divide-y divide-slate-200/60 text-sm text-slate-700">
                     @forelse($requests as $index => $req)
-                        <tr id="req-row-{{ $req->id }}" class="permit-row dbz-row transition-all duration-200 {{ $index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60' }} hover:bg-indigo-50/40">
+                        <tr id="req-row-{{ $req->item_id }}" class="permit-row dbz-row transition-all duration-200 {{ $index % 2 === 0 ? 'bg-white' : 'bg-slate-50/60' }} hover:bg-indigo-50/40">
                             
-                            <td class="p-4 font-bold text-slate-400">#{{ $req->id }}</td>
+                            <td class="p-4 font-bold text-slate-400">#{{ $req->id }}-{{ $req->item_id }}</td>
                             
                             <td class="p-4 font-mono font-bold text-slate-900">
                                 @if(isset($req->d_code))
@@ -103,14 +103,17 @@
                             </td>
 
                             <td class="p-4">
-                                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-100 search-target">
-                                    {{ $req->country_name ?? 'نامشخص' }}
-                                </span>
+                                <div class="flex flex-col gap-1.5">
+                                    <span class="inline-flex w-fit items-center px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-100 search-target">
+                                        {{ $req->country_name ?? 'نامشخص' }}
+                                    </span>
+                                    <span class="text-[11px] font-bold text-slate-500 search-target">نوع مجوز: {{ $req->item_permit_type ?? '---' }}</span>
+                                </div>
                             </td>
 
                             <td class="p-4 text-center">
                                 {{-- 🟢 متغیرهای روز اعتبار و تاریخ پایان هم به صورت هوشمند پاس داده شدند --}}
-                                <button type="button" onclick="manualAssignAndPrint(@js($req->id), @js($req->d_code), @js($req->next_serial_in_warehouse), @js($req->validity_days), @js($req->expire_date_jalali), @js($req->is_renewal ?? false))" class="dbz-action-btn px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 mx-auto cursor-pointer">
+                                <button type="button" onclick="manualAssignAndPrint(@js($req->item_id), @js($req->d_code . '-' . $req->item_id), @js($req->next_serial_in_warehouse), @js($req->validity_days), @js($req->expire_date_jalali), @js($req->is_renewal ?? false))" class="dbz-action-btn px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5 mx-auto cursor-pointer">
                                     {{ ($req->is_renewal ?? false) ? '🔄 صدور تمدید و چاپ' : '✍️ ثبت سریال و چاپ پروانه' }}
                                 </button>
                             </td>
@@ -759,7 +762,7 @@ function manualAssignAndPrint(id, dCode, nextSerial, validityDays, expireDateFa,
             }
 
             setTimeout(() => {
-                const printWindow = window.open('/web/association/request/print/' + id, '_blank');
+                const printWindow = window.open('/web/association/request/print-item/' + id, '_blank');
                 if (printWindow) printWindow.focus();
             }, 300);
         })

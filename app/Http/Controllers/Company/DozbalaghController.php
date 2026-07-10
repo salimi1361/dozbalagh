@@ -194,123 +194,37 @@ class DozbalaghController extends Controller
             | مجاز یا غیرمجاز بودن تمدید را مشخص می‌کنیم.
             */
             if (!empty($dCode)) {
-                $permit = DB::table('permit_requests as pr')
-                    ->leftJoin('drivers as d', 'pr.driver_id', '=', 'd.id')
-                    ->leftJoin('fleets as f', 'pr.fleet_id', '=', 'f.id')
-                    ->where(function ($q) use ($dCode) {
-                        $q->where('pr.d_code', $dCode)
-                          ->orWhere('pr.serial_number', $dCode)
-                          ->orWhereExists(function ($sub) use ($dCode) {
-                              $sub->select(DB::raw(1))
-                                  ->from('permit_request_items as pri_lookup')
-                                  ->whereColumn('pri_lookup.permit_request_id', 'pr.id')
-                                  ->where('pri_lookup.d_serial_number', $dCode);
-                          });
-                    })
-                    ->select([
-                        'pr.id as permit_request_id',
-                        'pr.company_id',
-                        'pr.d_code',
-                        'pr.serial_number',
-                        'pr.status',
-                        'pr.payment_status',
-                        'pr.issued_at',
-                        'pr.permit_valid_until',
-                        'pr.driver_id',
-                        'pr.fleet_id',
-                        'd.first_name_fa',
-                        'd.last_name_fa',
-                        'f.transit_plate',
-                    ])
-                    ->orderByDesc('pr.id')
-                    ->first();
+                $permit = $this->findRenewalSource($dCode, (int) $companyId);
 
                 if (!$permit) {
                     return response()->json([
                         'success' => true,
                         'items' => [],
-                        'message' => 'پرونده‌ای با این کد رهگیری یا شماره دوزوله یافت نشد.'
+                        'message' => 'دوزوله‌ای با این شماره برای تمدید یافت نشد یا هنوز منقضی نشده است.'
                     ], 200);
                 }
 
-                if ((int) $permit->company_id !== (int) $companyId) {
+                $openRenewalExists = DB::table('permit_request_items as pri')
+                    ->join('permit_requests as pr', 'pri.permit_request_id', '=', 'pr.id')
+                    ->where('pr.company_id', $companyId)
+                    ->where('pr.request_type', 'renewal')
+                    ->where('pri.renewed_from_item_id', $permit->previous_item_id)
+                    ->whereIn('pr.status', ['pending', 'approved', 'returned', 'under_review'])
+                    ->exists();
+
+                if ($openRenewalExists) {
                     return response()->json([
                         'success' => true,
                         'items' => [],
-                        'message' => 'این دوزوله متعلق به شرکت شما نیست و امکان تمدید آن وجود ندارد.'
+                        'message' => 'برای همین دوزوله قبلاً درخواست تمدید ثبت شده و هنوز در حال رسیدگی است.'
                     ], 200);
-                }
-
-                if ($permit->status !== 'issued') {
-                    return response()->json([
-                        'success' => true,
-                        'items' => [],
-                        'message' => 'این دوزوله هنوز صادر نهایی نشده است و امکان ثبت درخواست تمدید برای آن وجود ندارد.'
-                    ], 200);
-                }
-
-                if ($permit->payment_status !== 'settled') {
-                    return response()->json([
-                        'success' => true,
-                        'items' => [],
-                        'message' => 'پرداخت این دوزوله هنوز نهایی نشده است و امکان ثبت درخواست تمدید برای آن وجود ندارد.'
-                    ], 200);
-                }
-
-                if (empty($permit->serial_number)) {
-                    return response()->json([
-                        'success' => true,
-                        'items' => [],
-                        'message' => 'شماره دوزوله هنوز برای این پرونده تخصیص داده نشده است.'
-                    ], 200);
-                }
-
-                if (empty($permit->issued_at)) {
-                    return response()->json([
-                        'success' => true,
-                        'items' => [],
-                        'message' => 'تاریخ صدور دوزوله ثبت نشده است و امکان تمدید وجود ندارد.'
-                    ], 200);
-                }
-
-                if (empty($permit->permit_valid_until)) {
-                    return response()->json([
-                        'success' => true,
-                        'items' => [],
-                        'message' => 'تاریخ اعتبار دوزوله ثبت نشده است و امکان تمدید وجود ندارد.'
-                    ], 200);
-                }
-
-                if (\Carbon\Carbon::parse($permit->permit_valid_until)->gt(now()->startOfDay())) {
-                    return response()->json([
-                        'success' => true,
-                        'items' => [],
-                        'message' => 'این دوزوله صادر شده و تا تاریخ ' . $permit->permit_valid_until . ' معتبر است. در حال حاضر امکان ثبت درخواست تمدید وجود ندارد.'
-                    ], 200);
-                }
-
-                // جلوگیری از ثبت چندباره تمدید برای یک دوزوله
-                if (Schema::hasColumn('permit_requests', 'previous_request_id')) {
-                    $openRenewalExists = DB::table('permit_requests')
-                        ->where('company_id', $companyId)
-                        ->where('request_type', 'renewal')
-                        ->where('previous_request_id', $permit->permit_request_id)
-                        ->whereIn('status', ['pending', 'approved', 'returned', 'under_review'])
-                        ->exists();
-
-                    if ($openRenewalExists) {
-                        return response()->json([
-                            'success' => true,
-                            'items' => [],
-                            'message' => 'برای این دوزوله قبلاً درخواست تمدید ثبت شده و پرونده هنوز در حال رسیدگی است.'
-                        ], 200);
-                    }
                 }
 
                 $destinations = DB::table('permit_request_items as pri')
                     ->leftJoin('countries as c', 'pri.country_id', '=', 'c.id')
-                    ->where('pri.permit_request_id', $permit->permit_request_id)
+                    ->where('pri.id', $permit->previous_item_id)
                     ->select(
+                        'pri.id',
                         'pri.country_id',
                         'c.name as country_name',
                         'pri.permit_type',
@@ -331,13 +245,14 @@ class DozbalaghController extends Controller
                 $firstDetail = $destinations->first();
 
                 $item = [
-                    'id' => $permit->permit_request_id,
+                    'id' => $permit->id,
+                    'previous_item_id' => $permit->previous_item_id,
                     'd_code' => $permit->d_code,
-                    'serial_number' => $permit->serial_number,
+                    'serial_number' => $permit->previous_item_serial_number,
                     'status' => $permit->status,
                     'payment_status' => $permit->payment_status,
-                    'issued_at' => $permit->issued_at,
-                    'permit_valid_until' => $permit->permit_valid_until,
+                    'issued_at' => $permit->previous_item_issued_at,
+                    'permit_valid_until' => $permit->previous_item_valid_until,
                     'driver_id' => $permit->driver_id,
                     'fleet_id' => $permit->fleet_id,
 
@@ -477,25 +392,36 @@ class DozbalaghController extends Controller
     {
         $code = trim($code);
 
-        return DB::table('permit_requests as pr')
+        return DB::table('permit_request_items as pri')
+            ->join('permit_requests as pr', 'pri.permit_request_id', '=', 'pr.id')
+            ->leftJoin('drivers as d', 'pr.driver_id', '=', 'd.id')
+            ->leftJoin('fleets as f', 'pr.fleet_id', '=', 'f.id')
             ->where('pr.company_id', $companyId)
             ->where('pr.status', 'issued')
             ->where('pr.payment_status', 'settled')
-            ->whereNotNull('pr.serial_number')
-            ->where('pr.serial_number', '<>', '')
-            ->whereNotNull('pr.issued_at')
+            ->whereNotNull('pri.d_serial_number')
+            ->where('pri.d_serial_number', '<>', '')
+            ->whereNotNull('pri.issued_at')
+            ->whereDate(DB::raw('COALESCE(pri.permit_valid_until, pr.permit_valid_until)'), '<=', now()->toDateString())
             ->where(function ($q) use ($code) {
                 $q->where('pr.d_code', $code)
                   ->orWhere('pr.serial_number', $code)
-                  ->orWhereExists(function ($sub) use ($code) {
-                      $sub->select(DB::raw(1))
-                          ->from('permit_request_items as pri_lookup')
-                          ->whereColumn('pri_lookup.permit_request_id', 'pr.id')
-                          ->where('pri_lookup.d_serial_number', $code);
-                  });
+                  ->orWhere('pri.d_serial_number', $code);
             })
-            ->select('pr.*')
+            ->select([
+                'pr.*',
+                'pri.id as previous_item_id',
+                'pri.country_id as previous_item_country_id',
+                'pri.permit_type as previous_item_permit_type',
+                'pri.d_serial_number as previous_item_serial_number',
+                'pri.issued_at as previous_item_issued_at',
+                'pri.permit_valid_until as previous_item_valid_until',
+                'd.first_name_fa',
+                'd.last_name_fa',
+                'f.transit_plate',
+            ])
             ->orderByDesc('pr.id')
+            ->orderBy('pri.id')
             ->first();
     }
 
@@ -534,13 +460,6 @@ public function store(Request $request)
         $user = auth()->user();
         $companyId = optional($user->company)->id ?? $user->company_id ?? null;
 
-        $quotaError = $this->quotaErrorForDestinations((int) $companyId, $request->destinations);
-        if ($quotaError) {
-            return back()
-                ->withErrors(['error' => $quotaError])
-                ->withInput();
-        }
-
         $renewalSource = null;
 
         if ($request->input('request_type') === 'renewal') {
@@ -556,8 +475,19 @@ public function store(Request $request)
             $request->merge([
                 'driver_id' => $renewalSource->driver_id,
                 'fleet_id'  => $renewalSource->fleet_id,
+                'destinations' => [[
+                    'country_id' => $renewalSource->previous_item_country_id,
+                    'permit_type' => $renewalSource->previous_item_permit_type,
+                ]],
             ]);
         } else {
+            $quotaError = $this->quotaErrorForDestinations((int) $companyId, $request->destinations);
+            if ($quotaError) {
+                return back()
+                    ->withErrors(['error' => $quotaError])
+                    ->withInput();
+            }
+
             // در متد ذخیره‌سازی فقط ناوگان کنترل می‌شود (راننده کاملاً آزاد شد)
             $activePermitCheck = PermitRequest::where('fleet_id', $request->fleet_id)
                 ->whereIn('status', $this->activePermitStatuses())
@@ -599,10 +529,10 @@ public function store(Request $request)
                 'request_type'             => $request->input('request_type', 'new'),
                 'previous_request_id'      => $request->input('request_type') === 'renewal' ? ($renewalSource->id ?? null) : null,
                 'previous_d_code'          => $request->input('request_type') === 'renewal' ? ($renewalSource->d_code ?? null) : null,
-                'previous_serial_number'   => $request->input('request_type') === 'renewal' ? ($renewalSource->serial_number ?? null) : null,
+                'previous_serial_number'   => $request->input('request_type') === 'renewal' ? ($renewalSource->previous_item_serial_number ?? $renewalSource->serial_number ?? null) : null,
 
                 'company_note'        => $request->input('request_type') === 'renewal'
-                    ? 'تمدید دوزوله شماره ' . ($renewalSource->serial_number ?? '-') . ' | مرجع: ' . ($renewalSource->d_code ?? $request->previous_dozouleh_number)
+                    ? 'تمدید دوزوله شماره ' . ($renewalSource->previous_item_serial_number ?? $renewalSource->serial_number ?? '-') . ' | مرجع: ' . ($renewalSource->d_code ?? $request->previous_dozouleh_number)
                     : 'ثبت درخواست جدید',
             ]);
 
@@ -628,6 +558,8 @@ public function store(Request $request)
                     'declaration_file'    => $filePaths['declaration_file'] ?? null,
                     'price'               => $countryData->price ?? 0,
                     'allocation_status'   => 'pending',
+                    'item_status'         => 'pending',
+                    'renewed_from_item_id'=> $request->input('request_type') === 'renewal' ? ($renewalSource->previous_item_id ?? null) : null,
                     'created_at'          => now(),
                     'updated_at'          => now(),
                 ]);

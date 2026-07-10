@@ -192,6 +192,7 @@ Route::middleware(['auth'])->group(function () {
     
     // روت نمایش صفحه چاپ واقعی برگه دوزبلاغ
     Route::get('/web/association/request/print/{id}', [AssociationController::class, 'printPermit'])->name('association.permit.print');
+    Route::get('/web/association/request/print-item/{id}', [AssociationController::class, 'printPermitItem'])->name('association.permit.print_item');
 });
 
 // ==========================================
