@@ -805,6 +805,24 @@ body {
     gap: 10px;
     margin-top: 12px;
 }
+.fleet-source-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -4px 0 16px;
+    padding: 10px 12px;
+    border-radius: 16px;
+    color: #0f766e;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1.7;
+}
+.fleet-source-note i {
+    flex: 0 0 auto;
+    color: #0d9488;
+}
 .fleet-mini-card {
     padding: 14px;
     border-radius: 20px;
@@ -824,6 +842,9 @@ body {
     font-size: 12.5px;
     font-weight: 950;
     overflow-wrap: anywhere;
+}
+.fleet-mini-card--wide {
+    grid-column: 1 / -1;
 }
 
 @media (max-width: 370px) {

@@ -150,6 +150,35 @@ function getDriver() {
     }
 }
 
+function getFleetFromPermits() {
+    return permitsCache.find(p => p && (p.fleet_plate || p.fleet_smart_card || p.truck_type)) || null;
+}
+
+function effectiveDriverFleet(driver) {
+    const permitFleet = getFleetFromPermits();
+    return {
+        truck_plate: permitFleet?.fleet_plate || driver.truck_plate,
+        truck_smart_card: permitFleet?.fleet_smart_card || driver.truck_smart_card,
+        truck_type: permitFleet?.truck_type || driver.truck_type,
+        fleet_source: permitFleet ? 'dozoleh' : (driver.fleet_source || 'driver'),
+    };
+}
+
+function updateDriverFleetFromPermits() {
+    const permitFleet = getFleetFromPermits();
+    if (!permitFleet) return;
+
+    const driver = getDriver();
+    const updatedDriver = {
+        ...driver,
+        truck_plate: permitFleet.fleet_plate || driver.truck_plate,
+        truck_smart_card: permitFleet.fleet_smart_card || driver.truck_smart_card,
+        truck_type: permitFleet.truck_type || driver.truck_type,
+        fleet_source: 'dozoleh',
+    };
+    localStorage.setItem('driver_info', JSON.stringify(updatedDriver));
+}
+
 function authHeaders() {
     return {
         'Authorization': `Bearer ${localStorage.getItem('driver_token')}`,
@@ -453,12 +482,13 @@ function renderHomeTab(main, driver) {
 }
 
 function renderFleetTab(main, driver) {
+    const fleet = effectiveDriverFleet(driver);
     main.innerHTML = `
         <div class="stack">
             <div class="card card--hero">
-                <div class="label">ناوگان متصل به راننده</div>
-                <div class="name">${driver.truck_type || 'خودرو باری'}</div>
-                <div class="meta">کارت هوشمند: ${driver.truck_smart_card || 'ثبت نشده'}</div>
+                <div class="label">ناوگان ثبت‌شده روی دوزوله</div>
+                <div class="name">${fleet.truck_type || 'خودرو باری'}</div>
+                <div class="meta">کارت هوشمند: ${fleet.truck_smart_card || 'ثبت نشده'}</div>
             </div>
 
             <div class="card info-card">
@@ -466,16 +496,24 @@ function renderFleetTab(main, driver) {
                     <span><i class="fa-solid fa-truck" style="color:#0369a1"></i> مشخصات ناوگان</span>
                 </div>
                 <div class="fleet-plate-wrap">
-                    ${renderPlate(driver.truck_plate)}
+                    ${renderPlate(fleet.truck_plate)}
+                </div>
+                <div class="fleet-source-note">
+                    <i class="fa-solid fa-file-circle-check"></i>
+                    <span>${fleet.fleet_source === 'dozoleh' ? 'این پلاک از آخرین دوزوله متصل به راننده خوانده شده است.' : 'هنوز دوزوله دارای پلاک برای این راننده دریافت نشده است.'}</span>
                 </div>
                 <div class="fleet-summary">
                     <div class="fleet-mini-card">
                         <span>کارت هوشمند خودرو</span>
-                        <b>${driver.truck_smart_card || '—'}</b>
+                        <b>${fleet.truck_smart_card || '—'}</b>
                     </div>
                     <div class="fleet-mini-card">
                         <span>نوع خودرو</span>
-                        <b>${driver.truck_type || '—'}</b>
+                        <b>${fleet.truck_type || '—'}</b>
+                    </div>
+                    <div class="fleet-mini-card fleet-mini-card--wide">
+                        <span>پلاک دوزوله</span>
+                        <b>${fleet.truck_plate || '—'}</b>
                     </div>
                 </div>
             </div>
@@ -541,6 +579,8 @@ function fetchPermits() {
             }
 
             permitsCache = data.data || [];
+            updateDriverFleetFromPermits();
+            if (currentTab === 'fleet') renderDashboard();
             if (badge) badge.textContent = permitsCache.length.toLocaleString('fa-IR');
             if (localStorage.getItem('is_on_trip') === 'true' && !localStorage.getItem('active_permit_id') && permitsCache[0]) {
                 startLocationWatch(permitsCache[0].id, true);

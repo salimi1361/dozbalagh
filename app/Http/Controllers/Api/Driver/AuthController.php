@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\Driver;
 
 use App\Http\Controllers\Controller;
 use App\Models\Driver;
+use App\Models\PermitRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
@@ -60,6 +61,11 @@ class AuthController extends Controller
 
         // 🌟 لود دقیق راننده بر اساس رابطه رسمی 'company' که در مدل Driver تعریف شده است
         $driver = Driver::with(['company'])->where('mobile', $request->mobile)->first();
+        $latestPermitFleet = PermitRequest::with('fleet')
+            ->where('driver_id', $driver->id)
+            ->whereHas('fleet')
+            ->orderByDesc('id')
+            ->first()?->fleet;
 
         // ایجاد توکن امنیتی Sanctum
         $token = $driver->createToken('driver_app_token')->plainTextToken;
@@ -78,9 +84,9 @@ class AuthController extends Controller
         | اگر این فیلدها بعداً به جدول drivers یا از طریق رابطه اضافه شدند،
         | می‌توانید مقادیر سمت راست را به $driver->truck_plate یا رابطه متصل کنید.
         */
-        $truckPlate = $driver->truck_plate ?? $driver->plate_number ?? 'ع ۱۲ - ۳۴۵ ایران ۱۲';
-        $truckSmartCard = $driver->truck_smart_id ?? $driver->smart_card_number ?? '۴۵۷۸۹۶۲';
-        $truckType = $driver->truck_type ?? 'ترانزیت چادری (Scania)';
+        $truckPlate = $latestPermitFleet?->transit_plate ?? $driver->truck_plate ?? $driver->plate_number ?? null;
+        $truckSmartCard = $latestPermitFleet?->smart_card_number ?? $driver->truck_smart_id ?? $driver->smart_card_number ?? null;
+        $truckType = $latestPermitFleet?->truck_type ?? $driver->truck_type ?? null;
 
         return response()->json([
             'status' => 'success',
@@ -100,6 +106,7 @@ class AuthController extends Controller
                 'truck_plate' => $truckPlate,
                 'truck_smart_card' => $truckSmartCard,
                 'truck_type' => $truckType,
+                'fleet_source' => $latestPermitFleet ? 'dozoleh' : 'driver',
             ]
         ]);
     }
