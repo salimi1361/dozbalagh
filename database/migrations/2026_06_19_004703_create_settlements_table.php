@@ -13,7 +13,7 @@ return new class extends Migration
 {
     Schema::create('settlements', function (Blueprint $table) {
         $table->id();
-        $table->unsignedBigInteger('amount'); // مبلغ تسویه به تومان
+        $table->unsignedBigInteger('amount'); // مبلغ تسویه به ریال
         $table->string('ref_number'); // شماره فیش / پیگیری بانکی
         $table->string('bank_name'); // نام بانک مقصد
         $table->string('receipt_file')->nullable(); // مسیر ذخیره تصویر فیش واریزی

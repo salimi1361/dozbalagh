@@ -89,7 +89,7 @@
                 <div class="absolute -right-4 -top-4 text-white/10 text-7xl font-black">💰</div>
                 <div class="text-indigo-200 text-sm font-bold mb-2 relative z-10">مجموع نقدینگی سیستم</div>
                 <div class="text-3xl font-black font-mono relative z-10" dir="ltr">
-                    {{ number_format($totalSystemBalance ?? 0) }} <span class="text-base font-normal">تومان</span>
+                    {{ number_format($totalSystemBalance ?? 0) }} <span class="text-base font-normal">ریال</span>
                 </div>
                 <div class="text-xs text-indigo-300 mt-2 relative z-10">کل پولی که هم‌اکنون در پلتفرم وجود دارد.</div>
             </div>
@@ -98,7 +98,7 @@
             <div class="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative border-r-4 border-r-emerald-500">
                 <div class="text-slate-500 text-sm font-bold mb-2">موجودی آزاد شرکت‌ها</div>
                 <div class="text-2xl font-black font-mono text-slate-800" dir="ltr">
-                    {{ number_format($totalAvailable ?? 0) }} <span class="text-sm font-normal text-slate-400">تومان</span>
+                    {{ number_format($totalAvailable ?? 0) }} <span class="text-sm font-normal text-slate-400">ریال</span>
                 </div>
                 <div class="text-xs text-slate-400 mt-2">امانت قابل برداشت/خرج.</div>
             </div>
@@ -107,7 +107,7 @@
             <div class="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative border-r-4 border-r-amber-500">
                 <div class="text-slate-500 text-sm font-bold mb-2">مبالغ بلوکه شده (درگیر)</div>
                 <div class="text-2xl font-black font-mono text-slate-800" dir="ltr">
-                    {{ number_format($totalBlocked ?? 0) }} <span class="text-sm font-normal text-slate-400">تومان</span>
+                    {{ number_format($totalBlocked ?? 0) }} <span class="text-sm font-normal text-slate-400">ریال</span>
                 </div>
                 <div class="text-xs text-slate-400 mt-2">درگیر در درخواست‌های باز.</div>
             </div>
@@ -116,7 +116,7 @@
             <div class="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative border-r-4 border-r-blue-500">
                 <div class="text-slate-500 text-sm font-bold mb-2">ورودی درگاه (این ماه)</div>
                 <div class="text-2xl font-black font-mono text-blue-600" dir="ltr">
-                    +{{ number_format($chargedThisMonth ?? 0) }} <span class="text-sm font-normal text-slate-400">تومان</span>
+                    +{{ number_format($chargedThisMonth ?? 0) }} <span class="text-sm font-normal text-slate-400">ریال</span>
                 </div>
                 <div class="text-xs text-slate-400 mt-2">جمع شارژهای موفق کل سیستم.</div>
             </div>
@@ -152,7 +152,7 @@
                         <div class="text-xs text-rose-400">سهم انجمن از دوزوله‌های تایید شده تا این لحظه</div>
                     </div>
                     <div class="text-2xl font-black font-mono text-rose-600" dir="ltr">
-                        {{ number_format($associationPendingDebt ?? 0) }} <span class="text-sm font-normal">تومان</span>
+                        {{ number_format($associationPendingDebt ?? 0) }} <span class="text-sm font-normal">ریال</span>
                     </div>
                 </div>
 
@@ -163,7 +163,7 @@
                         <div class="text-xs text-emerald-500">مجموع واریزی‌های شما به حساب انجمن</div>
                     </div>
                     <div class="text-2xl font-black font-mono text-emerald-600" dir="ltr">
-                        {{ number_format($associationTotalSettled ?? 0) }} <span class="text-sm font-normal">تومان</span>
+                        {{ number_format($associationTotalSettled ?? 0) }} <span class="text-sm font-normal">ریال</span>
                     </div>
                 </div>
             </div>
@@ -252,7 +252,7 @@
                         <th class="p-4 text-center">شناسه</th>
                         <th class="p-4">نام شرکت</th>
                         <th class="p-4">شرح تراکنش</th>
-                        <th class="p-4 text-center">مبلغ (تومان)</th>
+                        <th class="p-4 text-center">مبلغ (ریال)</th>
                         <th class="p-4 text-center">وضعیت</th>
                         <th class="p-4 text-center">تاریخ</th>
                     </tr>
@@ -355,7 +355,7 @@
                 </div>
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1.5">مبلغ اصلاحیه (تومان) <span class="text-rose-500">*</span></label>
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">مبلغ اصلاحیه (ریال) <span class="text-rose-500">*</span></label>
                 <input type="text" id="modal_amount_display" inputmode="numeric" required class="w-full border border-slate-300 rounded-xl px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="مثلاً: 1,000,000">
                 <input type="hidden" name="amount" id="modal_amount_real">
             </div>
@@ -380,7 +380,7 @@
         <form id="formSettlement" action="{{ route('admin.financial.storeSettlement') }}" method="POST" enctype="multipart/form-data" class="p-6 space-y-4">
             @csrf
             <div>
-                <label class="block text-xs font-bold text-slate-700 mb-1.5">مبلغ واریز شده به حساب انجمن (تومان) <span class="text-rose-500">*</span></label>
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">مبلغ واریز شده به حساب انجمن (ریال) <span class="text-rose-500">*</span></label>
                 <input type="text" id="settle_amount_display" required class="w-full border border-slate-300 rounded-xl px-3 py-2 font-mono text-sm focus:ring-2 focus:ring-slate-950 outline-none" placeholder="مثلاً: 15,000,000">
                 <input type="hidden" name="amount" id="settle_amount_real">
             </div>

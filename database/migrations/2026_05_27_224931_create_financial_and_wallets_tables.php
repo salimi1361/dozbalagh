@@ -12,7 +12,7 @@ return new class extends Migration
         Schema::create('wallets', function (Blueprint $table) {
             $table->id();
             $table->foreignId('company_id')->unique()->constrained('companies')->onDelete('cascade');
-            $table->decimal('balance', 15, 2)->default(0.00); // مانده حساب کل شرکت به ریال/تومان
+            $table->decimal('balance', 15, 2)->default(0.00); // مانده حساب کل شرکت به ریال
             $table->decimal('blocked_balance', 15, 2)->default(0.00); // 👈 موجودی مسدود شده / بلوکه شده (اضافه شد)
             $table->timestamps();
         });

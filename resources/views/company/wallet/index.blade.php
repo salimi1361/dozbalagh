@@ -12,7 +12,7 @@
             <div class="bg-gradient-to-l from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg shadow-emerald-200">
                 <div class="text-emerald-100 text-sm font-bold mb-2">موجودی قابل استفاده</div>
                 <div class="text-3xl font-black font-mono" dir="ltr">
-                    {{ number_format($wallet->available_balance ?? 0) }} <span class="text-base font-normal">تومان</span>
+                    {{ number_format($wallet->available_balance ?? 0) }} <span class="text-base font-normal">ریال</span>
                 </div>
                 <div class="text-xs text-emerald-100 mt-2">این مبلغ برای ثبت درخواست‌های جدید قابل استفاده است.</div>
             </div>
@@ -20,7 +20,7 @@
             <div class="bg-gradient-to-l from-amber-500 to-orange-500 rounded-2xl p-6 text-white shadow-lg shadow-orange-200">
                 <div class="text-orange-100 text-sm font-bold mb-2">موجودی مسدود شده</div>
                 <div class="text-3xl font-black font-mono" dir="ltr">
-                    {{ number_format($wallet->blocked_balance ?? 0) }} <span class="text-base font-normal">تومان</span>
+                    {{ number_format($wallet->blocked_balance ?? 0) }} <span class="text-base font-normal">ریال</span>
                 </div>
                 <div class="text-xs text-orange-100 mt-2">مبالغ بلوکه شده بابت درخواست‌های در انتظار تایید.</div>
             </div>
@@ -28,7 +28,7 @@
             <div class="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative overflow-hidden">
                 <div class="text-slate-500 text-sm font-bold mb-2">موجودی کل (دفتر کل)</div>
                 <div class="text-3xl font-black font-mono text-slate-800" dir="ltr">
-                    {{ number_format($wallet->balance ?? 0) }} <span class="text-base font-normal text-slate-400">تومان</span>
+                    {{ number_format($wallet->balance ?? 0) }} <span class="text-base font-normal text-slate-400">ریال</span>
                 </div>
                 <div class="text-xs text-slate-400 mt-2">مجموع موجودی قابل استفاده و مسدود شده.</div>
             </div>
@@ -45,7 +45,7 @@
                     <form action="{{ route('company.wallet.charge') }}" method="POST" id="chargeForm" class="p-6">
                         @csrf
                         <div class="mb-5">
-                            <label class="block text-sm font-bold text-slate-700 mb-2">مبلغ شارژ (تومان) <span class="text-rose-500">*</span></label>
+                            <label class="block text-sm font-bold text-slate-700 mb-2">مبلغ شارژ (ریال) <span class="text-rose-500">*</span></label>
                             
                             {{-- فیلد نمایشی (با جداکننده ۳ رقم) --}}
                             <input type="text" id="amount_display" required class="w-full border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-lg" dir="ltr" placeholder="حداقل 5.000.000 ریال">
@@ -53,10 +53,10 @@
                             {{-- فیلد واقعی (اعداد خام که به سمت سرور می‌رود) --}}
                             <input type="hidden" name="amount" id="amount_real" required>
                             
-                            <p class="text-xs text-slate-400 mt-2">حداقل مبلغ شارژ ۵۰۰,۰۰۰ تومان (۵ میلیون ریال) می‌باشد.</p>
+                            <p class="text-xs text-slate-400 mt-2">حداقل مبلغ شارژ ۵,۰۰۰,۰۰۰ ریال می‌باشد.</p>
                         </div>
                         <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-blue-200 flex justify-center items-center gap-2">
-                            انتقال به درگاه پرداخت زرین‌پال
+                            انتقال به درگاه پرداخت
                         </button>
                     </form>
                 </div>
@@ -92,7 +92,7 @@
                                     </th>
                                     <th class="p-4 text-center">شناسه</th>
                                     <th class="p-4">شرح تراکنش</th>
-                                    <th class="p-4 text-center">مبلغ (تومان)</th>
+                                    <th class="p-4 text-center">مبلغ (ریال)</th>
                                     <th class="p-4 text-center">نوع</th>
                                     <th class="p-4 text-center">تاریخ</th>
                                 </tr>
@@ -185,9 +185,9 @@
 
         // بررسی حداقل مبلغ قبل از ارسال
         document.getElementById('chargeForm').addEventListener('submit', function(e) {
-            if(!realInput.value || parseInt(realInput.value) < 500000) {
+            if(!realInput.value || parseInt(realInput.value) < 5000000) {
                 e.preventDefault();
-                Swal.fire({ icon: 'warning', title: 'مبلغ نامعتبر', text: 'حداقل مبلغ جهت شارژ حساب ۵۰۰,۰۰۰ تومان می‌باشد.', confirmButtonText: 'اصلاح مبلغ' });
+                Swal.fire({ icon: 'warning', title: 'مبلغ نامعتبر', text: 'حداقل مبلغ جهت شارژ حساب ۵,۰۰۰,۰۰۰ ریال می‌باشد.', confirmButtonText: 'اصلاح مبلغ' });
             }
         });
 

@@ -36,12 +36,11 @@ class WalletController extends Controller
     public function charge(Request $request)
     {
         $request->validate([
-            'amount' => 'required|numeric|min:500000', // 🔴 تغییر حداقل مبلغ به ۵۰۰,۰۰۰ تومان (۵ میلیون ریال)
+            'amount' => 'required|integer|min:5000000', // حداقل مبلغ شارژ: ۵ میلیون ریال
         ]);
 
         $companyId = auth()->user()->company_id ?? auth()->user()->company->id;
-        $amountToman = $request->amount;
-        $amountRial = $amountToman * 10; // زرین‌پال فقط ریال قبول می‌کند
+        $amountRial = (int) $request->amount;
         
         $merchantId = env('ZARINPAL_MERCHANT_ID', '12a746ee-5590-42cb-82f0-588660b0ec91');
         $callbackUrl = route('company.wallet.verify');
@@ -68,7 +67,7 @@ class WalletController extends Controller
                 // این اطلاعات به مدت 30 دقیقه منتظر بازگشت کاربر از بانک می‌ماند
                 Cache::put('zarinpal_payment_' . $authority, [
                     'company_id' => $companyId,
-                    'amount' => $amountToman
+                    'amount' => $amountRial
                 ], now()->addMinutes(30));
 
                 // پرتاب کاربر به درگاه بانک
@@ -104,7 +103,7 @@ class WalletController extends Controller
         }
 
         $merchantId = env('ZARINPAL_MERCHANT_ID', '12a746ee-5590-42cb-82f0-588660b0ec91');
-        $amountRial = $paymentData['amount'] * 10;
+        $amountRial = $paymentData['amount'];
 
         try {
             // ۳. تایید نهایی پرداخت با زرین‌پال
@@ -173,7 +172,7 @@ class WalletController extends Controller
         ];
 
         // 📊 ستون‌های شمسی و میلادی مجزا شدند
-        $columns = ['شناسه/پیگیری', 'شرح تراکنش', 'مبلغ (تومان)', 'نوع تراکنش', 'وضعیت', 'تاریخ شمسی', 'تاریخ میلادی'];
+        $columns = ['شناسه/پیگیری', 'شرح تراکنش', 'مبلغ (ریال)', 'نوع تراکنش', 'وضعیت', 'تاریخ شمسی', 'تاریخ میلادی'];
 
         $callback = function() use($transactions, $columns) {
             $file = fopen('php://output', 'w');

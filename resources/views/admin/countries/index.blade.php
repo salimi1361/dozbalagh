@@ -29,7 +29,7 @@
                         <th class="p-4 w-16 text-center">شناسه</th>
                         <th class="p-4">نام کشور</th>
                         <th class="p-4 text-center">کد اختصاری</th>
-                        <th class="p-4 text-center">مبلغ (تومان)</th>
+                        <th class="p-4 text-center">مبلغ (ریال)</th>
                         <th class="p-4 text-center">نوع مجوزها</th> 
                         <th class="p-4 text-center">وضعیت</th>
                         <th class="p-4 text-center">عملیات</th>
@@ -129,7 +129,7 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-slate-700 font-bold mb-2 text-sm">مبلغ هر دوزوله (تومان) <span class="text-rose-500">*</span></label>
+                        <label class="block text-slate-700 font-bold mb-2 text-sm">مبلغ هر دوزوله (ریال) <span class="text-rose-500">*</span></label>
                         <input type="number" name="price" value="{{ old('price', 0) }}" required min="0" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" dir="ltr">
                     </div>
                     <div>
@@ -189,7 +189,7 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-slate-700 font-bold mb-2 text-sm">مبلغ هر دوزوله (تومان) <span class="text-rose-500">*</span></label>
+                        <label class="block text-slate-700 font-bold mb-2 text-sm">مبلغ هر دوزوله (ریال) <span class="text-rose-500">*</span></label>
                         <input type="number" name="price" id="edit_price" required min="0" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" dir="ltr">
                     </div>
                     <div>

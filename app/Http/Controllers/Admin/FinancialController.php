@@ -203,7 +203,7 @@ class FinancialController extends Controller
             "Expires"             => "0"
         ];
 
-        $columns = ['شناسه تراکنش', 'نام شرکت', 'شرح تراکنش', 'نوع تراکنش', 'مبلغ (تومان)', 'تاریخ ثبت'];
+        $columns = ['شناسه تراکنش', 'نام شرکت', 'شرح تراکنش', 'نوع تراکنش', 'مبلغ (ریال)', 'تاریخ ثبت'];
 
         $callback = function() use($transactions, $columns) {
             $file = fopen('php://output', 'w');

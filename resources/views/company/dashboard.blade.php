@@ -137,7 +137,7 @@
                         <p class="text-xs font-black text-slate-500">موجودی کیف پول</p>
                         <p class="mt-2 font-mono text-3xl font-black tracking-wide text-emerald-700">{{ number_format($walletBalance) }}</p>
                     </div>
-                    <span class="rounded-lg border border-slate-300 bg-slate-50 px-3 py-1 text-[11px] font-black text-emerald-700">تومان</span>
+                    <span class="rounded-lg border border-slate-300 bg-slate-50 px-3 py-1 text-[11px] font-black text-emerald-700">ریال</span>
                 </div>
                 <div class="mt-5 h-2 overflow-hidden rounded-full bg-slate-300">
                     <div class="h-full rounded-full bg-gradient-to-l from-emerald-500 to-sky-400" style="width: {{ $availablePercent }}%"></div>
