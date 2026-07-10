@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // MySQL may leave this table behind when a previous CREATE/ALTER fails.
+        // Since the migration is not recorded in that state, the table is incomplete.
+        Schema::dropIfExists('issued_dozbalagh_settlement_requests');
+
         Schema::create('issued_dozbalagh_settlement_requests', function (Blueprint $table) {
             $table->id();
             $table->string('period_key', 7)->unique();
@@ -16,9 +20,9 @@ return new class extends Migration
             $table->unsignedInteger('issued_count');
             $table->decimal('requested_amount', 15, 2);
             $table->enum('status', ['requested', 'paid', 'rejected'])->default('requested')->index();
-            $table->foreignId('requested_by_user_id')->constrained('users');
+            $table->unsignedBigInteger('requested_by_user_id');
             $table->timestamp('requested_at');
-            $table->foreignId('paid_by_user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->unsignedBigInteger('paid_by_user_id')->nullable();
             $table->decimal('paid_amount', 15, 2)->nullable();
             $table->string('bank_name')->nullable();
             $table->string('payment_reference')->nullable();
@@ -26,6 +30,11 @@ return new class extends Migration
             $table->timestamp('paid_at')->nullable();
             $table->text('note')->nullable();
             $table->timestamps();
+
+            $table->foreign('requested_by_user_id', 'idsr_requested_user_fk')
+                ->references('id')->on('users');
+            $table->foreign('paid_by_user_id', 'idsr_paid_user_fk')
+                ->references('id')->on('users')->nullOnDelete();
         });
     }
 
