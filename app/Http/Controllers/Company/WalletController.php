@@ -36,7 +36,7 @@ class WalletController extends Controller
     public function charge(Request $request)
     {
         $request->validate([
-            'amount' => 'required|integer|min:5000000', // حداقل مبلغ شارژ: ۵ میلیون ریال
+            'amount' => 'required|integer|min:100000', // حداقل مبلغ شارژ: ۱۰۰ هزار ریال
         ]);
 
         $companyId = auth()->user()->company_id ?? auth()->user()->company->id;

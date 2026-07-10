@@ -11,24 +11,27 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="bg-gradient-to-l from-emerald-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg shadow-emerald-200">
                 <div class="text-emerald-100 text-sm font-bold mb-2">موجودی قابل استفاده</div>
-                <div class="text-3xl font-black font-mono" dir="ltr">
-                    {{ number_format($wallet->available_balance ?? 0) }} <span class="text-base font-normal">ریال</span>
+                <div class="flex items-baseline gap-2" dir="ltr">
+                    <span class="text-3xl font-black font-mono">{{ number_format($wallet->available_balance ?? 0) }}</span>
+                    <span class="font-sans text-sm font-bold text-emerald-100">ریال</span>
                 </div>
                 <div class="text-xs text-emerald-100 mt-2">این مبلغ برای ثبت درخواست‌های جدید قابل استفاده است.</div>
             </div>
 
             <div class="bg-gradient-to-l from-amber-500 to-orange-500 rounded-2xl p-6 text-white shadow-lg shadow-orange-200">
                 <div class="text-orange-100 text-sm font-bold mb-2">موجودی مسدود شده</div>
-                <div class="text-3xl font-black font-mono" dir="ltr">
-                    {{ number_format($wallet->blocked_balance ?? 0) }} <span class="text-base font-normal">ریال</span>
+                <div class="flex items-baseline gap-2" dir="ltr">
+                    <span class="text-3xl font-black font-mono">{{ number_format($wallet->blocked_balance ?? 0) }}</span>
+                    <span class="font-sans text-sm font-bold text-orange-100">ریال</span>
                 </div>
                 <div class="text-xs text-orange-100 mt-2">مبالغ بلوکه شده بابت درخواست‌های در انتظار تایید.</div>
             </div>
 
             <div class="bg-white border border-slate-200 rounded-2xl p-6 text-slate-800 shadow-sm relative overflow-hidden">
                 <div class="text-slate-500 text-sm font-bold mb-2">موجودی کل (دفتر کل)</div>
-                <div class="text-3xl font-black font-mono text-slate-800" dir="ltr">
-                    {{ number_format($wallet->balance ?? 0) }} <span class="text-base font-normal text-slate-400">ریال</span>
+                <div class="flex items-baseline gap-2" dir="ltr">
+                    <span class="text-3xl font-black font-mono text-slate-800">{{ number_format($wallet->balance ?? 0) }}</span>
+                    <span class="font-sans text-sm font-bold text-slate-400">ریال</span>
                 </div>
                 <div class="text-xs text-slate-400 mt-2">مجموع موجودی قابل استفاده و مسدود شده.</div>
             </div>
@@ -48,12 +51,15 @@
                             <label class="block text-sm font-bold text-slate-700 mb-2">مبلغ شارژ (ریال) <span class="text-rose-500">*</span></label>
                             
                             {{-- فیلد نمایشی (با جداکننده ۳ رقم) --}}
-                            <input type="text" id="amount_display" required class="w-full border border-slate-300 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-lg" dir="ltr" placeholder="حداقل 5.000.000 ریال">
+                            <div class="relative">
+                                <input type="text" id="amount_display" required inputmode="numeric" class="w-full border border-slate-300 rounded-xl pl-4 pr-16 py-3 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-lg" dir="ltr" placeholder="100,000">
+                                <span class="pointer-events-none absolute inset-y-0 right-4 flex items-center font-sans text-sm font-bold text-slate-500">ریال</span>
+                            </div>
                             
                             {{-- فیلد واقعی (اعداد خام که به سمت سرور می‌رود) --}}
                             <input type="hidden" name="amount" id="amount_real" required>
                             
-                            <p class="text-xs text-slate-400 mt-2">حداقل مبلغ شارژ ۵,۰۰۰,۰۰۰ ریال می‌باشد.</p>
+                            <p class="text-xs text-slate-400 mt-2">حداقل مبلغ شارژ ۱۰۰٬۰۰۰ ریال است و سقفی برای واریز وجود ندارد.</p>
                         </div>
                         <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-blue-200 flex justify-center items-center gap-2">
                             انتقال به درگاه پرداخت
@@ -185,9 +191,9 @@
 
         // بررسی حداقل مبلغ قبل از ارسال
         document.getElementById('chargeForm').addEventListener('submit', function(e) {
-            if(!realInput.value || parseInt(realInput.value) < 5000000) {
+            if(!realInput.value || parseInt(realInput.value) < 100000) {
                 e.preventDefault();
-                Swal.fire({ icon: 'warning', title: 'مبلغ نامعتبر', text: 'حداقل مبلغ جهت شارژ حساب ۵,۰۰۰,۰۰۰ ریال می‌باشد.', confirmButtonText: 'اصلاح مبلغ' });
+                Swal.fire({ icon: 'warning', title: 'مبلغ نامعتبر', text: 'حداقل مبلغ جهت شارژ حساب ۱۰۰٬۰۰۰ ریال است.', confirmButtonText: 'اصلاح مبلغ' });
             }
         });
 
