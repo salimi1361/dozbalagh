@@ -200,7 +200,10 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware('role:admin,association')->group(function () {
         Route::get('/web/association/issued-financial-report', [IssuedDozbalaghFinancialReportController::class, 'index'])->name('association.issued-financial.index');
         Route::get('/web/association/issued-financial-report/export', [IssuedDozbalaghFinancialReportController::class, 'export'])->name('association.issued-financial.export');
+        Route::post('/web/association/issued-financial-report/settlement-request', [IssuedDozbalaghFinancialReportController::class, 'requestSettlement'])->name('association.issued-financial.request-settlement');
     });
+    Route::post('/web/association/issued-financial-report/settlement/{settlement}/confirm', [IssuedDozbalaghFinancialReportController::class, 'confirmSettlement'])
+        ->middleware('role:admin')->name('association.issued-financial.confirm-settlement');
     
     // روت نمایش صفحه چاپ واقعی برگه دوزبلاغ
     Route::get('/web/association/request/print/{id}', [AssociationController::class, 'printPermit'])->name('association.permit.print');
