@@ -627,30 +627,53 @@ class AssociationController
     public function transitPermits()
     {
         try {
-            $requests = DB::table('permit_request_items as pri')
+            $hasItemStatus = Schema::hasColumn('permit_request_items', 'item_status');
+            $hasCompanyReturnImage = Schema::hasColumn('permit_request_items', 'company_return_image');
+            $hasCourierName = Schema::hasColumn('permit_request_items', 'courier_name');
+            $hasCourierMobile = Schema::hasColumn('permit_request_items', 'courier_mobile');
+            $hasCourierDeliveryCode = Schema::hasColumn('permit_request_items', 'courier_delivery_code');
+
+            $selects = [
+                'pr.*',
+                'pri.id as item_id',
+                'pri.country_id as item_country_id',
+                'pri.permit_type as item_permit_type',
+                'pri.d_serial_number as item_serial_number',
+                'c.name as item_country_name',
+            ];
+
+            $selects[] = $hasItemStatus
+                ? 'pri.item_status'
+                : DB::raw("'issued' as item_status");
+            $selects[] = $hasCompanyReturnImage
+                ? 'pri.company_return_image as item_company_return_image'
+                : DB::raw('NULL as item_company_return_image');
+            $selects[] = $hasCourierName
+                ? 'pri.courier_name as item_courier_name'
+                : DB::raw('NULL as item_courier_name');
+            $selects[] = $hasCourierMobile
+                ? 'pri.courier_mobile as item_courier_mobile'
+                : DB::raw('NULL as item_courier_mobile');
+            $selects[] = $hasCourierDeliveryCode
+                ? 'pri.courier_delivery_code as item_courier_delivery_code'
+                : DB::raw('NULL as item_courier_delivery_code');
+
+            $query = DB::table('permit_request_items as pri')
                 ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
                 ->leftJoin('countries as c', 'c.id', '=', 'pri.country_id')
                 ->where('pr.status', 'issued')
                 ->whereNotNull('pri.d_serial_number')
-                ->where(function ($query) {
+                ->orderBy('pri.updated_at', 'desc')
+                ->select($selects);
+
+            if ($hasItemStatus) {
+                $query->where(function ($query) {
                     $query->whereNull('pri.item_status')
                         ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived']);
-                })
-                ->orderBy('pri.updated_at', 'desc')
-                ->select(
-                    'pr.*',
-                    'pri.id as item_id',
-                    'pri.country_id as item_country_id',
-                    'pri.permit_type as item_permit_type',
-                    'pri.d_serial_number as item_serial_number',
-                    'pri.item_status',
-                    'pri.company_return_image as item_company_return_image',
-                    'pri.courier_name as item_courier_name',
-                    'pri.courier_mobile as item_courier_mobile',
-                    'pri.courier_delivery_code as item_courier_delivery_code',
-                    'c.name as item_country_name'
-                )
-                ->paginate(10);
+                });
+            }
+
+            $requests = $query->paginate(10);
 
             foreach ($requests as $req) {
                 $req->serial_number = $req->item_serial_number ?: $req->serial_number;
