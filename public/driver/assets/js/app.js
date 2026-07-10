@@ -3,6 +3,7 @@ let watchId = null;
 let currentTab = 'home';
 let permitsCache = [];
 let notificationsCache = [];
+let companyMessagesCache = [];
 let gpsPermissionState = 'prompt';
 let deferredInstallPrompt = null;
 let notificationPollTimer = null;
@@ -135,7 +136,7 @@ function renderOpenInstalledAppHint() {
 
 function switchTab(tab) {
     currentTab = tab;
-    ['home', 'fleet', 'company', 'profile'].forEach(t => {
+    ['home', 'messages', 'fleet', 'company', 'profile'].forEach(t => {
         const el = document.getElementById(`tab-${t}`);
         if (el) el.classList.toggle('is-active', t === tab);
     });
@@ -205,7 +206,10 @@ function requestBrowserNotificationPermission() {
 
 function startNotificationPolling() {
     if (notificationPollTimer) return;
-    notificationPollTimer = setInterval(() => fetchNotifications(true), 10000);
+    notificationPollTimer = setInterval(() => {
+        fetchNotifications(true);
+        fetchCompanyMessages(true);
+    }, 10000);
 }
 
 function notifyNewDriverNotifications(items) {
@@ -420,6 +424,7 @@ function renderDashboard() {
     const driver = getDriver();
 
     if (currentTab === 'home') renderHomeTab(main, driver);
+    else if (currentTab === 'messages') renderMessagesTab(main, driver);
     else if (currentTab === 'fleet') renderFleetTab(main, driver);
     else if (currentTab === 'company') renderCompanyTab(main, driver);
     else if (currentTab === 'profile') renderProfileTab(main, driver);
@@ -478,7 +483,40 @@ function renderHomeTab(main, driver) {
     updateTripButtonUI();
     syncGpsStatus();
     fetchNotifications();
+    fetchCompanyMessages(true);
     fetchPermits();
+}
+
+function renderMessagesTab(main, driver) {
+    main.innerHTML = `
+        <div class="stack">
+            <div class="card message-inbox-hero">
+                <div>
+                    <span>ارتباط با شرکت</span>
+                    <b>پیام‌های شرکت</b>
+                    <small>${driver.company_name || 'شرکت حمل و نقل'}</small>
+                </div>
+                <i class="fa-solid fa-comments"></i>
+            </div>
+            <div class="message-tab-stats">
+                <div>
+                    <span>خوانده‌نشده</span>
+                    <b id="messages-unread-count">۰</b>
+                </div>
+                <div>
+                    <span>کل گفتگوها</span>
+                    <b id="messages-total-count">۰</b>
+                </div>
+            </div>
+            <div>
+                <div class="section-title">صندوق پیام‌ها</div>
+                <div id="company-messages-container" class="stack-sm">
+                    <div class="loader-wrap"><div class="loader"></div></div>
+                </div>
+            </div>
+        </div>`;
+
+    fetchCompanyMessages();
 }
 
 function renderFleetTab(main, driver) {
@@ -689,6 +727,70 @@ function emptyNotificationsHtml() {
         </div>`;
 }
 
+function fetchCompanyMessages(silent = false) {
+    const container = document.getElementById('company-messages-container');
+
+    fetch(`${API_BASE}/company-messages`, { headers: authHeaders() })
+        .then(res => {
+            if (res.status === 401) { logout(); throw new Error('unauthorized'); }
+            return res.json();
+        })
+        .then(data => {
+            if (!data || data.status !== 'success') {
+                if (container && !silent) container.innerHTML = emptyCompanyMessagesHtml();
+                return;
+            }
+
+            companyMessagesCache = data.data || [];
+            const unreadCount = Number(data.unread_count || 0);
+            const messagesTab = document.getElementById('tab-messages');
+            if (messagesTab) messagesTab.toggleAttribute('data-unread', unreadCount > 0);
+
+            const unreadEl = document.getElementById('messages-unread-count');
+            const totalEl = document.getElementById('messages-total-count');
+            if (unreadEl) unreadEl.textContent = unreadCount.toLocaleString('fa-IR');
+            if (totalEl) totalEl.textContent = companyMessagesCache.length.toLocaleString('fa-IR');
+
+            if (!container) return;
+            if (companyMessagesCache.length === 0) {
+                container.innerHTML = emptyCompanyMessagesHtml();
+                return;
+            }
+
+            container.innerHTML = companyMessagesCache.map(item => companyMessageCardHtml(item)).join('');
+        })
+        .catch(() => {
+            if (container && !silent) container.innerHTML = emptyCompanyMessagesHtml();
+        });
+}
+
+function companyMessageCardHtml(item) {
+    const isUnread = item.sender === 'company' && !item.read_at;
+    const senderLabel = item.sender === 'driver' ? 'پاسخ شما' : 'پیام شرکت';
+    const readLabel = item.sender === 'driver' ? 'ارسال شده' : (item.read_at ? 'خوانده شده' : 'خوانده نشده');
+    return `
+        <button type="button" class="company-message-card ${isUnread ? 'is-unread' : ''}" onclick="openCompanyMessage(${Number(item.id)})">
+            <span class="company-message-card__avatar"><i class="fa-solid ${item.sender === 'driver' ? 'fa-reply' : 'fa-building'}"></i></span>
+            <span class="company-message-card__body">
+                <b>${displayValue(item.title || senderLabel)}</b>
+                <small>${displayValue(item.company_name)}</small>
+                <em>${displayValue(item.message)}</em>
+            </span>
+            <span class="company-message-card__meta">
+                <small>${displayValue(item.created_at)}</small>
+                <b class="${item.read_at || item.sender === 'driver' ? 'is-read' : ''}">${readLabel}</b>
+            </span>
+        </button>`;
+}
+
+function emptyCompanyMessagesHtml() {
+    return `
+        <div class="card empty-state empty-state--compact">
+            <i class="fa-solid fa-comments"></i>
+            <p>پیامی از شرکت ثبت نشده است.</p>
+        </div>`;
+}
+
 function openNotification(id, permitId) {
     fetch(`${API_BASE}/notifications/${id}/read`, {
         method: 'POST',
@@ -733,6 +835,46 @@ function openCompanyMessageNotification(notificationId, messageId) {
         </div>`;
 }
 
+function openCompanyMessage(messageId) {
+    const item = companyMessagesCache.find(message => Number(message.id) === Number(messageId)) || {};
+
+    if (item.sender === 'company' && !item.read_at) {
+        item.read_at = new Date().toISOString();
+        fetch(`${API_BASE}/company-messages/${Number(messageId)}/read`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({}),
+        }).finally(() => fetchCompanyMessages(true));
+    }
+
+    document.getElementById('modal-container').innerHTML = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+            <div class="modal-sheet">
+                <div class="modal-handle"></div>
+                <div class="modal-title">${displayValue(item.title || 'پیام شرکت')}</div>
+                <div class="stack-sm">
+                    <div class="message-detail-card ${item.sender === 'driver' ? 'is-driver' : ''}">
+                        <div>
+                            <span>${displayValue(item.sender === 'driver' ? 'پاسخ شما' : item.company_name || 'شرکت حمل و نقل')}</span>
+                            <b>${item.read_at || item.sender === 'driver' ? 'خوانده شده' : 'خوانده نشده'}</b>
+                        </div>
+                        <p>${displayValue(item.message)}</p>
+                        <small>${displayValue(item.created_at)}</small>
+                    </div>
+                    ${item.sender === 'company' ? `
+                        <div class="form-group">
+                            <label class="input-label" for="company-message-reply">پاسخ شما</label>
+                            <textarea id="company-message-reply" class="input-field message-reply-field" placeholder="پاسخ خود را برای شرکت بنویسید..."></textarea>
+                        </div>
+                        <button type="button" onclick="sendCompanyMessageReply(${Number(messageId) || 0})" class="btn btn--primary">
+                            <i class="fa-solid fa-paper-plane"></i>
+                            <span>ارسال پاسخ</span>
+                        </button>` : ''}
+                </div>
+            </div>
+        </div>`;
+}
+
 function sendCompanyMessageReply(messageId) {
     const textarea = document.getElementById('company-message-reply');
     const message = textarea ? textarea.value.trim() : '';
@@ -758,6 +900,7 @@ function sendCompanyMessageReply(messageId) {
                 closeModal();
                 showToast(data.message || 'پاسخ ارسال شد.', 'success');
                 fetchNotifications();
+                fetchCompanyMessages(true);
             } else {
                 showToast(data.message || 'ارسال پاسخ انجام نشد.', 'error');
             }

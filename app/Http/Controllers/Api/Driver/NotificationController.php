@@ -13,8 +13,11 @@ class NotificationController extends Controller
 
         $notifications = $driver->notifications()
             ->latest()
-            ->limit(20)
+            ->limit(60)
             ->get()
+            ->filter(fn ($notification) => ($notification->data['type'] ?? null) !== 'company_message')
+            ->take(20)
+            ->values()
             ->map(fn ($notification) => [
                 'id' => $notification->id,
                 'type' => $notification->data['type'] ?? 'notification',
@@ -35,7 +38,10 @@ class NotificationController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'unread_count' => $driver->unreadNotifications()->count(),
+            'unread_count' => $driver->unreadNotifications()
+                ->get()
+                ->filter(fn ($notification) => ($notification->data['type'] ?? null) !== 'company_message')
+                ->count(),
             'data' => $notifications,
         ]);
     }
