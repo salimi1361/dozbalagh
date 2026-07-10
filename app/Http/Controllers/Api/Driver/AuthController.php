@@ -32,7 +32,7 @@ class AuthController extends Controller
 
         Cache::put('otp_' . $request->mobile, $otpCode, now()->addMinutes(3));
 
-        $this->sendOtpNotification($driver, $otpCode);
+        $this->sendOtpNotification($driver, $otpCode, $request->getHost());
 
         return response()->json([
             'status' => 'success',
@@ -118,9 +118,11 @@ class AuthController extends Controller
         ]);
     }
 
-    private function sendOtpNotification($driver, $code)
+    private function sendOtpNotification($driver, $code, ?string $host = null)
     {
-        $message = "سامانه هوشمند دوزوله\n\nکد تایید ورود شما:\n{$code}\n\nاین کد تا ۳ دقیقه معتبر است.";
+        $webOtpHost = $this->webOtpHost($host);
+        $webOtpLine = $webOtpHost ? "\n\n@{$webOtpHost} #{$code}" : '';
+        $message = "سامانه هوشمند دوزوله\n\nکد تایید ورود شما:\n{$code}\n\nاین کد تا ۳ دقیقه معتبر است.{$webOtpLine}";
         $apiKey = config('services.kavenegar.key');
         $url = "https://api.kavenegar.com/v1/{$apiKey}/sms/send.json";
 
@@ -136,5 +138,17 @@ class AuthController extends Controller
         } catch (\Exception $e) {
             Log::error('Kavenegar Connection Error: ' . $e->getMessage());
         }
+    }
+
+    private function webOtpHost(?string $requestHost): ?string
+    {
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST) ?: $requestHost;
+        $host = preg_replace('/:\d+$/', '', (string) $host);
+
+        if (!$host || in_array($host, ['localhost', '127.0.0.1'], true)) {
+            return null;
+        }
+
+        return $host;
     }
 }

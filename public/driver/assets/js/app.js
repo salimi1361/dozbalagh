@@ -8,6 +8,7 @@ let activeCompanyChatKey = null;
 let gpsPermissionState = 'prompt';
 let deferredInstallPrompt = null;
 let notificationPollTimer = null;
+let otpAbortController = null;
 
 document.addEventListener('DOMContentLoaded', initApp);
 window.addEventListener('beforeinstallprompt', event => {
@@ -1279,6 +1280,7 @@ function handleRequestOtp() {
 }
 
 function renderOtpScreen(mobile) {
+    if (otpAbortController) otpAbortController.abort();
     document.getElementById('main-content').innerHTML = `
         <div class="auth-wrap">
             <div class="auth-icon auth-icon--logo">${associationLogoHtml('association-logo--auth')}</div>
@@ -1287,7 +1289,7 @@ function renderOtpScreen(mobile) {
             <div class="card auth-card">
                 <div class="form-group">
                     <label class="input-label" for="otp-code">کد یکبار مصرف</label>
-                    <input type="number" id="otp-code" class="input-field" placeholder="· · · · ·" inputmode="numeric">
+                    <input type="text" id="otp-code" class="input-field" placeholder="· · · · ·" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="5">
                 </div>
                 <button type="button" onclick="handleVerifyOtp('${mobile}')" id="btn-verify" class="btn btn--primary" style="margin-top:20px">
                     <i class="fa-solid fa-right-to-bracket"></i>
@@ -1298,16 +1300,52 @@ function renderOtpScreen(mobile) {
                 </button>
             </div>
         </div>`;
+
+    prepareOtpInput(mobile);
+    startWebOtpListener(mobile);
+}
+
+function prepareOtpInput(mobile) {
+    const input = document.getElementById('otp-code');
+    if (!input) return;
+
+    input.focus();
+    input.addEventListener('input', () => {
+        input.value = toEnglishDigits(input.value).replace(/\D/g, '').slice(0, 5);
+        if (input.value.length === 5) handleVerifyOtp(mobile);
+    });
+}
+
+function startWebOtpListener(mobile) {
+    if (!('OTPCredential' in window) || !navigator.credentials || !window.AbortController) return;
+
+    otpAbortController = new AbortController();
+    const timer = setTimeout(() => otpAbortController?.abort(), 180000);
+
+    navigator.credentials.get({
+        otp: { transport: ['sms'] },
+        signal: otpAbortController.signal,
+    }).then(otp => {
+        const code = toEnglishDigits(otp?.code || '').replace(/\D/g, '').slice(0, 5);
+        const input = document.getElementById('otp-code');
+        if (!code || !input) return;
+        input.value = code;
+        if (code.length === 5) handleVerifyOtp(mobile);
+    }).catch(() => {}).finally(() => {
+        clearTimeout(timer);
+    });
 }
 
 function handleVerifyOtp(mobile) {
-    const code = document.getElementById('otp-code').value.trim();
+    const btn = document.getElementById('btn-verify');
+    if (btn && btn.disabled) return;
+
+    const code = toEnglishDigits(document.getElementById('otp-code').value).replace(/\D/g, '').slice(0, 5);
     if (code.length !== 5) {
         showToast('کد ۵ رقمی را کامل وارد کنید.', 'error');
         return;
     }
 
-    const btn = document.getElementById('btn-verify');
     btn.disabled = true;
 
     fetch(`${API_BASE}/auth/verify-otp`, {
@@ -1318,6 +1356,7 @@ function handleVerifyOtp(mobile) {
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
+                if (otpAbortController) otpAbortController.abort();
                 localStorage.setItem('driver_token', data.token);
                 localStorage.setItem('driver_info', JSON.stringify(data.driver));
                 document.getElementById('bottom-navigation').classList.remove('hidden');
