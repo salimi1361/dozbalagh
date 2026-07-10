@@ -209,34 +209,36 @@
                                 </div>
                             </td>
 
-                            <td class="p-4 text-center whitespace-nowrap">
-                                <div class="flex flex-wrap justify-center gap-1.5">
-                                    <button onclick="openModal('modal-{{ $item->id }}')" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors shadow-md shadow-indigo-100">
+                            <td class="p-4 text-center">
+                                <div class="min-w-[230px] space-y-2">
+                                    <button onclick="openModal('modal-{{ $item->id }}')" class="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors shadow-md shadow-indigo-100">
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                         جزئیات
                                     </button>
 
                                     @if($item->status === 'issued')
+                                        <div class="space-y-1.5">
                                         @foreach($returnItems as $returnItem)
-                                            <div class="flex flex-wrap items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
-                                                <span class="px-2 py-1 rounded-lg bg-slate-50 text-slate-700 text-[11px] font-black">
+                                            <div class="grid grid-cols-[minmax(62px,1fr)_auto_auto] items-center gap-1 rounded-xl border border-slate-200 bg-slate-50/70 p-1.5">
+                                                <span class="truncate px-2 py-1.5 rounded-lg bg-white text-slate-700 text-[11px] font-black border border-slate-100">
                                                     {{ $returnItem->country_name ?? 'کشور مقصد' }}
                                                 </span>
                                                 @if(empty($returnItem->company_return_image))
-                                                    <button onclick='openReturnLashModal(@json($returnItem->id), @json(($item->d_code ?? "") . " / " . ($returnItem->country_name ?? "")))' class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-md shadow-emerald-100">
+                                                    <button onclick='openReturnLashModal(@json($returnItem->id), @json(($item->d_code ?? "") . " / " . ($returnItem->country_name ?? "")))' class="inline-flex items-center justify-center px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm shadow-emerald-100">
                                                         ثبت لاشه
                                                     </button>
                                                 @else
-                                                    <span class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-black">
-                                                        کد پیک: {{ $returnItem->courier_delivery_code ?? '---' }}
+                                                    <span class="inline-flex items-center justify-center px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-black">
+                                                        {{ $returnItem->courier_delivery_code ?? '---' }}
                                                     </span>
                                                 @endif
 
-                                                <button onclick='reportLost(@json($returnItem->id), @json(($item->d_code ?? "") . " / " . ($returnItem->country_name ?? "")))' class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-md shadow-rose-100">
+                                                <button onclick='reportLost(@json($returnItem->id), @json(($item->d_code ?? "") . " / " . ($returnItem->country_name ?? "")))' class="inline-flex items-center justify-center px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm shadow-rose-100">
                                                     مفقودی
                                                 </button>
                                             </div>
                                         @endforeach
+                                        </div>
                                     @endif
                                 </div>
                             </td>
@@ -527,10 +529,25 @@
 
                 return fetch(`/web/company/dozbalagh/${id}/return-lash`, {
                     method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
                     body: formData
                 })
-                .then(response => response.json())
+                .then(response => response.text().then(text => {
+                    let data = null;
+                    try {
+                        data = JSON.parse(text);
+                    } catch (e) {
+                        throw new Error(response.ok ? 'پاسخ سرور قابل خواندن نیست.' : 'خطای سرور در ثبت لاشه. لطفا migration جدید را اجرا کنید و دوباره تست بگیرید.');
+                    }
+                    if (!response.ok) {
+                        throw new Error(data.message || 'ثبت لاشه انجام نشد.');
+                    }
+                    return data;
+                }))
                 .then(data => {
                     if (!data.success) throw new Error(data.message || 'ثبت لاشه انجام نشد.');
                     return data;
@@ -571,10 +588,25 @@
 
                 return fetch(`/web/company/dozbalagh/${id}/report-lost`, {
                     method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
                     body: formData
                 })
-                .then(response => response.json())
+                .then(response => response.text().then(text => {
+                    let data = null;
+                    try {
+                        data = JSON.parse(text);
+                    } catch (e) {
+                        throw new Error(response.ok ? 'پاسخ سرور قابل خواندن نیست.' : 'خطای سرور در ثبت مفقودی. لطفا migration جدید را اجرا کنید و دوباره تست بگیرید.');
+                    }
+                    if (!response.ok) {
+                        throw new Error(data.message || 'ثبت مفقودی انجام نشد.');
+                    }
+                    return data;
+                }))
                 .then(data => {
                     if (!data.success) throw new Error(data.message || 'ثبت مفقودی انجام نشد.');
                     return data;

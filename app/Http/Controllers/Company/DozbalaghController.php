@@ -849,17 +849,38 @@ public function store(Request $request)
 
         $user = auth()->user();
         $companyId = optional($user->company)->id ?? $user->company_id ?? null;
+        $hasItemStatus = Schema::hasColumn('permit_request_items', 'item_status');
+        $hasCompanyReturnFields = Schema::hasColumn('permit_request_items', 'company_return_image')
+            && Schema::hasColumn('permit_request_items', 'courier_name')
+            && Schema::hasColumn('permit_request_items', 'courier_mobile')
+            && Schema::hasColumn('permit_request_items', 'courier_national_code')
+            && Schema::hasColumn('permit_request_items', 'courier_vehicle_plate')
+            && Schema::hasColumn('permit_request_items', 'courier_delivery_code')
+            && Schema::hasColumn('permit_request_items', 'courier_code_sent_at')
+            && Schema::hasColumn('permit_request_items', 'company_return_submitted_at');
 
-        $permitItem = DB::table('permit_request_items as pri')
+        if (!$hasCompanyReturnFields) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ستون‌های ثبت لاشه برای چند کشور هنوز در دیتابیس ساخته نشده‌اند. لطفا migration جدید اجرا شود.',
+            ], 422);
+        }
+
+        $permitItemQuery = DB::table('permit_request_items as pri')
             ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
             ->where('pri.id', $id)
             ->where('pr.company_id', $companyId)
             ->where('pr.status', 'issued')
-            ->whereNotNull('pri.d_serial_number')
-            ->where(function ($query) {
+            ->whereNotNull('pri.d_serial_number');
+
+        if ($hasItemStatus) {
+            $permitItemQuery->where(function ($query) {
                 $query->whereNull('pri.item_status')
                     ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived']);
-            })
+            });
+        }
+
+        $permitItem = $permitItemQuery
             ->select('pri.*', 'pr.d_code', 'pr.company_id')
             ->first();
 
@@ -939,6 +960,18 @@ public function store(Request $request)
 
         $user = auth()->user();
         $companyId = optional($user->company)->id ?? $user->company_id ?? null;
+        $hasItemStatus = Schema::hasColumn('permit_request_items', 'item_status');
+        $hasLostFields = $hasItemStatus
+            && Schema::hasColumn('permit_request_items', 'lost_reported_at')
+            && Schema::hasColumn('permit_request_items', 'lost_reason')
+            && Schema::hasColumn('permit_request_items', 'closed_at');
+
+        if (!$hasLostFields) {
+            return response()->json([
+                'success' => false,
+                'message' => 'ستون‌های تعیین تکلیف هر کشور هنوز در دیتابیس ساخته نشده‌اند. لطفا migration جدید اجرا شود.',
+            ], 422);
+        }
 
         DB::beginTransaction();
         try {
