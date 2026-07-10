@@ -573,12 +573,20 @@ function renderCompanyTab(main, driver) {
                     <span class="info-block__value">${driver.company_name || '—'}</span>
                 </div>
                 <div class="info-row">
-                    <span>مدیر / نماینده</span>
+                    <span>مدیرعامل</span>
                     <b>${driver.company_manager || '—'}</b>
                 </div>
                 <div class="info-row">
+                    <span>موبایل مدیرعامل</span>
+                    <b>${driver.company_ceo_mobile || '—'}</b>
+                </div>
+                <div class="info-row">
+                    <span>تلفن شرکت</span>
+                    <b>${driver.company_phone || '—'}</b>
+                </div>
+                <div class="info-row">
                     <span>آدرس</span>
-                    <b style="max-width:55%;text-align:left;line-height:1.5">${driver.company_address || '—'}</b>
+                    <b class="company-address-value">${driver.company_address || '—'}</b>
                 </div>
             </div>
         </div>`;

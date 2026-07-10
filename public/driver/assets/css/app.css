@@ -1722,3 +1722,10 @@ body {
     stroke: #ffffff;
     stroke-width: 2.4;
 }
+.company-address-value {
+    max-width: 62%;
+    text-align: left;
+    line-height: 1.8;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}

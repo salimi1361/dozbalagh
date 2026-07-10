@@ -71,10 +71,15 @@ class AuthController extends Controller
         $token = $driver->createToken('driver_app_token')->plainTextToken;
 
         // استخراج فیلدهای واقعی شرکت از رابطه
-        $companyName = $driver->company ? $driver->company->name : 'شرکت حمل و نقل بین‌المللی خراسان';
-        // در صورتی که فیلد نام مدیر یا آدرس در جدول شرکت شما متفاوت است، نام فیلد را در اینجا اصلاح کنید
-        $companyManager = $driver->company ? ($driver->company->manager_name ?? $driver->company->manager ?? 'نامشخص') : 'جناب ذاکری';
-        $companyAddress = $driver->company ? ($driver->company->address ?? 'مشهد، پایانه مرزی دوغارون') : 'دفتر مرکزی ترانزیت';
+        $companyName = $driver->company
+            ? ($driver->company->name_fa ?: $driver->company->name)
+            : 'شرکت حمل و نقل بین‌المللی خراسان';
+        $companyManager = $driver->company
+            ? ($driver->company->ceo_name ?: 'ثبت نشده')
+            : 'ثبت نشده';
+        $companyAddress = $driver->company
+            ? ($driver->company->address_fa ?: $driver->company->address_en ?: 'ثبت نشده')
+            : 'ثبت نشده';
 
         /*
         |--------------------------------------------------------------------------
@@ -101,6 +106,8 @@ class AuthController extends Controller
                 'company_name' => $companyName,
                 'company_manager' => $companyManager,
                 'company_address' => $companyAddress,
+                'company_phone' => $driver->company?->phone,
+                'company_ceo_mobile' => $driver->company?->ceo_mobile,
                 
                 // اطلاعات ناوگان کامیون
                 'truck_plate' => $truckPlate,
