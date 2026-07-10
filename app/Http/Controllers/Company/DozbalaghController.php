@@ -859,13 +859,6 @@ public function store(Request $request)
             && Schema::hasColumn('permit_request_items', 'courier_code_sent_at')
             && Schema::hasColumn('permit_request_items', 'company_return_submitted_at');
 
-        if (!$hasCompanyReturnFields) {
-            return response()->json([
-                'success' => false,
-                'message' => 'ستون‌های ثبت لاشه برای چند کشور هنوز در دیتابیس ساخته نشده‌اند. لطفا migration جدید اجرا شود.',
-            ], 422);
-        }
-
         $permitItemQuery = DB::table('permit_request_items as pri')
             ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
             ->where('pri.id', $id)
@@ -877,6 +870,11 @@ public function store(Request $request)
             $permitItemQuery->where(function ($query) {
                 $query->whereNull('pri.item_status')
                     ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived']);
+            });
+        } else {
+            $permitItemQuery->where(function ($query) {
+                $query->whereNull('pri.return_status')
+                    ->orWhereNotIn('pri.return_status', ['lost', 'collected', 'archived']);
             });
         }
 
@@ -897,17 +895,34 @@ public function store(Request $request)
             $serial
         );
 
-        DB::table('permit_request_items')->where('id', $permitItem->id)->update([
-            'company_return_image' => $imagePath,
-            'courier_name' => $request->courier_name,
-            'courier_mobile' => $request->courier_mobile,
-            'courier_national_code' => $request->courier_national_code,
-            'courier_vehicle_plate' => $request->courier_vehicle_plate,
-            'courier_delivery_code' => $deliveryCode,
-            'courier_code_sent_at' => $smsSent ? now() : null,
-            'company_return_submitted_at' => now(),
-            'updated_at' => now(),
-        ]);
+        if ($hasCompanyReturnFields) {
+            DB::table('permit_request_items')->where('id', $permitItem->id)->update([
+                'company_return_image' => $imagePath,
+                'courier_name' => $request->courier_name,
+                'courier_mobile' => $request->courier_mobile,
+                'courier_national_code' => $request->courier_national_code,
+                'courier_vehicle_plate' => $request->courier_vehicle_plate,
+                'courier_delivery_code' => $deliveryCode,
+                'courier_code_sent_at' => $smsSent ? now() : null,
+                'company_return_submitted_at' => now(),
+                'updated_at' => now(),
+            ]);
+        } else {
+            $fallbackMeta = json_encode([
+                'cn' => Str::limit((string) $request->courier_name, 60, ''),
+                'cm' => Str::limit((string) $request->courier_mobile, 24, ''),
+                'nc' => Str::limit((string) $request->courier_national_code, 24, ''),
+                'vp' => Str::limit((string) $request->courier_vehicle_plate, 40, ''),
+                'dc' => $deliveryCode,
+            ], JSON_UNESCAPED_UNICODE);
+
+            DB::table('permit_request_items')->where('id', $permitItem->id)->update([
+                'return_status' => 'company_returned',
+                'return_cmr_file' => $imagePath,
+                'rejection_reason' => Str::limit($fallbackMeta ?: '', 250, ''),
+                'updated_at' => now(),
+            ]);
+        }
 
         DB::table('permit_requests')->where('id', $permitItem->permit_request_id)->update([
             'company_note' => 'لاشه یکی از مجوزهای این پرونده توسط شرکت ثبت و برای تحویل به انجمن به پیک سپرده شد.',
@@ -966,13 +981,6 @@ public function store(Request $request)
             && Schema::hasColumn('permit_request_items', 'lost_reason')
             && Schema::hasColumn('permit_request_items', 'closed_at');
 
-        if (!$hasLostFields) {
-            return response()->json([
-                'success' => false,
-                'message' => 'ستون‌های تعیین تکلیف هر کشور هنوز در دیتابیس ساخته نشده‌اند. لطفا migration جدید اجرا شود.',
-            ], 422);
-        }
-
         DB::beginTransaction();
         try {
             $permitItem = DB::table('permit_request_items as pri')
@@ -981,10 +989,6 @@ public function store(Request $request)
                 ->where('pr.company_id', $companyId)
                 ->where('pr.status', 'issued')
                 ->whereNotNull('pri.d_serial_number')
-                ->where(function ($query) {
-                    $query->whereNull('pri.item_status')
-                        ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived']);
-                })
                 ->select('pri.*', 'pr.driver_id', 'pr.fleet_id', 'pr.d_code')
                 ->lockForUpdate()
                 ->first();
@@ -997,13 +1001,21 @@ public function store(Request $request)
                 ], 404);
             }
 
-            DB::table('permit_request_items')->where('id', $permitItem->id)->update([
-                'item_status' => 'lost',
-                'lost_reported_at' => now(),
-                'lost_reason' => $request->lost_reason,
-                'closed_at' => now(),
-                'updated_at' => now(),
-            ]);
+            if ($hasLostFields) {
+                DB::table('permit_request_items')->where('id', $permitItem->id)->update([
+                    'item_status' => 'lost',
+                    'lost_reported_at' => now(),
+                    'lost_reason' => $request->lost_reason,
+                    'closed_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } else {
+                DB::table('permit_request_items')->where('id', $permitItem->id)->update([
+                    'return_status' => 'lost',
+                    'rejection_reason' => Str::limit((string) $request->lost_reason, 250, ''),
+                    'updated_at' => now(),
+                ]);
+            }
 
             DB::table('permit_requests')->where('id', $permitItem->permit_request_id)->update([
                 'company_note' => 'مفقودی لاشه یکی از مجوزهای این پرونده توسط شرکت ثبت شد.',
@@ -1023,9 +1035,16 @@ public function store(Request $request)
             $activeItems = DB::table('permit_request_items')
                 ->where('permit_request_id', $permitItem->permit_request_id)
                 ->whereNotNull('d_serial_number')
-                ->where(function ($query) {
-                    $query->whereNull('item_status')
-                        ->orWhereNotIn('item_status', ['lost', 'collected', 'archived']);
+                ->when($hasItemStatus, function ($query) {
+                    $query->where(function ($query) {
+                        $query->whereNull('item_status')
+                            ->orWhereNotIn('item_status', ['lost', 'collected', 'archived']);
+                    });
+                }, function ($query) {
+                    $query->where(function ($query) {
+                        $query->whereNull('return_status')
+                            ->orWhereNotIn('return_status', ['lost', 'collected', 'archived']);
+                    });
                 })
                 ->count();
 

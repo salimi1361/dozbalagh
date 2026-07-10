@@ -137,15 +137,43 @@
                             $associationNote = $item->reject_reason ?: null;
                             $returnItems = collect();
                             if ($item->status === 'issued') {
-                                $returnItems = \Illuminate\Support\Facades\DB::table('permit_request_items as pri')
+                                $hasItemStatusColumn = \Illuminate\Support\Facades\Schema::hasColumn('permit_request_items', 'item_status');
+                                $hasItemReturnImageColumn = \Illuminate\Support\Facades\Schema::hasColumn('permit_request_items', 'company_return_image');
+                                $returnItemSelects = [
+                                    'pri.id',
+                                    'pri.permit_request_id',
+                                    'pri.country_id',
+                                    'pri.permit_type',
+                                    'pri.d_serial_number',
+                                    'pri.rejection_reason as return_meta',
+                                    'c.name as country_name',
+                                ];
+                                $returnItemSelects[] = $hasItemReturnImageColumn
+                                    ? 'pri.company_return_image'
+                                    : \Illuminate\Support\Facades\DB::raw('pri.return_cmr_file as company_return_image');
+                                $returnItemSelects[] = \Illuminate\Support\Facades\Schema::hasColumn('permit_request_items', 'courier_delivery_code')
+                                    ? 'pri.courier_delivery_code'
+                                    : \Illuminate\Support\Facades\DB::raw('NULL as courier_delivery_code');
+
+                                $returnItemsQuery = \Illuminate\Support\Facades\DB::table('permit_request_items as pri')
                                     ->leftJoin('countries as c', 'c.id', '=', 'pri.country_id')
                                     ->where('pri.permit_request_id', $item->id)
-                                    ->whereNotNull('pri.d_serial_number')
-                                    ->where(function ($query) {
+                                    ->whereNotNull('pri.d_serial_number');
+
+                                if ($hasItemStatusColumn) {
+                                    $returnItemsQuery->where(function ($query) {
                                         $query->whereNull('pri.item_status')
                                             ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived']);
-                                    })
-                                    ->select('pri.*', 'c.name as country_name')
+                                    });
+                                } else {
+                                    $returnItemsQuery->where(function ($query) {
+                                        $query->whereNull('pri.return_status')
+                                            ->orWhereNotIn('pri.return_status', ['lost', 'collected', 'archived']);
+                                    });
+                                }
+
+                                $returnItems = $returnItemsQuery
+                                    ->select($returnItemSelects)
                                     ->orderBy('pri.id')
                                     ->get();
                             }
@@ -219,6 +247,10 @@
                                     @if($item->status === 'issued')
                                         <div class="space-y-1.5">
                                         @foreach($returnItems as $returnItem)
+                                            @php
+                                                $returnMeta = !empty($returnItem->return_meta) ? json_decode($returnItem->return_meta, true) : [];
+                                                $returnDeliveryCode = $returnItem->courier_delivery_code ?? ($returnMeta['dc'] ?? null);
+                                            @endphp
                                             <div class="grid grid-cols-[minmax(62px,1fr)_auto_auto] items-center gap-1 rounded-xl border border-slate-200 bg-slate-50/70 p-1.5">
                                                 <span class="truncate px-2 py-1.5 rounded-lg bg-white text-slate-700 text-[11px] font-black border border-slate-100">
                                                     {{ $returnItem->country_name ?? 'کشور مقصد' }}
@@ -229,7 +261,7 @@
                                                     </button>
                                                 @else
                                                     <span class="inline-flex items-center justify-center px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-black">
-                                                        {{ $returnItem->courier_delivery_code ?? '---' }}
+                                                        {{ $returnDeliveryCode ?? '---' }}
                                                     </span>
                                                 @endif
 

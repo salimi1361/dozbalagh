@@ -647,7 +647,7 @@ class AssociationController
                 : DB::raw("'issued' as item_status");
             $selects[] = $hasCompanyReturnImage
                 ? 'pri.company_return_image as item_company_return_image'
-                : DB::raw('NULL as item_company_return_image');
+                : DB::raw('pri.return_cmr_file as item_company_return_image');
             $selects[] = $hasCourierName
                 ? 'pri.courier_name as item_courier_name'
                 : DB::raw('NULL as item_courier_name');
@@ -657,6 +657,7 @@ class AssociationController
             $selects[] = $hasCourierDeliveryCode
                 ? 'pri.courier_delivery_code as item_courier_delivery_code'
                 : DB::raw('NULL as item_courier_delivery_code');
+            $selects[] = DB::raw('pri.rejection_reason as item_return_meta');
 
             $query = DB::table('permit_request_items as pri')
                 ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
@@ -671,6 +672,11 @@ class AssociationController
                     $query->whereNull('pri.item_status')
                         ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived']);
                 });
+            } else {
+                $query->where(function ($query) {
+                    $query->whereNull('pri.return_status')
+                        ->orWhereNotIn('pri.return_status', ['lost', 'collected', 'archived']);
+                });
             }
 
             $requests = $query->paginate(10);
@@ -681,6 +687,14 @@ class AssociationController
                 $req->courier_name = $req->item_courier_name;
                 $req->courier_mobile = $req->item_courier_mobile;
                 $req->courier_delivery_code = $req->item_courier_delivery_code;
+                if ((!$req->courier_name || !$req->courier_mobile || !$req->courier_delivery_code) && !empty($req->item_return_meta)) {
+                    $meta = json_decode($req->item_return_meta, true);
+                    if (is_array($meta)) {
+                        $req->courier_name = $req->courier_name ?: ($meta['cn'] ?? null);
+                        $req->courier_mobile = $req->courier_mobile ?: ($meta['cm'] ?? null);
+                        $req->courier_delivery_code = $req->courier_delivery_code ?: ($meta['dc'] ?? null);
+                    }
+                }
 
                 $req->driver = null;
                 if (isset($req->driver_id)) {
@@ -726,6 +740,13 @@ class AssociationController
 
             $now = Carbon::now();
             $userId = auth()->id() ?? null;
+            $hasItemStatus = Schema::hasColumn('permit_request_items', 'item_status');
+            $hasCompanyReturnFields = Schema::hasColumn('permit_request_items', 'company_return_image')
+                && Schema::hasColumn('permit_request_items', 'courier_delivery_code')
+                && Schema::hasColumn('permit_request_items', 'courier_received_at')
+                && Schema::hasColumn('permit_request_items', 'courier_received_by_user_id')
+                && Schema::hasColumn('permit_request_items', 'collected_image')
+                && Schema::hasColumn('permit_request_items', 'closed_at');
             $item = DB::table('permit_request_items as pri')
                 ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
                 ->where('pri.id', $id)
@@ -743,7 +764,7 @@ class AssociationController
                 ], 404);
             }
 
-            $itemStatus = $item->item_status ?? 'issued';
+            $itemStatus = $hasItemStatus ? ($item->item_status ?? 'issued') : ($item->return_status ?? 'issued');
             if (in_array($itemStatus, ['collected', 'archived', 'lost'], true)) {
                 DB::rollBack();
                 return response()->json([
@@ -752,13 +773,25 @@ class AssociationController
                 ], 422);
             }
 
-            $updateData = [
-                'item_status' => $status,
-                'updated_at' => $now,
-            ];
+            $returnImage = $hasCompanyReturnFields
+                ? ($item->company_return_image ?? null)
+                : ($item->return_cmr_file ?? null);
+            $courierCode = $hasCompanyReturnFields
+                ? ($item->courier_delivery_code ?? null)
+                : null;
+            if (!$courierCode && !empty($item->rejection_reason)) {
+                $meta = json_decode($item->rejection_reason, true);
+                if (is_array($meta)) {
+                    $courierCode = $meta['dc'] ?? null;
+                }
+            }
+
+            $updateData = $hasItemStatus
+                ? ['item_status' => $status, 'updated_at' => $now]
+                : ['return_status' => $status, 'updated_at' => $now];
 
             if ($status === 'collected' || $status === 'archived') {
-                if (empty($item->company_return_image) || empty($item->courier_delivery_code)) {
+                if (empty($returnImage) || empty($courierCode)) {
                     DB::rollBack();
                     return response()->json([
                         'success' => false,
@@ -766,7 +799,7 @@ class AssociationController
                     ], 422);
                 }
 
-                if (trim((string) $request->input('courier_code')) !== trim((string) $item->courier_delivery_code)) {
+                if (trim((string) $request->input('courier_code')) !== trim((string) $courierCode)) {
                     DB::rollBack();
                     return response()->json([
                         'success' => false,
@@ -774,13 +807,15 @@ class AssociationController
                     ], 422);
                 }
 
-                $updateData['courier_received_at'] = $now;
-                $updateData['courier_received_by_user_id'] = $userId;
-                $updateData['collected_image'] = $item->company_return_image;
-                $updateData['closed_at'] = $now;
+                if ($hasCompanyReturnFields) {
+                    $updateData['courier_received_at'] = $now;
+                    $updateData['courier_received_by_user_id'] = $userId;
+                    $updateData['collected_image'] = $returnImage;
+                    $updateData['closed_at'] = $now;
+                }
             }
 
-            if ($status === 'lost') {
+            if ($status === 'lost' && $hasCompanyReturnFields) {
                 $updateData['lost_reported_at'] = $now;
                 $updateData['closed_at'] = $now;
             }
@@ -790,7 +825,11 @@ class AssociationController
                 $serialClean = $item->d_serial_number ?? 'serial';
                 $fileName = $serialClean . '-' . $item->d_code . '.' . $file->getClientOriginalExtension();
                 $file->storeAs('permits/collected', $fileName, 'public');
-                $updateData['collected_image'] = 'permits/collected/' . $fileName;
+                if ($hasCompanyReturnFields) {
+                    $updateData['collected_image'] = 'permits/collected/' . $fileName;
+                } else {
+                    $updateData['return_cmr_file'] = 'permits/collected/' . $fileName;
+                }
             }
 
             DB::table('permit_request_items')->where('id', $item->id)->update($updateData);
@@ -806,9 +845,16 @@ class AssociationController
             $activeItems = DB::table('permit_request_items')
                 ->where('permit_request_id', $item->permit_request_id)
                 ->whereNotNull('d_serial_number')
-                ->where(function ($query) {
-                    $query->whereNull('item_status')
-                        ->orWhereNotIn('item_status', ['lost', 'collected', 'archived']);
+                ->when($hasItemStatus, function ($query) {
+                    $query->where(function ($query) {
+                        $query->whereNull('item_status')
+                            ->orWhereNotIn('item_status', ['lost', 'collected', 'archived']);
+                    });
+                }, function ($query) {
+                    $query->where(function ($query) {
+                        $query->whereNull('return_status')
+                            ->orWhereNotIn('return_status', ['lost', 'collected', 'archived']);
+                    });
                 })
                 ->count();
 
@@ -816,7 +862,7 @@ class AssociationController
                 $terminalStatuses = DB::table('permit_request_items')
                     ->where('permit_request_id', $item->permit_request_id)
                     ->whereNotNull('d_serial_number')
-                    ->pluck('item_status')
+                    ->pluck($hasItemStatus ? 'item_status' : 'return_status')
                     ->filter()
                     ->values();
 
