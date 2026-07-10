@@ -28,26 +28,30 @@
     @endif
 
     <section class="grid gap-4 md:grid-cols-4">
-        <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="rounded-lg border border-sky-200 bg-sky-50 p-4 shadow-sm">
             <p class="text-xs font-black text-slate-500">پیام فعال</p>
-            <b class="mt-2 block font-mono text-3xl font-black text-slate-900">{{ number_format($stats['active_messages']) }}</b>
+            <b class="mt-2 block font-mono text-3xl font-black text-sky-700">{{ number_format($stats['active_messages']) }}</b>
         </div>
-        <div class="rounded-lg border border-amber-200 bg-white p-4 shadow-sm">
+        <div class="rounded-lg border border-amber-300 bg-amber-50 p-4 shadow-sm">
             <p class="text-xs font-black text-slate-500">پیام اجباری</p>
             <b class="mt-2 block font-mono text-3xl font-black text-amber-600">{{ number_format($stats['mandatory_messages']) }}</b>
         </div>
-        <div class="rounded-lg border border-rose-200 bg-white p-4 shadow-sm">
+        <div class="rounded-lg border border-rose-300 bg-rose-50 p-4 shadow-sm">
             <p class="text-xs font-black text-slate-500">تیکت باز</p>
             <b class="mt-2 block font-mono text-3xl font-black text-rose-600">{{ number_format($stats['open_tickets']) }}</b>
         </div>
-        <div class="rounded-lg border border-emerald-200 bg-white p-4 shadow-sm">
+        <div class="rounded-lg border border-emerald-300 bg-emerald-50 p-4 shadow-sm">
             <p class="text-xs font-black text-slate-500">رسید خواندن</p>
             <b class="mt-2 block font-mono text-3xl font-black text-emerald-600">{{ number_format($stats['acknowledged_receipts']) }}</b>
         </div>
     </section>
 
-    <section class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 class="mb-4 text-lg font-black text-slate-900">ثبت پیام برای شرکت‌ها</h2>
+    <section class="overflow-hidden rounded-lg border border-sky-200 bg-white shadow-sm">
+        <div class="border-b border-sky-100 bg-sky-50 px-5 py-4">
+            <h2 class="text-lg font-black text-slate-900">ثبت پیام برای شرکت‌ها</h2>
+            <p class="mt-1 text-xs font-bold text-sky-700">ارسال اطلاعیه عمومی یا پیام اختصاصی برای یک شرکت مشخص</p>
+        </div>
+        <div class="p-5">
         <form action="{{ route('admin.association_crm.messages.store') }}" method="POST" class="grid gap-4 lg:grid-cols-4">
             @csrf
             <div>
@@ -105,12 +109,16 @@
                 <button class="rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-black text-white hover:bg-sky-700">انتشار پیام</button>
             </div>
         </form>
+        </div>
     </section>
 
     <section class="grid gap-5 xl:grid-cols-2">
-        <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 class="mb-4 text-lg font-black text-slate-900">پیام‌های اخیر</h2>
-            <div class="max-h-[680px] space-y-3 overflow-y-auto pr-1">
+        <div class="overflow-hidden rounded-lg border border-indigo-200 bg-white shadow-sm">
+            <div class="border-b border-indigo-100 bg-indigo-50 px-5 py-4">
+                <h2 class="text-lg font-black text-slate-900">پیام‌های اخیر</h2>
+                <p class="mt-1 text-xs font-bold text-indigo-700">مدیریت اطلاعیه‌ها، رسیدهای خواندن و حذف پیام‌های قدیمی</p>
+            </div>
+            <div class="max-h-[680px] space-y-3 overflow-y-auto p-5">
                 @forelse($messages as $message)
                     <div class="rounded-lg border border-slate-200 p-4">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -153,11 +161,14 @@
             <div class="mt-4">{{ $messages->links() }}</div>
         </div>
 
-        <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 class="mb-4 text-lg font-black text-slate-900">تیکت‌های شرکت‌ها</h2>
-            <div id="adminTicketsList" class="max-h-[680px] space-y-3 overflow-y-auto pr-1">
+        <div class="overflow-hidden rounded-lg border border-rose-200 bg-white shadow-sm">
+            <div class="border-b border-rose-100 bg-rose-50 px-5 py-4">
+                <h2 class="text-lg font-black text-slate-900">تیکت‌های شرکت‌ها</h2>
+                <p class="mt-1 text-xs font-bold text-rose-700">گفت‌وگو، تغییر وضعیت و بستن سریع تیکت‌ها</p>
+            </div>
+            <div id="adminTicketsList" class="max-h-[680px] space-y-3 overflow-y-auto p-5">
                 @forelse($tickets as $ticket)
-                    <form data-admin-ticket-id="{{ $ticket->id }}" action="{{ route('admin.association_crm.tickets.update', $ticket) }}" method="POST" class="rounded-lg border border-slate-200 p-4">
+                    <form data-admin-ticket-id="{{ $ticket->id }}" action="{{ route('admin.association_crm.tickets.update', $ticket) }}" method="POST" class="ticket-card rounded-lg border border-slate-200 p-4 {{ $ticket->status === 'closed' ? 'border-r-4 border-r-slate-400 bg-slate-50' : 'border-r-4 border-r-rose-400 bg-white' }}">
                         @csrf
                         @method('PUT')
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -169,11 +180,15 @@
                                     · {{ $priorityLabels[$ticket->priority] ?? $ticket->priority }}
                                 </p>
                             </div>
-                            <select name="status" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">
-                                @foreach($statusLabels as $value => $label)
-                                    <option value="{{ $value }}" @selected($ticket->status === $value)>{{ $label }}</option>
-                                @endforeach
-                            </select>
+                            <div class="flex shrink-0 flex-wrap items-center gap-2">
+                                <span class="ticket-status-badge rounded-lg px-2 py-1 text-[11px] font-black {{ $ticket->status === 'closed' ? 'bg-slate-200 text-slate-700' : 'bg-rose-100 text-rose-700' }}">{{ $statusLabels[$ticket->status] ?? $ticket->status }}</span>
+                                <select name="status" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">
+                                    @foreach($statusLabels as $value => $label)
+                                        <option value="{{ $value }}" @selected($ticket->status === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="button" class="close-ticket-btn rounded-lg bg-slate-800 px-3 py-2 text-xs font-black text-white hover:bg-slate-900">بستن تیکت</button>
+                            </div>
                         </div>
                         @if($ticket->message)
                             <p class="mt-2 text-xs font-bold text-sky-700">مرتبط با پیام: {{ $ticket->message->title }}</p>
@@ -310,7 +325,7 @@
     function adminTicketCard(ticket) {
         const messages = ticket.messages.map(adminChatBubble).join('');
         return `
-            <form data-admin-ticket-id="${ticket.id}" action="${ticket.update_url}" method="POST" class="rounded-lg border border-slate-200 p-4">
+            <form data-admin-ticket-id="${ticket.id}" action="${ticket.update_url}" method="POST" class="ticket-card rounded-lg border border-slate-200 border-r-4 border-r-rose-400 bg-white p-4">
                 <input type="hidden" name="_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="_method" value="PUT">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -318,12 +333,16 @@
                         <h3 class="font-black text-slate-900">${escapeHtml(ticket.title)}</h3>
                         <p class="mt-1 text-xs font-bold text-slate-500">${escapeHtml(ticket.company_name)} · ${escapeHtml(ticket.category)} · ${escapeHtml(ticket.priority)}</p>
                     </div>
-                    <select name="status" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">
-                        <option value="open">باز</option>
-                        <option value="in_progress">در حال بررسی</option>
-                        <option value="answered">پاسخ داده شده</option>
-                        <option value="closed">بسته شده</option>
-                    </select>
+                    <div class="flex shrink-0 flex-wrap items-center gap-2">
+                        <span class="ticket-status-badge rounded-lg bg-rose-100 px-2 py-1 text-[11px] font-black text-rose-700">${escapeHtml(ticket.status)}</span>
+                        <select name="status" class="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold">
+                            <option value="open">باز</option>
+                            <option value="in_progress">در حال بررسی</option>
+                            <option value="answered">پاسخ داده شده</option>
+                            <option value="closed">بسته شده</option>
+                        </select>
+                        <button type="button" class="close-ticket-btn rounded-lg bg-slate-800 px-3 py-2 text-xs font-black text-white hover:bg-slate-900">بستن تیکت</button>
+                    </div>
                 </div>
                 <p class="mt-3 text-sm leading-7 text-slate-600">${escapeHtml(ticket.description)}</p>
                 <div id="admin-ticket-messages-${ticket.id}" class="mt-3 max-h-48 space-y-2 overflow-auto rounded-lg bg-slate-50 p-3">${messages}</div>
@@ -376,9 +395,19 @@
     }
 
     function bindAdminTicketForm(form) {
+        const closeButton = form.querySelector('.close-ticket-btn');
+        if (closeButton && !closeButton.dataset.bound) {
+            closeButton.dataset.bound = '1';
+            closeButton.addEventListener('click', () => {
+                const statusSelect = form.querySelector('[name="status"]');
+                statusSelect.value = 'closed';
+                form.requestSubmit();
+            });
+        }
+
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
-            const button = form.querySelector('button');
+            const button = form.querySelector('button:not([type="button"])');
             const textarea = form.querySelector('[name="admin_response"]');
             button.disabled = true;
 
@@ -403,12 +432,32 @@
                     target.scrollTop = target.scrollHeight;
                     textarea.value = '';
                 }
+                applyTicketStatus(form, data.status);
             } catch (error) {
                 alert('ثبت پاسخ انجام نشد. لطفا دوباره تلاش کنید.');
             } finally {
                 button.disabled = false;
             }
         });
+    }
+
+    function applyTicketStatus(form, status) {
+        const badge = form.querySelector('.ticket-status-badge');
+        const labels = {
+            open: 'باز',
+            in_progress: 'در حال بررسی',
+            answered: 'پاسخ داده شده',
+            closed: 'بسته شده',
+        };
+
+        badge.textContent = labels[status] ?? status;
+        form.classList.toggle('bg-slate-50', status === 'closed');
+        form.classList.toggle('bg-white', status !== 'closed');
+        form.classList.toggle('border-r-slate-400', status === 'closed');
+        form.classList.toggle('border-r-rose-400', status !== 'closed');
+        badge.className = status === 'closed'
+            ? 'ticket-status-badge rounded-lg bg-slate-200 px-2 py-1 text-[11px] font-black text-slate-700'
+            : 'ticket-status-badge rounded-lg bg-rose-100 px-2 py-1 text-[11px] font-black text-rose-700';
     }
 
     toggleCompanySelect();
