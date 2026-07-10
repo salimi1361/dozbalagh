@@ -4,6 +4,7 @@ let currentTab = 'home';
 let permitsCache = [];
 let notificationsCache = [];
 let companyMessagesCache = [];
+let activeCompanyChatKey = null;
 let gpsPermissionState = 'prompt';
 let deferredInstallPrompt = null;
 let notificationPollTimer = null;
@@ -209,7 +210,7 @@ function startNotificationPolling() {
     notificationPollTimer = setInterval(() => {
         fetchNotifications(true);
         fetchCompanyMessages(true);
-    }, 10000);
+    }, 3000);
 }
 
 function notifyNewDriverNotifications(items) {
@@ -488,13 +489,14 @@ function renderHomeTab(main, driver) {
 }
 
 function renderMessagesTab(main, driver) {
+    activeCompanyChatKey = null;
     main.innerHTML = `
         <div class="stack">
             <div class="card message-inbox-hero">
                 <div>
-                    <span>ارتباط با شرکت</span>
-                    <b>پیام‌های شرکت</b>
-                    <small>${driver.company_name || 'شرکت حمل و نقل'}</small>
+                    <span>گفتگوهای راننده</span>
+                    <b>پیام‌رسان دوزوله</b>
+                    <small>${driver.company_name || 'ارتباط با شرکت و رانندگان'}</small>
                 </div>
                 <i class="fa-solid fa-comments"></i>
             </div>
@@ -504,13 +506,13 @@ function renderMessagesTab(main, driver) {
                     <b id="messages-unread-count">۰</b>
                 </div>
                 <div>
-                    <span>کل گفتگوها</span>
+                    <span>گفتگوها</span>
                     <b id="messages-total-count">۰</b>
                 </div>
             </div>
             <div>
-                <div class="section-title">صندوق پیام‌ها</div>
-                <div id="company-messages-container" class="stack-sm">
+                <div class="section-title">گفتگوها</div>
+                <div id="company-messages-container" class="chat-thread-list">
                     <div class="loader-wrap"><div class="loader"></div></div>
                 </div>
             </div>
@@ -743,42 +745,77 @@ function fetchCompanyMessages(silent = false) {
 
             companyMessagesCache = data.data || [];
             const unreadCount = Number(data.unread_count || 0);
+            const threads = buildCompanyMessageThreads(companyMessagesCache);
             const messagesTab = document.getElementById('tab-messages');
             if (messagesTab) messagesTab.toggleAttribute('data-unread', unreadCount > 0);
 
             const unreadEl = document.getElementById('messages-unread-count');
             const totalEl = document.getElementById('messages-total-count');
             if (unreadEl) unreadEl.textContent = unreadCount.toLocaleString('fa-IR');
-            if (totalEl) totalEl.textContent = companyMessagesCache.length.toLocaleString('fa-IR');
+            if (totalEl) totalEl.textContent = threads.length.toLocaleString('fa-IR');
+
+            if (activeCompanyChatKey && currentTab === 'messages') {
+                renderActiveCompanyChat(activeCompanyChatKey, true);
+                return;
+            }
 
             if (!container) return;
-            if (companyMessagesCache.length === 0) {
+            if (threads.length === 0) {
                 container.innerHTML = emptyCompanyMessagesHtml();
                 return;
             }
 
-            container.innerHTML = companyMessagesCache.map(item => companyMessageCardHtml(item)).join('');
+            container.innerHTML = threads.map(thread => chatThreadCardHtml(thread)).join('');
         })
         .catch(() => {
             if (container && !silent) container.innerHTML = emptyCompanyMessagesHtml();
         });
 }
 
-function companyMessageCardHtml(item) {
-    const isUnread = item.sender === 'company' && !item.read_at;
-    const senderLabel = item.sender === 'driver' ? 'پاسخ شما' : 'پیام شرکت';
-    const readLabel = item.sender === 'driver' ? 'ارسال شده' : (item.read_at ? 'خوانده شده' : 'خوانده نشده');
+function buildCompanyMessageThreads(messages) {
+    const groups = new Map();
+    (messages || []).forEach(item => {
+        const key = `company:${item.company_id || item.company_name || 'default'}`;
+        if (!groups.has(key)) {
+            groups.set(key, {
+                key,
+                type: 'company',
+                title: item.company_name || 'شرکت حمل و نقل',
+                subtitle: 'گفتگو با شرکت',
+                messages: [],
+                unread: 0,
+            });
+        }
+
+        const thread = groups.get(key);
+        thread.messages.push(item);
+        if (item.sender === 'company' && !item.read_at) thread.unread += 1;
+    });
+
+    return Array.from(groups.values()).map(thread => {
+        thread.messages.sort((a, b) => Number(a.id) - Number(b.id));
+        thread.lastMessage = thread.messages[thread.messages.length - 1] || null;
+        return thread;
+    }).sort((a, b) => Number(b.lastMessage?.id || 0) - Number(a.lastMessage?.id || 0));
+}
+
+function chatThreadCardHtml(thread) {
+    const last = thread.lastMessage || {};
+    const previewPrefix = last.sender === 'driver' ? 'شما: ' : '';
+    const unreadBadge = thread.unread > 0
+        ? `<b>${thread.unread.toLocaleString('fa-IR')}</b>`
+        : '<i class="fa-solid fa-check-double"></i>';
     return `
-        <button type="button" class="company-message-card ${isUnread ? 'is-unread' : ''}" onclick="openCompanyMessage(${Number(item.id)})">
-            <span class="company-message-card__avatar"><i class="fa-solid ${item.sender === 'driver' ? 'fa-reply' : 'fa-building'}"></i></span>
-            <span class="company-message-card__body">
-                <b>${displayValue(item.title || senderLabel)}</b>
-                <small>${displayValue(item.company_name)}</small>
-                <em>${displayValue(item.message)}</em>
+        <button type="button" class="chat-thread-card ${thread.unread ? 'is-unread' : ''}" onclick="openCompanyChat('${escapeHtml(thread.key)}')">
+            <span class="chat-thread-card__avatar"><i class="fa-solid fa-building"></i></span>
+            <span class="chat-thread-card__body">
+                <b>${displayValue(thread.title)}</b>
+                <small>${displayValue(thread.subtitle)}</small>
+                <em>${displayValue(`${previewPrefix}${last.message || ''}`)}</em>
             </span>
-            <span class="company-message-card__meta">
-                <small>${displayValue(item.created_at)}</small>
-                <b class="${item.read_at || item.sender === 'driver' ? 'is-read' : ''}">${readLabel}</b>
+            <span class="chat-thread-card__meta">
+                <small>${displayValue(last.created_at)}</small>
+                <span class="${thread.unread ? 'has-unread' : 'is-read'}">${unreadBadge}</span>
             </span>
         </button>`;
 }
@@ -787,7 +824,7 @@ function emptyCompanyMessagesHtml() {
     return `
         <div class="card empty-state empty-state--compact">
             <i class="fa-solid fa-comments"></i>
-            <p>پیامی از شرکت ثبت نشده است.</p>
+            <p>هنوز گفتگویی ثبت نشده است.</p>
         </div>`;
 }
 
@@ -811,71 +848,129 @@ function openCompanyMessageNotification(notificationId, messageId) {
         body: JSON.stringify({}),
     }).finally(() => fetchNotifications());
 
-    const item = notificationsCache.find(notification => notification.id === notificationId) || {};
-    document.getElementById('modal-container').innerHTML = `
-        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-            <div class="modal-sheet">
-                <div class="modal-handle"></div>
-                <div class="modal-title">${displayValue(item.title || 'پیام شرکت')}</div>
-                <div class="stack-sm">
-                    <div class="info-block">
-                        <span class="info-block__label">${displayValue(item.company_name || 'شرکت حمل و نقل')}</span>
-                        <span class="info-block__value" style="font-size:13px;line-height:1.9">${displayValue(item.message)}</span>
-                    </div>
-                    <div class="form-group">
-                        <label class="input-label" for="company-message-reply">پاسخ شما</label>
-                        <textarea id="company-message-reply" class="input-field" style="min-height:110px;resize:none;line-height:1.8;padding-top:12px" placeholder="پاسخ خود را برای شرکت بنویسید..."></textarea>
-                    </div>
-                    <button type="button" onclick="sendCompanyMessageReply(${Number(messageId) || 0})" class="btn btn--primary">
-                        <i class="fa-solid fa-paper-plane"></i>
-                        <span>ارسال پاسخ</span>
-                    </button>
-                </div>
-            </div>
-        </div>`;
+    closeModal();
+    currentTab = 'messages';
+    document.getElementById('bottom-navigation').classList.remove('hidden');
+    ['home', 'messages', 'fleet', 'company', 'profile'].forEach(t => {
+        const el = document.getElementById(`tab-${t}`);
+        if (el) el.classList.toggle('is-active', t === 'messages');
+    });
+    const item = companyMessagesCache.find(message => Number(message.id) === Number(messageId));
+    const key = item ? `company:${item.company_id || item.company_name || 'default'}` : null;
+    renderDashboard();
+    fetchCompanyMessages(true);
+    if (key) setTimeout(() => openCompanyChat(key), 80);
 }
 
 function openCompanyMessage(messageId) {
     const item = companyMessagesCache.find(message => Number(message.id) === Number(messageId)) || {};
+    const key = `company:${item.company_id || item.company_name || 'default'}`;
+    openCompanyChat(key);
+}
 
-    if (item.sender === 'company' && !item.read_at) {
-        item.read_at = new Date().toISOString();
-        fetch(`${API_BASE}/company-messages/${Number(messageId)}/read`, {
+function openCompanyChat(threadKey) {
+    activeCompanyChatKey = threadKey;
+    renderActiveCompanyChat(threadKey);
+}
+
+function renderActiveCompanyChat(threadKey, preserveScroll = false) {
+    const main = document.getElementById('main-content');
+    if (!main || currentTab !== 'messages') return;
+
+    const thread = buildCompanyMessageThreads(companyMessagesCache).find(item => item.key === threadKey);
+    if (!thread) {
+        activeCompanyChatKey = null;
+        renderMessagesTab(main, getDriver());
+        return;
+    }
+
+    const incomingUnread = thread.messages.filter(item => item.sender === 'company' && !item.read_at);
+    incomingUnread.forEach(item => { item.read_at = item.read_at || new Date().toISOString(); });
+    if (incomingUnread.length) thread.unread = 0;
+    incomingUnread.forEach(item => {
+        fetch(`${API_BASE}/company-messages/${Number(item.id)}/read`, {
             method: 'POST',
             headers: authHeaders(),
             body: JSON.stringify({}),
-        }).finally(() => fetchCompanyMessages(true));
+        }).catch(() => {});
+    });
+
+    const latestCompanyMessage = [...thread.messages].reverse().find(item => item.sender === 'company');
+    const chatBody = document.getElementById('company-chat-body');
+    const composerInput = document.getElementById('company-message-reply');
+    const draftMessage = composerInput ? composerInput.value : '';
+    const keepFocus = document.activeElement === composerInput;
+    const oldScrollBottom = chatBody ? chatBody.scrollHeight - chatBody.scrollTop - chatBody.clientHeight : 0;
+
+    main.innerHTML = `
+        <div class="chat-screen">
+            <div class="chat-screen__header">
+                <button type="button" class="chat-back-btn" onclick="backToCompanyThreads()">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
+                <span class="chat-screen__avatar"><i class="fa-solid fa-building"></i></span>
+                <div>
+                    <b>${displayValue(thread.title)}</b>
+                    <small>${thread.unread ? `${thread.unread.toLocaleString('fa-IR')} پیام خوانده‌نشده` : 'آنلاین برای دریافت پیام'}</small>
+                </div>
+            </div>
+            <div id="company-chat-body" class="chat-screen__body">
+                ${thread.messages.map(item => companyChatBubbleHtml(item)).join('')}
+            </div>
+            <form class="chat-composer" onsubmit="sendCompanyChatMessage(event, ${Number(latestCompanyMessage?.id || 0)})">
+                <textarea id="company-message-reply" placeholder="پیام بنویسید..." rows="1" oninput="autoGrowChatInput(this)"></textarea>
+                <button type="submit" aria-label="ارسال پیام">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>`;
+
+    const newChatBody = document.getElementById('company-chat-body');
+    const newComposerInput = document.getElementById('company-message-reply');
+    if (newComposerInput && draftMessage) {
+        newComposerInput.value = draftMessage;
+        autoGrowChatInput(newComposerInput);
+        if (keepFocus) newComposerInput.focus();
+    }
+    if (!newChatBody) return;
+    if (preserveScroll && oldScrollBottom > 80) {
+        newChatBody.scrollTop = Math.max(0, newChatBody.scrollHeight - newChatBody.clientHeight - oldScrollBottom);
+    } else {
+        newChatBody.scrollTop = newChatBody.scrollHeight;
     }
 
-    document.getElementById('modal-container').innerHTML = `
-        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-            <div class="modal-sheet">
-                <div class="modal-handle"></div>
-                <div class="modal-title">${displayValue(item.title || 'پیام شرکت')}</div>
-                <div class="stack-sm">
-                    <div class="message-detail-card ${item.sender === 'driver' ? 'is-driver' : ''}">
-                        <div>
-                            <span>${displayValue(item.sender === 'driver' ? 'پاسخ شما' : item.company_name || 'شرکت حمل و نقل')}</span>
-                            <b>${item.read_at || item.sender === 'driver' ? 'خوانده شده' : 'خوانده نشده'}</b>
-                        </div>
-                        <p>${displayValue(item.message)}</p>
-                        <small>${displayValue(item.created_at)}</small>
-                    </div>
-                    ${item.sender === 'company' ? `
-                        <div class="form-group">
-                            <label class="input-label" for="company-message-reply">پاسخ شما</label>
-                            <textarea id="company-message-reply" class="input-field message-reply-field" placeholder="پاسخ خود را برای شرکت بنویسید..."></textarea>
-                        </div>
-                        <button type="button" onclick="sendCompanyMessageReply(${Number(messageId) || 0})" class="btn btn--primary">
-                            <i class="fa-solid fa-paper-plane"></i>
-                            <span>ارسال پاسخ</span>
-                        </button>` : ''}
-                </div>
+}
+
+function companyChatBubbleHtml(item) {
+    const isMine = item.sender === 'driver';
+    return `
+        <div class="chat-bubble-row ${isMine ? 'is-mine' : 'is-theirs'}">
+            <div class="chat-bubble">
+                <p>${displayValue(item.message)}</p>
+                <span>
+                    ${displayValue(item.created_at)}
+                    ${isMine ? '<i class="fa-solid fa-check-double"></i>' : ''}
+                </span>
             </div>
         </div>`;
 }
 
-function sendCompanyMessageReply(messageId) {
+function backToCompanyThreads() {
+    activeCompanyChatKey = null;
+    renderMessagesTab(document.getElementById('main-content'), getDriver());
+}
+
+function autoGrowChatInput(input) {
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, 112)}px`;
+}
+
+function sendCompanyChatMessage(event, messageId) {
+    event.preventDefault();
+    sendCompanyMessageReply(messageId, true);
+}
+
+function sendCompanyMessageReply(messageId, keepChatOpen = false) {
     const textarea = document.getElementById('company-message-reply');
     const message = textarea ? textarea.value.trim() : '';
 
@@ -889,6 +984,9 @@ function sendCompanyMessageReply(messageId) {
         return;
     }
 
+    const submitButton = textarea?.closest('form')?.querySelector('button[type="submit"]');
+    if (submitButton) submitButton.disabled = true;
+
     fetch(`${API_BASE}/company-messages/reply`, {
         method: 'POST',
         headers: authHeaders(),
@@ -897,15 +995,21 @@ function sendCompanyMessageReply(messageId) {
         .then(res => res.json())
         .then(data => {
             if (data.status === 'success') {
-                closeModal();
-                showToast(data.message || 'پاسخ ارسال شد.', 'success');
+                if (textarea) {
+                    textarea.value = '';
+                    autoGrowChatInput(textarea);
+                }
+                if (!keepChatOpen) closeModal();
                 fetchNotifications();
                 fetchCompanyMessages(true);
             } else {
                 showToast(data.message || 'ارسال پاسخ انجام نشد.', 'error');
             }
         })
-        .catch(() => showToast('خطا در ارسال پاسخ.', 'error'));
+        .catch(() => showToast('خطا در ارسال پاسخ.', 'error'))
+        .finally(() => {
+            if (submitButton) submitButton.disabled = false;
+        });
 }
 
 function deleteNotification(id, event) {

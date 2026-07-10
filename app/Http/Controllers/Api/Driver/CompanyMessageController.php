@@ -20,6 +20,7 @@ class CompanyMessageController extends Controller
             ->get()
             ->map(fn ($message) => [
                 'id' => $message->id,
+                'company_id' => $message->company_id,
                 'company_name' => $message->company?->name_fa ?? $message->company?->name ?? 'شرکت حمل و نقل',
                 'sender' => $message->sender,
                 'title' => $message->title,
