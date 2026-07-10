@@ -12,10 +12,9 @@
     $pendingCount = (int) ($permitStats->pending_count ?? 0);
     $approvedCount = (int) ($permitStats->approved_count ?? 0);
     $rejectedCount = (int) ($permitStats->rejected_count ?? 0);
-    $returnedCount = (int) ($permitStats->returned_count ?? 0);
     $renewalCount = (int) ($permitStats->renewal_count ?? 0);
     $newCount = (int) ($permitStats->new_count ?? 0);
-    $needsAttention = $pendingCount + $returnedCount + $rejectedCount;
+    $needsAttention = $pendingCount + $rejectedCount;
     $availableBalance = max(0, (int) $walletBalance);
     $blockedBalanceValue = max(0, (int) $blockedBalance);
     $walletTotal = $availableBalance + $blockedBalanceValue;
@@ -25,7 +24,6 @@
         ['title' => 'در انتظار بررسی', 'count' => $pendingCount, 'tone' => 'amber', 'hint' => 'پرونده‌های منتظر اقدام', 'filter' => 'pending'],
         ['title' => 'آماده صدور', 'count' => $approvedCount, 'tone' => 'emerald', 'hint' => 'تایید شده توسط انجمن', 'filter' => 'approved'],
         ['title' => 'صادر شده / معتبر', 'count' => $issuedCount, 'tone' => 'sky', 'hint' => 'پروانه‌های فعال', 'filter' => 'issued'],
-        ['title' => 'نیاز به اصلاح', 'count' => $returnedCount, 'tone' => 'orange', 'hint' => 'برگشتی برای تکمیل', 'filter' => 'returned'],
         ['title' => 'رد درخواست', 'count' => $rejectedCount, 'tone' => 'rose', 'hint' => 'پرونده‌های رد شده', 'filter' => 'rejected'],
         ['title' => 'لاشه تحویل شده', 'count' => $collectedCount, 'tone' => 'indigo', 'hint' => 'تحویل و ثبت نهایی', 'filter' => 'collected'],
         ['title' => 'درخواست تمدید', 'count' => $renewalCount, 'tone' => 'teal', 'hint' => 'از کل درخواست‌ها', 'filter' => 'renewal'],
@@ -36,7 +34,6 @@
         'amber' => ['card' => 'border-amber-200 bg-amber-50/70 text-amber-800', 'bar' => 'bg-amber-400', 'dot' => 'bg-amber-400'],
         'emerald' => ['card' => 'border-emerald-200 bg-emerald-50/70 text-emerald-800', 'bar' => 'bg-emerald-500', 'dot' => 'bg-emerald-500'],
         'sky' => ['card' => 'border-sky-200 bg-sky-50/70 text-sky-800', 'bar' => 'bg-sky-500', 'dot' => 'bg-sky-500'],
-        'orange' => ['card' => 'border-orange-200 bg-orange-50/70 text-orange-800', 'bar' => 'bg-orange-500', 'dot' => 'bg-orange-500'],
         'rose' => ['card' => 'border-rose-200 bg-rose-50/70 text-rose-800', 'bar' => 'bg-rose-500', 'dot' => 'bg-rose-500'],
         'indigo' => ['card' => 'border-indigo-200 bg-indigo-50/70 text-indigo-800', 'bar' => 'bg-indigo-500', 'dot' => 'bg-indigo-500'],
         'teal' => ['card' => 'border-teal-200 bg-teal-50/70 text-teal-800', 'bar' => 'bg-teal-500', 'dot' => 'bg-teal-500'],
@@ -109,6 +106,7 @@
                         <div class="mt-3 grid gap-2 text-xs font-bold text-slate-500 sm:grid-cols-2">
                             <span class="rounded-lg bg-slate-50 px-3 py-2">مدیرعامل: <b class="text-slate-800">{{ $company->ceo_name ?? 'ثبت نشده' }}</b></span>
                             <span class="rounded-lg bg-slate-50 px-3 py-2">کد شرکت: <b class="font-mono text-slate-800">{{ $company->company_code ?? '---' }}</b></span>
+                            <span class="rounded-lg bg-slate-50 px-3 py-2 sm:col-span-2">آدرس: <b class="text-slate-800">{{ $company->address_fa ?? 'ثبت نشده' }}</b></span>
                         </div>
                     </div>
 
@@ -124,9 +122,6 @@
                                 در انتظار تایید مدارک مدیریت
                             </div>
                         @endif
-                        <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-slate-600">
-                            آدرس: <span class="font-bold text-slate-800">{{ $company->address_fa ?? 'ثبت نشده' }}</span>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -206,7 +201,7 @@
                 <b class="font-mono text-4xl font-black text-rose-600">{{ number_format($needsAttention) }}</b>
                 <span class="mb-1 text-xs font-bold text-slate-400">مورد</span>
             </div>
-            <p class="mt-3 text-xs font-bold text-slate-500">مجموع در انتظار، اصلاحی و رد شده</p>
+            <p class="mt-3 text-xs font-bold text-slate-500">مجموع در انتظار و رد شده</p>
         </div>
     </section>
 
