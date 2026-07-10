@@ -131,18 +131,18 @@
                 </div>
             </div>
 
-            <div class="border-t border-slate-200 bg-slate-50 p-5 text-slate-900 lg:border-r lg:border-t-0">
+            <div class="border-t border-slate-300 bg-slate-100 p-5 text-slate-900 shadow-inner lg:border-r lg:border-t-0">
                 <div class="flex items-start justify-between gap-4">
                     <div>
                         <p class="text-xs font-black text-slate-500">موجودی کیف پول</p>
                         <p class="mt-2 font-mono text-3xl font-black tracking-wide text-emerald-700">{{ number_format($walletBalance) }}</p>
                     </div>
-                    <span class="rounded-lg border border-slate-200 bg-white px-3 py-1 text-[11px] font-black text-emerald-700">تومان</span>
+                    <span class="rounded-lg border border-slate-300 bg-slate-50 px-3 py-1 text-[11px] font-black text-emerald-700">تومان</span>
                 </div>
-                <div class="mt-5 h-2 overflow-hidden rounded-full bg-slate-200/80">
+                <div class="mt-5 h-2 overflow-hidden rounded-full bg-slate-300">
                     <div class="h-full rounded-full bg-gradient-to-l from-emerald-500 to-sky-400" style="width: {{ $availablePercent }}%"></div>
                 </div>
-                <div class="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 text-xs font-bold">
+                <div class="mt-4 flex items-center justify-between border-t border-slate-300 pt-4 text-xs font-bold">
                     <span class="text-slate-500">بلوکه: <b class="font-mono text-amber-600">{{ number_format($blockedBalance) }}</b></span>
                     <a href="{{ route('company.wallet.index') }}" class="rounded-lg border border-sky-200 bg-white px-3 py-1.5 font-black text-sky-700 shadow-sm transition hover:bg-sky-50">شارژ حساب</a>
                 </div>
