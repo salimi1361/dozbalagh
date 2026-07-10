@@ -106,10 +106,9 @@
                         <h2 class="text-xl font-black leading-9 text-slate-900 sm:text-2xl">
                             {{ $company->name_fa ?? $company->name }}
                         </h2>
-                        <div class="mt-3 grid gap-2 text-xs font-bold text-slate-500 sm:grid-cols-3">
+                        <div class="mt-3 grid gap-2 text-xs font-bold text-slate-500 sm:grid-cols-2">
                             <span class="rounded-lg bg-slate-50 px-3 py-2">مدیرعامل: <b class="text-slate-800">{{ $company->ceo_name ?? 'ثبت نشده' }}</b></span>
                             <span class="rounded-lg bg-slate-50 px-3 py-2">کد شرکت: <b class="font-mono text-slate-800">{{ $company->company_code ?? '---' }}</b></span>
-                            <span class="rounded-lg bg-slate-50 px-3 py-2">کل پرونده‌ها: <b class="font-mono text-slate-800">{{ number_format($totalPermits) }}</b></span>
                         </div>
                     </div>
 
@@ -132,20 +131,20 @@
                 </div>
             </div>
 
-            <div class="border-t border-slate-200 bg-slate-950 p-5 text-white lg:border-r lg:border-t-0">
+            <div class="border-t border-emerald-100 bg-gradient-to-br from-white via-emerald-50/60 to-sky-50/70 p-5 text-slate-900 lg:border-r lg:border-t-0">
                 <div class="flex items-start justify-between gap-4">
                     <div>
-                        <p class="text-xs font-black text-slate-400">موجودی کیف پول</p>
-                        <p class="mt-2 font-mono text-3xl font-black tracking-wide text-emerald-300">{{ number_format($walletBalance) }}</p>
+                        <p class="text-xs font-black text-slate-500">موجودی کیف پول</p>
+                        <p class="mt-2 font-mono text-3xl font-black tracking-wide text-emerald-700">{{ number_format($walletBalance) }}</p>
                     </div>
-                    <span class="rounded-lg bg-emerald-400/15 px-3 py-1 text-[11px] font-black text-emerald-300">تومان</span>
+                    <span class="rounded-lg border border-emerald-200 bg-emerald-100 px-3 py-1 text-[11px] font-black text-emerald-700">تومان</span>
                 </div>
-                <div class="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
-                    <div class="h-full rounded-full bg-gradient-to-l from-emerald-300 to-sky-300" style="width: {{ $availablePercent }}%"></div>
+                <div class="mt-5 h-2 overflow-hidden rounded-full bg-slate-200/80">
+                    <div class="h-full rounded-full bg-gradient-to-l from-emerald-500 to-sky-400" style="width: {{ $availablePercent }}%"></div>
                 </div>
-                <div class="mt-4 flex items-center justify-between border-t border-white/10 pt-4 text-xs font-bold">
-                    <span class="text-slate-400">بلوکه: <b class="font-mono text-amber-300">{{ number_format($blockedBalance) }}</b></span>
-                    <a href="{{ route('company.wallet.index') }}" class="rounded-lg bg-white/10 px-3 py-1.5 font-black text-sky-200 transition hover:bg-white/15">شارژ حساب</a>
+                <div class="mt-4 flex items-center justify-between border-t border-emerald-100 pt-4 text-xs font-bold">
+                    <span class="text-slate-500">بلوکه: <b class="font-mono text-amber-600">{{ number_format($blockedBalance) }}</b></span>
+                    <a href="{{ route('company.wallet.index') }}" class="rounded-lg border border-sky-200 bg-white px-3 py-1.5 font-black text-sky-700 shadow-sm transition hover:bg-sky-50">شارژ حساب</a>
                 </div>
             </div>
         </div>
