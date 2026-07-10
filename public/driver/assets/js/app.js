@@ -498,7 +498,7 @@ function renderMessagesTab(main, driver) {
                     <b>پیام‌رسان دوزوله</b>
                     <small>${driver.company_name || 'ارتباط با شرکت و رانندگان'}</small>
                 </div>
-                <i class="fa-solid fa-comments"></i>
+                <i class="fa-solid fa-paper-plane"></i>
             </div>
             <div class="message-tab-stats">
                 <div>
