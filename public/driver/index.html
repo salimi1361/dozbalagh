@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>دوزوله | کارتابل راننده</title>
 
-    <link rel="manifest" href="manifest.json?v=5.7">
+    <link rel="manifest" href="manifest.json?v=5.8">
     <meta name="theme-color" content="#07111f">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-    <link rel="stylesheet" href="assets/css/app.css?v=5.7">
+    <link rel="stylesheet" href="assets/css/app.css?v=5.8">
 </head>
 <body>
 
@@ -41,23 +41,40 @@
 
         <nav id="bottom-navigation" class="bottom-nav hidden">
             <button type="button" onclick="switchTab('home')" id="tab-home" class="bottom-nav__item is-active">
-                <i class="fa-solid fa-house"></i>
+                <svg class="app-icon nav-icon nav-icon--home" viewBox="0 0 48 48" aria-hidden="true">
+                    <path d="M8 23.5 24 10l16 13.5v17a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2z"/>
+                    <path d="M19 42V29h10v13"/>
+                </svg>
                 <span>خانه</span>
             </button>
             <button type="button" onclick="switchTab('messages')" id="tab-messages" class="bottom-nav__item">
-                <i class="fa-solid fa-comments"></i>
+                <svg class="app-icon nav-icon nav-icon--messages" viewBox="0 0 48 48" aria-hidden="true">
+                    <path d="M8 12.5h32a4 4 0 0 1 4 4v14.5a4 4 0 0 1-4 4H22l-9 7v-7H8a4 4 0 0 1-4-4V16.5a4 4 0 0 1 4-4z"/>
+                    <path d="M14 21h20M14 28h13"/>
+                </svg>
                 <span>پیام‌ها</span>
             </button>
             <button type="button" onclick="switchTab('fleet')" id="tab-fleet" class="bottom-nav__item">
-                <i class="fa-solid fa-truck"></i>
+                <svg class="app-icon nav-icon nav-icon--fleet" viewBox="0 0 48 48" aria-hidden="true">
+                    <path d="M5 16h25v18H5z"/>
+                    <path d="M30 22h7l6 7v5H30z"/>
+                    <circle cx="14" cy="36" r="4"/>
+                    <circle cx="36" cy="36" r="4"/>
+                </svg>
                 <span>ناوگان</span>
             </button>
             <button type="button" onclick="switchTab('company')" id="tab-company" class="bottom-nav__item">
-                <i class="fa-solid fa-building"></i>
+                <svg class="app-icon nav-icon nav-icon--company" viewBox="0 0 48 48" aria-hidden="true">
+                    <path d="M12 8h24a2 2 0 0 1 2 2v32H10V10a2 2 0 0 1 2-2z"/>
+                    <path d="M18 16h4M26 16h4M18 23h4M26 23h4M18 30h4M26 30h4M21 42v-7h6v7"/>
+                </svg>
                 <span>شرکت</span>
             </button>
             <button type="button" onclick="switchTab('profile')" id="tab-profile" class="bottom-nav__item">
-                <i class="fa-solid fa-user"></i>
+                <svg class="app-icon nav-icon nav-icon--profile" viewBox="0 0 48 48" aria-hidden="true">
+                    <circle cx="24" cy="17" r="8"/>
+                    <path d="M10 42c2.2-9 8.3-14 14-14s11.8 5 14 14"/>
+                </svg>
                 <span>پروفایل</span>
             </button>
         </nav>
@@ -67,6 +84,6 @@
     <div id="toast-container"></div>
     <div id="modal-container"></div>
 
-    <script src="assets/js/app.js?v=5.7"></script>
+    <script src="assets/js/app.js?v=5.8"></script>
 </body>
 </html>

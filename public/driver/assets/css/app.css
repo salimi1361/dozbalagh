@@ -1623,3 +1623,102 @@ body {
     transform: translate(-1px, 1px) rotate(-22deg);
     filter: drop-shadow(0 3px 5px rgba(2,8,23,.22));
 }
+
+/* Offline SVG icons bundled in the app */
+.app-icon {
+    display: block;
+    flex: 0 0 auto;
+}
+.app-icon path,
+.app-icon circle,
+.app-icon rect {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 3.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+}
+.bottom-nav {
+    min-height: 84px;
+    padding: 9px 10px;
+    border-radius: 28px 28px 22px 22px;
+    background: rgba(255,255,255,.98);
+    box-shadow: 0 12px 34px rgba(15,23,42,.16);
+}
+.bottom-nav__item {
+    min-height: 66px;
+    gap: 7px;
+    color: #737b87;
+    background: transparent;
+    box-shadow: none;
+}
+.bottom-nav__item i {
+    display: none;
+}
+.bottom-nav__item .nav-icon {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    color: currentColor;
+    background: transparent;
+    border-radius: 0;
+    transition: transform .18s ease, color .18s ease;
+}
+.bottom-nav__item span {
+    color: currentColor;
+    font-size: 11px;
+    font-weight: 950;
+}
+.bottom-nav__item.is-active {
+    color: #07566b;
+    background: transparent;
+    box-shadow: none;
+}
+.bottom-nav__item.is-active .nav-icon {
+    color: #07566b;
+    transform: translateY(-1px) scale(1.08);
+}
+.bottom-nav__item.is-active span {
+    color: #07566b;
+}
+.bottom-nav__item[data-unread]::before {
+    top: 9px;
+    left: 18px;
+    z-index: 2;
+}
+#tab-messages[data-unread] .nav-icon {
+    color: #0ea5e9;
+}
+.chat-composer {
+    grid-template-columns: minmax(0, 1fr) 56px;
+}
+.chat-composer button {
+    width: 56px;
+    height: 56px;
+    border: 2.5px solid #25b9e8;
+    border-radius: 999px;
+    color: #12aee4;
+    background: #ffffff;
+    box-shadow: 0 12px 26px rgba(18,174,228,.22);
+}
+.chat-composer button::before {
+    inset: 5px;
+    border-color: rgba(18,174,228,.16);
+}
+.chat-composer button .send-icon {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    transform: translate(-1px, 1px) rotate(-10deg);
+    color: currentColor;
+    filter: drop-shadow(0 3px 5px rgba(18,174,228,.20));
+}
+.chat-composer button .send-icon path:first-child {
+    fill: currentColor;
+    stroke: currentColor;
+}
+.chat-composer button .send-icon path:last-child {
+    stroke: #ffffff;
+    stroke-width: 2.4;
+}

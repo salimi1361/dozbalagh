@@ -920,7 +920,10 @@ function renderActiveCompanyChat(threadKey, preserveScroll = false) {
             <form class="chat-composer" onsubmit="sendCompanyChatMessage(event, ${Number(latestCompanyMessage?.id || 0)})">
                 <textarea id="company-message-reply" placeholder="پیام بنویسید..." rows="1" oninput="autoGrowChatInput(this)"></textarea>
                 <button type="submit" aria-label="ارسال پیام">
-                    <i class="fa-solid fa-paper-plane"></i>
+                    <svg class="app-icon send-icon" viewBox="0 0 48 48" aria-hidden="true">
+                        <path d="M43 6 5 22.2l15 5.7L25.8 43z"/>
+                        <path d="M20 27.9 43 6"/>
+                    </svg>
                 </button>
             </form>
         </div>`;

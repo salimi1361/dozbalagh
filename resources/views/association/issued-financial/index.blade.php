@@ -3,6 +3,12 @@
 @section('header_title', 'مبالغ دوزوله‌های صادرشده')
 
 @section('content')
+<link rel="stylesheet" href="{{ asset('assets/css/persian-datepicker.vendor.min.css') }}">
+<style>
+    .datepicker-plot-area { font-family: 'Vazirmatn', Tahoma, sans-serif !important; z-index: 99999 !important; }
+    .datepicker-plot-area .datepicker-day-view .table-days td span { border-radius: .5rem; }
+    .jalali-picker { cursor: pointer; background-image: none; }
+</style>
 <div class="space-y-5">
     <div class="rounded-2xl bg-gradient-to-l from-emerald-900 to-slate-900 p-6 text-white shadow-xl">
         <h2 class="text-xl font-black">گزارش مبلغ دوزوله‌های صادرشده</h2>
@@ -14,8 +20,8 @@
 
     <form method="GET" action="{{ route('association.issued-financial.index') }}" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div><label class="mb-2 block text-xs font-black text-slate-600">از تاریخ صدور (شمسی)</label><input type="text" name="date_from_jalali" value="{{ $dateFromJalali }}" placeholder="۱۴۰۵/۰۴/۰۱" dir="ltr" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-center text-xs font-bold"></div>
-            <div><label class="mb-2 block text-xs font-black text-slate-600">تا تاریخ صدور (شمسی)</label><input type="text" name="date_to_jalali" value="{{ $dateToJalali }}" placeholder="۱۴۰۵/۰۴/۳۱" dir="ltr" required class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-center text-xs font-bold"></div>
+            <div><label class="mb-2 block text-xs font-black text-slate-600">از تاریخ صدور (شمسی)</label><div class="relative"><input id="issued_date_from" type="text" name="date_from_jalali" value="{{ $dateFromJalali }}" placeholder="۱۴۰۵/۰۴/۰۱" dir="ltr" required readonly autocomplete="off" class="jalali-picker w-full rounded-xl border border-slate-200 bg-slate-50 px-10 py-2.5 text-center text-xs font-bold outline-none focus:border-emerald-500"><span class="pointer-events-none absolute left-3 top-2.5 text-slate-400">📅</span></div></div>
+            <div><label class="mb-2 block text-xs font-black text-slate-600">تا تاریخ صدور (شمسی)</label><div class="relative"><input id="issued_date_to" type="text" name="date_to_jalali" value="{{ $dateToJalali }}" placeholder="۱۴۰۵/۰۴/۳۱" dir="ltr" required readonly autocomplete="off" class="jalali-picker w-full rounded-xl border border-slate-200 bg-slate-50 px-10 py-2.5 text-center text-xs font-bold outline-none focus:border-emerald-500"><span class="pointer-events-none absolute left-3 top-2.5 text-slate-400">📅</span></div></div>
             <div><label class="mb-2 block text-xs font-black text-slate-600">شرکت</label><select name="company_id" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs"><option value="">همه شرکت‌ها</option>@foreach($companies as $company)<option value="{{ $company->id }}" @selected((string)$companyId === (string)$company->id)>{{ $company->name_fa ?: $company->name }}</option>@endforeach</select></div>
             <div class="flex items-end gap-2"><button class="flex-1 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-black text-white">نمایش گزارش</button><a href="{{ route('association.issued-financial.export', request()->query()) }}" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white">خروجی Excel</a></div>
         </div>
@@ -73,4 +79,31 @@
         @if($settlements->hasPages())<div class="border-t border-slate-100 p-4">{{ $settlements->links() }}</div>@endif
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script src="{{ asset('assets/js/persian-date.vendor.min.js') }}"></script>
+<script src="{{ asset('assets/js/persian-datepicker.vendor.min.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (!window.jQuery || typeof window.jQuery.fn.pDatepicker !== 'function') return;
+
+    $('#issued_date_from, #issued_date_to').pDatepicker({
+        format: 'YYYY/MM/DD',
+        initialValue: true,
+        initialValueType: 'persian',
+        autoClose: true,
+        responsive: true,
+        onlySelectOnDate: true,
+        calendarType: 'persian',
+        calendar: {
+            persian: { locale: 'fa', showHint: false, leapYearMode: 'algorithmic' },
+            gregorian: { showHint: false }
+        },
+        navigator: { enabled: true, scroll: { enabled: true } },
+        toolbox: { enabled: true, calendarSwitch: { enabled: false }, todayButton: { enabled: true }, submitButton: { enabled: false } },
+        timePicker: { enabled: false }
+    });
+});
+</script>
 @endsection
