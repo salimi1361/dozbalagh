@@ -51,6 +51,7 @@ Route::prefix('v1/driver')->group(function () {
         // اطلاعات دوزبلاغ‌ها
         Route::get('/permits', [PermitController::class, 'index']); // لیست دوزبلاغ‌های راننده
         Route::get('/permits/{id}', [PermitController::class, 'show']); // دریافت جزئیات یک دوزبلاغ
+        Route::get('/permit-items/{item}/copy', [\App\Http\Controllers\PermitCopyController::class, 'driver'])->whereNumber('item');
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);

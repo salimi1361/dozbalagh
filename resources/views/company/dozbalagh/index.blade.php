@@ -380,6 +380,11 @@
                                                             <span class="text-slate-400 font-medium text-[11px]">بدون فایل پیوست</span>
                                                         @endif
                                                     </div>
+                                                    @if(!empty($subItem->d_serial_number))
+                                                        <div class="flex justify-end">
+                                                            <a href="{{ route('company.dozbalagh.copy', $subItem->id) }}" target="_blank" rel="noopener" class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-sky-700 transition hover:bg-sky-100">مشاهده و چاپ نسخه شرکت</a>
+                                                        </div>
+                                                    @endif
                                                     @if(!empty($subItem->company_return_image))
                                                         <div class="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-2 text-emerald-800">
                                                             <span>لاشه ثبت شده</span>

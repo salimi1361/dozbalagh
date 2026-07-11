@@ -26,6 +26,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dozbalagh/renewable-list', [DozbalaghController::class, 'renewableList'])->name('dozbalagh.renewable_list');
         Route::post('/dozbalagh/store', [DozbalaghController::class, 'store'])->name('dozbalagh.store');
         Route::get('/dozbalagh/{id}/edit', [DozbalaghController::class, 'edit'])->name('dozbalagh.edit');
+        Route::get('/dozbalagh/items/{item}/copy', [\App\Http\Controllers\PermitCopyController::class, 'company'])->whereNumber('item')->name('company.dozbalagh.copy');
         Route::put('/dozbalagh/{id}/update', [DozbalaghController::class, 'update'])->name('dozbalagh.update');
         Route::post('/dozbalagh/check-fleet', [DozbalaghController::class, 'checkFleetStatus'])->name('dozbalagh.check_fleet');
 

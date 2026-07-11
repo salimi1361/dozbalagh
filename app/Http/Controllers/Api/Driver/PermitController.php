@@ -141,6 +141,7 @@ class PermitController extends Controller
         $tirDates = $this->formatDatePair($item['tir_carnet_date_raw'] ?? null);
 
         return [
+            'id' => $item['id'] ?? null,
             'country_name' => $item['country_name'] ?? null,
             'permit_type' => $item['permit_type'] ?? null,
             'operation_type' => $item['operation_type'] ?? null,
@@ -158,6 +159,9 @@ class PermitController extends Controller
             'tir_carnet_date_jalali' => $tirDates['jalali'],
             'tir_carnet_date_gregorian' => $tirDates['gregorian'],
             'price' => isset($item['price']) ? $this->toPersianNumbers(number_format((float) $item['price'])) : null,
+            'print_copy_endpoint' => !empty($item['d_serial_number']) && !empty($item['id'])
+                ? '/api/v1/driver/permit-items/' . $item['id'] . '/copy'
+                : null,
         ];
     }
 

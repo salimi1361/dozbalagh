@@ -2,7 +2,7 @@
 <style>
 @page{size:{{ $layout->paper_width_mm }}mm {{ $layout->paper_height_mm }}mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0}.sheet{position:relative;width:{{ $layout->paper_width_mm }}mm;height:{{ $layout->paper_height_mm }}mm;overflow:hidden;direction:ltr;@if($mode==='copy' && $layout->background_path)background:url('{{ asset('storage/'.$layout->background_path) }}') 0 0/100% 100% no-repeat;@endif}.field{position:absolute;overflow:hidden;display:flex;align-items:center;white-space:pre-wrap;line-height:1.15}.mask{position:absolute}.toolbar{position:fixed;z-index:99;top:12px;right:12px;display:flex;gap:8px;direction:rtl}.toolbar button,.toolbar a{border:0;border-radius:8px;padding:10px 14px;background:#047857;color:white;font:700 12px Tahoma;text-decoration:none;cursor:pointer}.toolbar a{background:#334155}@media print{.toolbar{display:none}}
 </style></head><body>
-<div class="toolbar"><button onclick="window.print()">چاپ {{ $mode==='original'?'اصل انجمن':'نسخه شرکت و راننده' }}</button><a href="?mode={{ $mode==='original'?'copy':'original' }}">نمایش {{ $mode==='original'?'نسخه شرکت و راننده':'اصل انجمن' }}</a></div>
+<div class="toolbar"><button onclick="window.print()">چاپ {{ $copyTitle ?? ($mode==='original'?'اصل انجمن':'نسخه شرکت و راننده') }}</button>@if(empty($copyOnly))<a href="?mode={{ $mode==='original'?'copy':'original' }}">نمایش {{ $mode==='original'?'نسخه شرکت و راننده':'اصل انجمن' }}</a>@endif</div>
 <main class="sheet">
 @if($mode==='copy') @foreach($layout->masks as $mask)<div class="mask" style="left:{{ $mask->x_mm }}mm;top:{{ $mask->y_mm }}mm;width:{{ $mask->width_mm }}mm;height:{{ $mask->height_mm }}mm;background:{{ $mask->color }}"></div>@endforeach @endif
 @foreach($layout->fields as $field)
