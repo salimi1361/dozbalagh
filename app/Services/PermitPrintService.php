@@ -18,8 +18,8 @@ class PermitPrintService
         $fleet = DB::table('fleets')->where('id', $permit->fleet_id)->orWhere('smart_card_number', $permit->fleet_id)->first();
 
         $layout = PermitPrintLayout::with(['fields', 'masks'])
-            ->where('country_id', $item->country_id)->where('permit_type', $item->permit_type)
-            ->where('is_active', true)->orderByDesc('version')->first();
+            ->where('country_id', $item->country_id)->where('is_active', true)->orderByDesc('version')->get()
+            ->first(fn (PermitPrintLayout $candidate) => $this->normalizePermitType($candidate->permit_type) === $this->normalizePermitType($item->permit_type));
 
         return compact('item', 'permit', 'country', 'company', 'driver', 'fleet', 'layout') + ['values' => [
             'serial_number' => $item->d_serial_number ?: $permit->serial_number,
@@ -48,5 +48,19 @@ class PermitPrintService
     {
         if (!$date) return '';
         try { return Verta::instance($date)->format('Y/m/d'); } catch (\Throwable) { return (string)$date; }
+    }
+
+    private function normalizePermitType($value): string
+    {
+        $value = mb_strtolower(trim((string)$value));
+        $value = str_replace(['-', ' ', '‌'], '_', $value);
+        $value = preg_replace('/_+/', '_', $value) ?: $value;
+        return [
+            'دوجانبه' => 'bilateral', 'دو_جانبه' => 'bilateral',
+            'ترانزیت' => 'transit',
+            'دوجانبه_ترانزیت' => 'bilateral_transit', 'دو_جانبه_ترانزیت' => 'bilateral_transit',
+            'ترانزیت_ثالث' => 'third_country_transit',
+            'ثالث' => 'third_country', 'کشور_ثالث' => 'third_country',
+        ][$value] ?? $value;
     }
 }

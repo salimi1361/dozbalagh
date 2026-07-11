@@ -1116,6 +1116,7 @@ function showPermitDetail(id) {
                         <div><span>مقصد</span><b>${displayValue(item.loading_destination)}</b></div>
                         <div><span>کد سفر</span><b>${displayValue(item.trip_code)}</b></div>
                     </div>
+                    ${item.print_copy_endpoint ? `<button type="button" class="btn btn--outline" style="margin:10px 0" onclick="openPermitCopy('${escapeHtml(item.print_copy_endpoint)}')"><i class="fa-solid fa-print"></i><span>مشاهده و چاپ نسخه راننده</span></button>` : ''}
                     ${datePairHtml('CMR', item.cmr_date_jalali, item.cmr_date_gregorian)}
                     ${datePairHtml('کارنه تیر', item.tir_carnet_date_jalali, item.tir_carnet_date_gregorian)}
                 </div>
@@ -1166,6 +1167,26 @@ function showPermitDetail(id) {
                 </div>`;
         })
         .catch(() => showToast('خطا در بارگذاری جزئیات.', 'error'));
+}
+
+function openPermitCopy(endpoint) {
+    const preview = window.open('', '_blank');
+    if (preview) preview.document.write('<div dir="rtl" style="font-family:Tahoma;padding:24px">در حال آماده‌سازی نسخه دوزوله...</div>');
+    fetch(endpoint, { headers: authHeaders() })
+        .then(async response => {
+            if (!response.ok) throw new Error(await response.text());
+            return response.text();
+        })
+        .then(html => {
+            if (!preview) throw new Error('popup_blocked');
+            preview.document.open();
+            preview.document.write(html);
+            preview.document.close();
+        })
+        .catch(() => {
+            if (preview) preview.close();
+            showToast('نسخه چاپی هنوز آماده نیست یا دسترسی آن وجود ندارد.', 'error');
+        });
 }
 
 function selectPermitForTrip(id) {
