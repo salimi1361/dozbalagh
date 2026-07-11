@@ -176,16 +176,10 @@
     <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
     <script src="{{ asset('assets/js/iran-plate.js') }}"></script>
     <script>
-        if (window.matchMedia('(min-width: 768px)').matches && localStorage.getItem('sidebar-open') === 'false') {
-            $('#sidebar').removeClass('sidebar-open');
-            $('[aria-controls="sidebar"]').attr('aria-expanded', 'false');
-        }
-
         function toggleSidebar() {
             const desktop = window.matchMedia('(min-width: 768px)').matches;
             if (desktop) {
                 $('#sidebar').toggleClass('sidebar-open');
-                localStorage.setItem('sidebar-open', String($('#sidebar').hasClass('sidebar-open')));
             } else {
                 $('#sidebar').toggleClass('translate-x-full');
                 $('#sidebarOverlay').toggleClass('hidden');

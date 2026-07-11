@@ -242,16 +242,10 @@
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebarOverlay');
 
-        if (window.matchMedia('(min-width: 768px)').matches && localStorage.getItem('sidebar-open') === 'false') {
-            sidebar.classList.remove('sidebar-open');
-            document.querySelectorAll('[aria-controls="sidebar"]').forEach(button => button.setAttribute('aria-expanded', 'false'));
-        }
-
         function toggleSidebar() {
             const desktop = window.matchMedia('(min-width: 768px)').matches;
             if (desktop) {
                 sidebar.classList.toggle('sidebar-open');
-                localStorage.setItem('sidebar-open', String(sidebar.classList.contains('sidebar-open')));
             } else {
                 sidebar.classList.toggle('translate-x-full');
                 overlay.classList.toggle('hidden');
