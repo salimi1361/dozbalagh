@@ -16,13 +16,19 @@
         html, body, button, input, select, textarea { font-family: 'Vazirmatn', Tahoma, sans-serif; }
         body { background-color: #f8fafc; }
         .active-menu { background-color: #ecfdf5; color: #059669; border-right: 4px solid #059669; }
+        #sidebar { width: 16rem; }
+        @media (min-width: 768px) {
+            #sidebar { position: relative; transform: none !important; width: 0; overflow: hidden; }
+            #sidebar.sidebar-open { width: 16rem; }
+            #sidebar > * { min-width: 16rem; }
+        }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
 
     <div id="sidebarOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 hidden transition-opacity md:hidden" onclick="toggleSidebar()"></div>
 
-    <aside id="sidebar" class="fixed inset-y-0 right-0 z-50 w-64 bg-slate-900 text-slate-300 transform transition-transform duration-300 translate-x-full md:relative md:translate-x-0 flex flex-col shadow-2xl">
+    <aside id="sidebar" class="fixed inset-y-0 right-0 z-50 bg-slate-900 text-slate-300 transform transition-all duration-300 translate-x-full flex flex-col shadow-2xl">
         <div class="h-40 border-b border-slate-800 flex flex-col items-center justify-center px-4 bg-slate-900/50">
             <img src="{{ asset('images/logo1.png') }}" alt="لوگو" class="h-28 w-auto drop-shadow-lg">
             <span class="text-white font-black text-xs mt-4 tracking-widest">پنل شرکت حمل و نقل</span>
@@ -66,7 +72,7 @@
         @endphp
 
         <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 sm:px-8 z-30 sticky top-0">
-            <button onclick="toggleSidebar()" class="md:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-lg">
+            <button onclick="toggleSidebar()" aria-label="باز و بسته کردن منو" aria-controls="sidebar" aria-expanded="false" class="p-2 text-slate-500 hover:bg-slate-100 rounded-lg">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
             </button>
             
@@ -153,8 +159,15 @@
     <script src="{{ asset('assets/js/iran-plate.js') }}"></script>
     <script>
         function toggleSidebar() {
-            $('#sidebar').toggleClass('translate-x-full');
-            $('#sidebarOverlay').toggleClass('hidden');
+            const desktop = window.matchMedia('(min-width: 768px)').matches;
+            if (desktop) {
+                $('#sidebar').toggleClass('sidebar-open');
+            } else {
+                $('#sidebar').toggleClass('translate-x-full');
+                $('#sidebarOverlay').toggleClass('hidden');
+            }
+            const open = desktop ? $('#sidebar').hasClass('sidebar-open') : !$('#sidebar').hasClass('translate-x-full');
+            $('[aria-controls="sidebar"]').attr('aria-expanded', String(open));
         }
         
         function toggleDropdown() {
