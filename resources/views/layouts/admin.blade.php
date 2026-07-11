@@ -60,6 +60,7 @@
             #sidebar:not(.sidebar-open) nav > div:not(.pt-4) button > div span:last-child,
             #sidebar:not(.sidebar-open) nav > div:not(.pt-4) button > svg,
             #sidebar:not(.sidebar-open) #subDozbalaghMenu,
+            #sidebar:not(.sidebar-open) #subSettingsMenu,
             #sidebar:not(.sidebar-open) nav > .pt-4 > div:first-child { display: none; }
         }
     </style>
@@ -112,8 +113,21 @@
                     <a href="/web/association/permits/archive" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->is('web/association/permits/archive') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}">
                         <span>🗂️</span> بایگانی کل پروانه‌ها
                     </a>
+                </div>
+            </div>
+
+            <div class="relative">
+                @php $isSettingsActive = request()->routeIs('association.print-layouts.*'); @endphp
+                <button onclick="toggleSettingsMenu()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ $isSettingsActive ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white' }}">
+                    <div class="flex items-center gap-3">
+                        <span class="text-lg">⚙️</span>
+                        <span>تنظیمات</span>
+                    </div>
+                    <svg id="arrowSettings" class="w-4 h-4 transform transition-transform duration-200 {{ $isSettingsActive ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <div id="subSettingsMenu" class="{{ $isSettingsActive ? '' : 'hidden' }} mt-1 mr-3 pr-2 border-r-2 border-slate-800 space-y-1">
                     <a href="{{ route('association.print-layouts.index') }}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->routeIs('association.print-layouts.*') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}">
-                        <span>🖨️</span> تنظیمات چاپ
+                        <span>🖨️</span> تنظیمات چاپ دوزوله
                     </a>
                 </div>
             </div>
@@ -267,6 +281,18 @@
             const menu = document.getElementById('subDozbalaghMenu');
             const arrow = document.getElementById('arrowDozbalagh');
             
+            if (menu.classList.contains('hidden')) {
+                menu.classList.remove('hidden');
+                arrow.classList.add('rotate-180');
+            } else {
+                menu.classList.add('hidden');
+                arrow.classList.remove('rotate-180');
+            }
+        }
+
+        function toggleSettingsMenu() {
+            const menu = document.getElementById('subSettingsMenu');
+            const arrow = document.getElementById('arrowSettings');
             if (menu.classList.contains('hidden')) {
                 menu.classList.remove('hidden');
                 arrow.classList.add('rotate-180');
