@@ -1,9 +1,12 @@
 // 👈 تغییر دادن این شماره نسخه در آینده، کِش تمام راننده‌ها را فوراً آپدیت می‌کند
-const CACHE_NAME = 'dozoleh-driver-v6.0';
+const CACHE_NAME = 'dozoleh-driver-v6.1';
 const ASSETS = [
     '/driver/',
     '/driver/index.html',
     '/driver/manifest.json',
+    '/driver/icon-192.png',
+    '/driver/icon-512.png',
+    '/driver/apple-touch-icon-180.png',
     '/driver/assets/css/app.css',
     '/driver/assets/js/app.js'
 ];
