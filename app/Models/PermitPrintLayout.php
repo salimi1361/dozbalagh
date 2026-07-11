@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PermitPrintLayout extends Model
 {
-    protected $fillable = ['country_id', 'permit_type', 'name', 'background_path', 'paper_width_mm', 'paper_height_mm', 'orientation', 'offset_x_mm', 'offset_y_mm', 'is_active', 'version'];
+    protected $fillable = ['country_id', 'permit_type', 'name', 'background_path', 'seal_path', 'signature_path', 'paper_width_mm', 'paper_height_mm', 'orientation', 'offset_x_mm', 'offset_y_mm', 'is_active', 'version'];
 
     protected $casts = ['is_active' => 'boolean'];
 

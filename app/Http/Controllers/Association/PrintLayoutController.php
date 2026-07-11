@@ -14,6 +14,8 @@ class PrintLayoutController extends Controller
     public static function fieldCatalog(): array
     {
         return [
+            'association_seal' => 'تصویر مهر انجمن',
+            'chairman_signature' => 'تصویر امضای رئیس انجمن',
             'serial_number' => 'شماره دوزوله تخصیص‌یافته',
             'tracking_code' => 'کد رهگیری سامانه',
             'company_name' => 'نام شرکت (فارسی)',
@@ -86,6 +88,8 @@ class PrintLayoutController extends Controller
             'offset_y_mm' => ['required', 'numeric', 'between:-50,50'],
             'version' => ['required', 'integer', 'min:1'],
             'background' => ['nullable', 'image', 'max:15360'],
+            'seal' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
+            'signature' => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp', 'max:5120'],
             'fields_json' => ['required', 'json'],
             'masks_json' => ['required', 'json'],
         ]);
@@ -98,8 +102,14 @@ class PrintLayoutController extends Controller
             if ($request->hasFile('background')) {
                 $data['background_path'] = $request->file('background')->store('permit-layouts', 'public');
             }
+            if ($request->hasFile('seal')) {
+                $data['seal_path'] = $request->file('seal')->store('permit-layout-assets', 'public');
+            }
+            if ($request->hasFile('signature')) {
+                $data['signature_path'] = $request->file('signature')->store('permit-layout-assets', 'public');
+            }
             $data['is_active'] = $request->boolean('is_active');
-            $layout->fill(collect($data)->except(['background', 'fields_json', 'masks_json'])->all())->save();
+            $layout->fill(collect($data)->except(['background', 'seal', 'signature', 'fields_json', 'masks_json'])->all())->save();
             $layout->fields()->delete();
             $layout->masks()->delete();
 
