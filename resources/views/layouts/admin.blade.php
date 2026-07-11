@@ -43,9 +43,23 @@
 
         #sidebar { width: 16rem; }
         @media (min-width: 768px) {
-            #sidebar { position: relative; transform: none !important; width: 0; overflow: hidden; }
+            #sidebar { position: relative; transform: none !important; width: 5rem; overflow: hidden; }
             #sidebar.sidebar-open { width: 16rem; }
             #sidebar > * { min-width: 16rem; }
+            #sidebar:not(.sidebar-open) .h-24 { width: 5rem; min-width: 5rem; padding: 0; }
+            #sidebar:not(.sidebar-open) .h-24 img { height: 3rem; }
+            #sidebar:not(.sidebar-open) .h-24 div { display: none; }
+            #sidebar:not(.sidebar-open) nav { width: 5rem; min-width: 5rem; padding-left: .75rem; padding-right: .75rem; overflow-x: hidden; }
+            #sidebar:not(.sidebar-open) nav > a,
+            #sidebar:not(.sidebar-open) nav > .pt-4 a { justify-content: center; gap: 0; padding-left: 0; padding-right: 0; font-size: 0; }
+            #sidebar:not(.sidebar-open) nav > a svg,
+            #sidebar:not(.sidebar-open) nav > .pt-4 a svg { width: 1.25rem; height: 1.25rem; }
+            #sidebar:not(.sidebar-open) nav > div:not(.pt-4) button { justify-content: center; padding-left: 0; padding-right: 0; }
+            #sidebar:not(.sidebar-open) nav > div:not(.pt-4) button > div { gap: 0; }
+            #sidebar:not(.sidebar-open) nav > div:not(.pt-4) button > div span:last-child,
+            #sidebar:not(.sidebar-open) nav > div:not(.pt-4) button > svg,
+            #sidebar:not(.sidebar-open) #subDozbalaghMenu,
+            #sidebar:not(.sidebar-open) nav > .pt-4 > div:first-child { display: none; }
         }
     </style>
 </head>
@@ -53,7 +67,7 @@
 
     <div id="sidebarOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 hidden transition-opacity md:hidden" onclick="toggleSidebar()"></div>
 
-    <aside id="sidebar" class="fixed inset-y-0 right-0 z-50 bg-slate-900 text-slate-300 transform transition-all duration-300 translate-x-full flex flex-col shadow-2xl">
+    <aside id="sidebar" class="sidebar-open fixed inset-y-0 right-0 z-50 bg-slate-900 text-slate-300 transform transition-all duration-300 translate-x-full flex flex-col shadow-2xl">
         
         <div class="h-24 border-b border-slate-800 flex items-center justify-center px-2 bg-slate-900/50">
             <img src="{{ asset('images/logo1.png') }}" alt="لوگو" class="h-16 w-auto drop-shadow-lg">
@@ -163,7 +177,7 @@
         <header class="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 lg:px-8 z-30 sticky top-0">
             
             <div class="flex items-center gap-4">
-                <button onclick="toggleSidebar()" aria-label="باز و بسته کردن منو" aria-controls="sidebar" aria-expanded="false" class="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors focus:outline-none">
+                <button onclick="toggleSidebar()" aria-label="باز و بسته کردن منو" aria-controls="sidebar" aria-expanded="true" class="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors focus:outline-none">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
                 <h1 class="text-lg sm:text-xl font-black text-slate-800 hidden sm:block">@yield('header_title', 'سامانه مدیریت دوزوله')</h1>
