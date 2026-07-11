@@ -7,6 +7,7 @@
     
     <script src="{{ asset('assets/js/tailwindcss.js') }}"></script>
     <link rel="stylesheet" href="{{ asset('assets/css/iran-plate.css') }}">
+    @vite(['resources/js/app.js'])
     
     <style>
         /* فونت‌های محلی */
@@ -110,6 +111,9 @@
                     </a>
                     <a href="/web/association/permits/archive" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->is('web/association/permits/archive') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}">
                         <span>🗂️</span> بایگانی کل پروانه‌ها
+                    </a>
+                    <a href="{{ route('association.print-layouts.index') }}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->routeIs('association.print-layouts.*') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}">
+                        <span>🖨️</span> تنظیمات چاپ
                     </a>
                 </div>
             </div>

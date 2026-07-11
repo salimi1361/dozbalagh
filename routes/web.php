@@ -208,6 +208,13 @@ Route::middleware(['auth'])->group(function () {
     // روت نمایش صفحه چاپ واقعی برگه دوزبلاغ
     Route::get('/web/association/request/print/{id}', [AssociationController::class, 'printPermit'])->name('association.permit.print');
     Route::get('/web/association/request/print-item/{id}', [AssociationController::class, 'printPermitItem'])->name('association.permit.print_item');
+    Route::middleware('role:admin,association')->prefix('/web/association/print-layouts')->name('association.print-layouts.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Association\PrintLayoutController::class, 'index'])->name('index');
+        Route::get('/create', [\App\Http\Controllers\Association\PrintLayoutController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\Association\PrintLayoutController::class, 'store'])->name('store');
+        Route::get('/{layout}/edit', [\App\Http\Controllers\Association\PrintLayoutController::class, 'edit'])->name('edit');
+        Route::put('/{layout}', [\App\Http\Controllers\Association\PrintLayoutController::class, 'update'])->name('update');
+    });
 });
 
 // ==========================================

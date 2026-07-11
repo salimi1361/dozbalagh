@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use Throwable;
+use App\Services\PermitPrintService;
 
 class AssociationController
 {
@@ -1103,9 +1104,16 @@ class AssociationController
         }
     }
 
-    public function printPermitItem($id)
+    public function printPermitItem(Request $request, $id, PermitPrintService $printService)
     {
         try {
+            $printContext = $printService->contextForItem((int)$id);
+            if ($printContext['layout']) {
+                $mode = $request->query('mode', 'original');
+                if (!in_array($mode, ['original', 'copy'], true)) $mode = 'original';
+                return view('association.driver.dynamic_print', $printContext + compact('mode'));
+            }
+
             $item = DB::table('permit_request_items')->where('id', $id)->first();
             if (!$item) {
                 return abort(404, 'آیتم دوزوله یافت نشد.');

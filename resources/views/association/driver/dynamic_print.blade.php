@@ -1,0 +1,13 @@
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>چاپ دوزوله {{ $values['serial_number'] }}</title>
+<style>
+@page{size:{{ $layout->paper_width_mm }}mm {{ $layout->paper_height_mm }}mm;margin:0}*{box-sizing:border-box}html,body{margin:0;padding:0}.sheet{position:relative;width:{{ $layout->paper_width_mm }}mm;height:{{ $layout->paper_height_mm }}mm;overflow:hidden;direction:ltr;@if($mode==='copy' && $layout->background_path)background:url('{{ asset('storage/'.$layout->background_path) }}') 0 0/100% 100% no-repeat;@endif}.field{position:absolute;overflow:hidden;display:flex;align-items:center;white-space:pre-wrap;line-height:1.15}.mask{position:absolute}.toolbar{position:fixed;z-index:99;top:12px;right:12px;display:flex;gap:8px;direction:rtl}.toolbar button,.toolbar a{border:0;border-radius:8px;padding:10px 14px;background:#047857;color:white;font:700 12px Tahoma;text-decoration:none;cursor:pointer}.toolbar a{background:#334155}@media print{.toolbar{display:none}}
+</style></head><body>
+<div class="toolbar"><button onclick="window.print()">چاپ {{ $mode==='original'?'اصل انجمن':'نسخه شرکت و راننده' }}</button><a href="?mode={{ $mode==='original'?'copy':'original' }}">نمایش {{ $mode==='original'?'نسخه شرکت و راننده':'اصل انجمن' }}</a></div>
+<main class="sheet">
+@if($mode==='copy') @foreach($layout->masks as $mask)<div class="mask" style="left:{{ $mask->x_mm }}mm;top:{{ $mask->y_mm }}mm;width:{{ $mask->width_mm }}mm;height:{{ $mask->height_mm }}mm;background:{{ $mask->color }}"></div>@endforeach @endif
+@foreach($layout->fields as $field)
+ @if(($mode==='original' && $field->show_on_original) || ($mode==='copy' && $field->show_on_copy))
+ <div class="field" style="left:calc({{ $field->x_mm }}mm + {{ $layout->offset_x_mm }}mm);top:calc({{ $field->y_mm }}mm + {{ $layout->offset_y_mm }}mm);width:{{ $field->width_mm }}mm;height:{{ $field->height_mm }}mm;font:{{ $field->is_bold?'700':'400' }} {{ $field->font_size_pt }}pt '{{ $field->font_family }}',sans-serif;text-align:{{ $field->text_align }};justify-content:{{ $field->text_align==='center'?'center':($field->text_align==='right'?'flex-end':'flex-start') }};transform:rotate({{ $field->rotation_deg }}deg)">{{ $values[$field->field_key] ?? '' }}</div>
+ @endif
+@endforeach
+</main></body></html>
