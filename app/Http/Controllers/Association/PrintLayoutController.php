@@ -11,6 +11,17 @@ use Illuminate\Validation\Rule;
 
 class PrintLayoutController extends Controller
 {
+    public static function permitTypeLabels(): array
+    {
+        return [
+            'bilateral' => 'دوجانبه',
+            'transit' => 'ترانزیت',
+            'bilateral_transit' => 'دوجانبه ترانزیت',
+            'third_country_transit' => 'ترانزیت ثالث',
+            'third_country' => 'ثالث',
+        ];
+    }
+
     public static function fieldCatalog(): array
     {
         return [
@@ -43,14 +54,18 @@ class PrintLayoutController extends Controller
         return view('association.print-layouts.index', [
             'layouts' => PermitPrintLayout::with('country')->latest()->get(),
             'countries' => Country::where('is_active', true)->orderBy('name')->get(),
+            'permitTypeLabels' => self::permitTypeLabels(),
         ]);
     }
 
     public function create()
     {
+        $countries = Country::where('is_active', true)->orderBy('name')->get();
         return view('association.print-layouts.editor', [
             'layout' => null,
-            'countries' => Country::where('is_active', true)->orderBy('name')->get(),
+            'countries' => $countries,
+            'countryPermitTypes' => $this->countryPermitTypes($countries),
+            'permitTypeLabels' => self::permitTypeLabels(),
             'catalog' => self::fieldCatalog(),
         ]);
     }
@@ -58,9 +73,12 @@ class PrintLayoutController extends Controller
     public function edit(PermitPrintLayout $layout)
     {
         $layout->load(['fields', 'masks']);
+        $countries = Country::where('is_active', true)->orderBy('name')->get();
         return view('association.print-layouts.editor', [
             'layout' => $layout,
-            'countries' => Country::where('is_active', true)->orderBy('name')->get(),
+            'countries' => $countries,
+            'countryPermitTypes' => $this->countryPermitTypes($countries),
+            'permitTypeLabels' => self::permitTypeLabels(),
             'catalog' => self::fieldCatalog(),
         ]);
     }
@@ -97,6 +115,10 @@ class PrintLayoutController extends Controller
         $fields = json_decode($data['fields_json'], true, 512, JSON_THROW_ON_ERROR);
         $masks = json_decode($data['masks_json'], true, 512, JSON_THROW_ON_ERROR);
         $catalog = self::fieldCatalog();
+        $country = Country::findOrFail($data['country_id']);
+        if (!in_array($data['permit_type'], $country->allowed_permit_types ?? [], true)) {
+            return back()->withInput()->withErrors(['permit_type' => 'نوع مجوز انتخاب‌شده برای این کشور تعریف نشده است.']);
+        }
 
         DB::transaction(function () use ($request, $data, $fields, $masks, $catalog, $layout) {
             if ($request->hasFile('background')) {
@@ -137,5 +159,15 @@ class PrintLayoutController extends Controller
         });
 
         return redirect()->route('association.print-layouts.edit', $layout)->with('success', 'قالب چاپ ذخیره شد.');
+    }
+
+    private function countryPermitTypes($countries): array
+    {
+        return $countries->mapWithKeys(fn (Country $country) => [
+            (string)$country->id => collect($country->allowed_permit_types ?? [])->map(fn ($type) => [
+                'value' => $type,
+                'label' => self::permitTypeLabels()[$type] ?? str_replace('_', ' ', $type),
+            ])->values()->all(),
+        ])->all();
     }
 }
