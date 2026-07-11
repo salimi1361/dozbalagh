@@ -281,7 +281,7 @@ function datePairHtml(label, jalali, gregorian) {
 }
 
 function associationLogoHtml(extraClass = '') {
-    return `<img class="association-logo ${extraClass}" src="logo.png" alt="لوگوی انجمن شرکت‌های حمل و نقل بین‌المللی خراسان رضوی">`;
+    return `<img class="association-logo ${extraClass}" src="icon-512.png?v=6.2" alt="لوگوی انجمن شرکت‌های حمل و نقل بین‌المللی خراسان رضوی">`;
 }
 
 function gpsStatusLabel() {
