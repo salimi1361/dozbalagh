@@ -57,6 +57,7 @@
             
             {{-- 🚀 اصلاح مسیر ثبت درخواست به صفحه لیست بر اساس سناریوی جدید UX --}}
             <a href="{{ route('dozbalagh.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('dozbalagh.index') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">🚀 ثبت درخواست</a>
+            <a href="{{ route('company.dozbalagh.issued') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('company.dozbalagh.issued') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📄 دوزوله‌های صادرشده</a>
             
             <a href="{{ route('web.company.driver.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('web.company.driver.index') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">👤 رانندگان</a>
             <a href="{{ route('company.driver_messages.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('company.driver_messages.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">💬 پیام رانندگان</a>

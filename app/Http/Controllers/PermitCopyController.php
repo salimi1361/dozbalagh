@@ -8,6 +8,21 @@ use Illuminate\Support\Facades\DB;
 
 class PermitCopyController extends Controller
 {
+    public function companyIndex(Request $request)
+    {
+        $companyId = $request->user()?->company?->id;
+        abort_unless($companyId, 403);
+        $items = DB::table('permit_request_items as pri')
+            ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
+            ->leftJoin('countries as c', 'c.id', '=', 'pri.country_id')
+            ->leftJoin('drivers as d', 'd.id', '=', 'pr.driver_id')
+            ->leftJoin('fleets as f', 'f.id', '=', 'pr.fleet_id')
+            ->where('pr.company_id', $companyId)->whereNotNull('pri.d_serial_number')->where('pri.d_serial_number', '<>', '')
+            ->select(['pri.id', 'pri.d_serial_number', 'pri.permit_type', 'pri.operation_type', 'pri.loading_origin', 'pri.loading_destination', 'pri.issued_at', 'pri.permit_valid_until', 'pr.d_code', 'pr.status', 'c.name as country_name', 'd.first_name_fa', 'd.last_name_fa', 'f.transit_plate'])
+            ->orderByDesc('pri.issued_at')->orderByDesc('pri.id')->paginate(20);
+        return view('company.dozbalagh.issued', compact('items'));
+    }
+
     public function company(Request $request, int $item, PermitPrintService $printService)
     {
         $companyId = $request->user()?->company?->id;
