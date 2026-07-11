@@ -26,17 +26,18 @@
             #sidebar:not(.sidebar-open) .h-40 span { display: none; }
             #sidebar:not(.sidebar-open) nav { width: 5rem; min-width: 5rem; padding-left: .75rem; padding-right: .75rem; overflow-x: hidden; }
             #sidebar:not(.sidebar-open) nav > a { justify-content: center; padding-left: 0; padding-right: 0; font-size: 0; }
-            #sidebar:not(.sidebar-open) nav > a::before { font-size: 1.25rem; }
-            #sidebar:not(.sidebar-open) nav > a:nth-child(1)::before { content: '🏠'; }
-            #sidebar:not(.sidebar-open) nav > a:nth-child(2)::before { content: '🚀'; }
-            #sidebar:not(.sidebar-open) nav > a:nth-child(3)::before { content: '👤'; }
-            #sidebar:not(.sidebar-open) nav > a:nth-child(4)::before { content: '💬'; }
-            #sidebar:not(.sidebar-open) nav > a:nth-child(5)::before { content: '🎧'; }
-            #sidebar:not(.sidebar-open) nav > a:nth-child(6)::before { content: '🚛'; }
-            #sidebar:not(.sidebar-open) nav > a:nth-child(7)::before { content: '📊'; }
+            #sidebar:not(.sidebar-open) nav > a::before,
+            #sidebar:not(.sidebar-open) nav > div button::before { content: ''; width: 1.35rem; height: 1.35rem; background: center / contain no-repeat; opacity: .9; }
+            #sidebar:not(.sidebar-open) nav > a:nth-child(1)::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%2394a3b8' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='M3 11l9-8 9 8v9a1 1 0 01-1 1h-5v-7H9v7H4a1 1 0 01-1-1z'/%3E%3C/svg%3E"); }
+            #sidebar:not(.sidebar-open) nav > a:nth-child(2)::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%2394a3b8' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='M12 2l4 7 6 3-6 3-4 7-4-7-6-3 6-3z'/%3E%3C/svg%3E"); }
+            #sidebar:not(.sidebar-open) nav > a:nth-child(3)::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%2394a3b8' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='7' r='4'/%3E%3Cpath d='M4 21v-2a8 8 0 0116 0v2'/%3E%3C/svg%3E"); }
+            #sidebar:not(.sidebar-open) nav > a:nth-child(4)::before,
+            #sidebar:not(.sidebar-open) nav > a:nth-child(5)::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%2394a3b8' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='M21 15a4 4 0 01-4 4H8l-5 3V7a4 4 0 014-4h10a4 4 0 014 4z'/%3E%3C/svg%3E"); }
+            #sidebar:not(.sidebar-open) nav > a:nth-child(6)::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%2394a3b8' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='M3 6h12v11H3zM15 10h4l2 3v4h-6z'/%3E%3Ccircle cx='7' cy='19' r='2'/%3E%3Ccircle cx='18' cy='19' r='2'/%3E%3C/svg%3E"); }
+            #sidebar:not(.sidebar-open) nav > a:nth-child(7)::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%2394a3b8' stroke-width='2' viewBox='0 0 24 24'%3E%3Cpath d='M4 20V10M10 20V4M16 20v-7M22 20H2'/%3E%3C/svg%3E"); }
             #sidebar:not(.sidebar-open) nav > div { padding-top: .5rem; margin-top: .5rem; }
             #sidebar:not(.sidebar-open) nav > div button { justify-content: center; padding-left: 0; padding-right: 0; font-size: 0; }
-            #sidebar:not(.sidebar-open) nav > div button::before { content: '⚙️'; font-size: 1.25rem; }
+            #sidebar:not(.sidebar-open) nav > div button::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%2394a3b8' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a2 2 0 00.4 2.2l.1.1-2.6 2.6-.1-.1a2 2 0 00-2.2-.4 2 2 0 00-1.2 1.8V21h-3.6v-.2A2 2 0 009 19a2 2 0 00-2.2.4l-.1.1-2.6-2.6.1-.1a2 2 0 00.4-2.2A2 2 0 002.8 13H3V9.4h-.2A2 2 0 004.6 8a2 2 0 00-.4-2.2l-.1-.1 2.6-2.6.1.1A2 2 0 009 3.6 2 2 0 0010.2 2h3.6A2 2 0 0015 3.6a2 2 0 002.2-.4l.1-.1 2.6 2.6-.1.1a2 2 0 00-.4 2.2 2 2 0 001.8 1.2h.2v3.6h-.2A2 2 0 0019.4 15z'/%3E%3C/svg%3E"); }
             #sidebar:not(.sidebar-open) #submenu-profile { display: none !important; }
         }
     </style>
@@ -175,10 +176,16 @@
     <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
     <script src="{{ asset('assets/js/iran-plate.js') }}"></script>
     <script>
+        if (window.matchMedia('(min-width: 768px)').matches && localStorage.getItem('sidebar-open') === 'false') {
+            $('#sidebar').removeClass('sidebar-open');
+            $('[aria-controls="sidebar"]').attr('aria-expanded', 'false');
+        }
+
         function toggleSidebar() {
             const desktop = window.matchMedia('(min-width: 768px)').matches;
             if (desktop) {
                 $('#sidebar').toggleClass('sidebar-open');
+                localStorage.setItem('sidebar-open', String($('#sidebar').hasClass('sidebar-open')));
             } else {
                 $('#sidebar').toggleClass('translate-x-full');
                 $('#sidebarOverlay').toggleClass('hidden');
