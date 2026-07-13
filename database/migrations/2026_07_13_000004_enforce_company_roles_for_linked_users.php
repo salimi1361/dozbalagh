@@ -10,7 +10,16 @@ return new class extends Migration
         $companyRoleId = DB::table('roles')->where('name', 'company')->value('id');
 
         if (! $companyRoleId) {
-            throw new \RuntimeException('The company role must exist before company user roles can be repaired.');
+            $parentRoleId = DB::table('roles')->where('name', 'association')->value('id')
+                ?? DB::table('roles')->where('name', 'admin')->value('id');
+
+            $companyRoleId = DB::table('roles')->insertGetId([
+                'name' => 'company',
+                'title_fa' => 'شرکت حمل‌ونقل بین‌المللی',
+                'parent_id' => $parentRoleId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
 
         DB::table('users')
