@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\User;
 use App\Models\Role;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class CompanyController extends Controller
@@ -25,45 +26,43 @@ class CompanyController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'national_id' => 'required',
+            'national_id' => 'required|unique:companies,national_id',
             'name' => 'required',
             'ceo_mobile' => 'required',
         ]);
 
-        $user = User::where('username', $request->national_id)->first();
-        if (!$user) {
-            $role = Role::first();
-            $user = new User();
-            $user->role_id = $role ? $role->id : 1;
-            $user->username = $request->national_id;
-            $user->mobile = $request->ceo_mobile;
-            $user->password = Hash::make('12345678');
-            $user->save();
+        if (User::where('username', $request->national_id)->exists()) {
+            return back()
+                ->withInput()
+                ->with('error', 'این شناسه ملی قبلاً به یک حساب کاربری متصل شده است.');
         }
 
-        if (Company::where('national_id', $request->national_id)->exists()) {
-            return back()->with('error', 'شرکتی با این شناسه ملی قبلاً ثبت شده است.');
-        }
+        DB::transaction(function () use ($request) {
+            $companyRole = Role::where('name', 'company')->firstOrFail();
 
-        $company = new Company();
-        $company->user_id = $user->id;
-        $company->company_code = 'C-' . time();
-        $company->name = $request->name;
-        $company->name_fa = $request->name;
-        
-        // اصلاح: مقدار پیش‌فرض برای فیلدهایی که دیتابیس خطا می‌گیرد
-        $company->name_en = $request->name_en ?? $request->name; 
-        
-        $company->national_id = $request->national_id;
-        $company->phone = $request->phone ?? '000';
-        $company->ceo_mobile = $request->ceo_mobile;
-        $company->address_fa = $request->address ?? 'ثبت نشده';
-        
-        // اگر ستون‌های زیر هم در دیتابیس اجباری هستند، مقدار بده:
-        $company->address_en = $request->address_en ?? 'N/A';
-        
-        $company->status = 'pending';
-        $company->save();
+            $user = User::create([
+                'role_id' => $companyRole->id,
+                'username' => $request->national_id,
+                'mobile' => $request->ceo_mobile,
+                'password' => Hash::make('12345678'),
+                'status' => 'active',
+                'is_manual' => true,
+            ]);
+
+            $company = new Company();
+            $company->user_id = $user->id;
+            $company->company_code = 'C-' . time();
+            $company->name = $request->name;
+            $company->name_fa = $request->name;
+            $company->name_en = $request->name_en ?? $request->name;
+            $company->national_id = $request->national_id;
+            $company->phone = $request->phone ?? '000';
+            $company->ceo_mobile = $request->ceo_mobile;
+            $company->address_fa = $request->address ?? 'ثبت نشده';
+            $company->address_en = $request->address_en ?? 'N/A';
+            $company->status = 'pending';
+            $company->save();
+        });
 
         return back()->with('success', 'شرکت با موفقیت ثبت شد.');
     }
