@@ -13,7 +13,7 @@ use App\Http\Controllers\Company\{
     WalletController
 };
 
-Route::middleware(['auth', 'role:company'])->group(function () {
+Route::middleware(['auth', 'role:company', 'panel.features'])->group(function () {
     Route::get('/web/company/profile', [ProfileController::class, 'edit'])->name('company.profile.edit');
     Route::put('/web/company/profile', [ProfileController::class, 'update'])->name('company.profile.update');
     Route::put('/web/company/password', [ProfileController::class, 'updatePassword'])->name('company.password.update');

@@ -6,6 +6,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use App\Services\PanelFeatureService;
 
 class AuthController extends Controller
 {
@@ -76,7 +77,7 @@ class AuthController extends Controller
         return match ($user->role?->name) {
             'admin' => redirect()->route('admin.dashboard')->with('success', 'به پنل مدیریت کل سامانه خوش آمدید!'),
             'association' => redirect()->route('association.dashboard')->with('success', 'به پنل انجمن خوش آمدید!'),
-            'company' => redirect()->route('dashboard')->with('success', 'به پنل شرکت خوش آمدید!'),
+            'company' => $this->redirectToFirstEnabledFeature('company', 'به پنل شرکت خوش آمدید!'),
             default => $this->logoutUnsupportedUser(),
         };
     }
@@ -88,5 +89,20 @@ class AuthController extends Controller
         return redirect()->route('login')->withErrors([
             'username' => 'برای نقش این کاربر پنل وب تعریف نشده است.',
         ]);
+    }
+
+    private function redirectToFirstEnabledFeature(string $role, string $message)
+    {
+        $route = app(PanelFeatureService::class)->landingRoute($role);
+
+        if (! $route) {
+            Auth::logout();
+
+            return redirect()->route('login')->withErrors([
+                'username' => 'تمام بخش‌های این پنل توسط مدیر سامانه غیرفعال شده‌اند.',
+            ]);
+        }
+
+        return redirect()->route($route)->with('success', $message);
     }
 }

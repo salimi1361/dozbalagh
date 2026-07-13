@@ -80,6 +80,10 @@
         </div>
 
         <nav class="flex-1 overflow-y-auto py-6 px-3 space-y-1.5">
+            @php
+                $panelFeatures = app(\App\Services\PanelFeatureService::class);
+                $showAssociationFeature = fn (string $feature) => auth()->user()?->hasRole('admin') || $panelFeatures->enabledForRole('association', $feature);
+            @endphp
     
             @if(auth()->user()?->hasRole('admin'))
             <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.dashboard') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
@@ -88,6 +92,7 @@
             </a>
             @endif
 
+            @if($showAssociationFeature('requests') || $showAssociationFeature('issuance') || $showAssociationFeature('transit') || $showAssociationFeature('archive'))
             <div class="relative">
                 @php 
                     $isDozbalaghActive = request()->routeIs('association.pending.*', 'association.approved.*', 'association.transit.*', 'association.archive.*');
@@ -103,32 +108,45 @@
                 </button>
 
                 <div id="subDozbalaghMenu" class="{{ $isDozbalaghActive ? '' : 'hidden' }} mt-1 mr-3 pr-2 border-r-2 border-slate-800 space-y-1">
+                    @if($showAssociationFeature('requests'))
                     <a href="/web/association/driver/list" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->is('web/association/driver/list') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}">
                         <span>⏳</span> درخواست‌های معلق
                     </a>
+                    @endif
+                    @if($showAssociationFeature('issuance'))
                     <a href="/web/association/approved/permits" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->is('web/association/approved/permits') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}">
                         <span>✍️</span> صدور و تخصیص سریال
                     </a>
+                    @endif
+                    @if($showAssociationFeature('transit'))
                     <a href="/web/association/transit-permits" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->is('web/association/transit-permits') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}">
                         <span>🚚</span> مدیریت تردد
                     </a>
+                    @endif
+                    @if($showAssociationFeature('archive'))
                     <a href="/web/association/permits/archive" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->is('web/association/permits/archive') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}">
                         <span>🗂️</span> بایگانی کل پروانه‌ها
                     </a>
+                    @endif
                 </div>
             </div>
+            @endif
 
+            @if($showAssociationFeature('reports'))
             <a href="{{ route('association.reports.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('association.reports.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('association.reports.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6m4 6V7m4 10v-3M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
                 گزارش دوزوله‌ها
             </a>
+            @endif
 
+            @if($showAssociationFeature('financial'))
             <a href="{{ route('association.issued-financial.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('association.issued-financial.*') ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('association.issued-financial.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M5 7h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2zm2-4h10a2 2 0 012 2v2H5V5a2 2 0 012-2z"></path>
                 </svg>
                 مبالغ دوزوله‌های صادرشده
             </a>
+            @endif
 
             @if(auth()->user()?->hasRole('admin'))
             <a href="{{ route('admin.companies.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.companies.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
@@ -137,10 +155,12 @@
             </a>
             @endif
 
+            @if($showAssociationFeature('crm'))
             <a href="{{ route('admin.association_crm.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.association_crm.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('admin.association_crm.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h8M8 14h5m-9 7l3.5-3.5H19a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10.5a2 2 0 002 2H4v3.5z"></path></svg>
                 CRM انجمن
             </a>
+            @endif
             
             @if(auth()->user()?->hasRole('admin'))
             <a href="{{ route('admin.countries.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.countries.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
@@ -178,16 +198,23 @@
             </div>
             @endif
 
+            @if(auth()->user()?->hasRole('admin') || $showAssociationFeature('print_layouts'))
             <div class="relative pt-2 mt-2 border-t border-slate-800">
-                @php $isSettingsActive = request()->routeIs('association.print-layouts.*'); @endphp
+                @php $isSettingsActive = request()->routeIs('association.print-layouts.*', 'admin.settings.panel-features.*'); @endphp
                 <button onclick="toggleSettingsMenu()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ $isSettingsActive ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white' }}">
                     <div class="flex items-center gap-3"><span class="text-lg">⚙️</span><span>تنظیمات</span></div>
                     <svg id="arrowSettings" class="w-4 h-4 transform transition-transform duration-200 {{ $isSettingsActive ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </button>
                 <div id="subSettingsMenu" class="{{ $isSettingsActive ? '' : 'hidden' }} mt-1 mr-3 pr-2 border-r-2 border-slate-800 space-y-1">
+                    @if($showAssociationFeature('print_layouts'))
                     <a href="{{ route('association.print-layouts.index') }}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->routeIs('association.print-layouts.*') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}"><span>🖨️</span> تنظیمات چاپ دوزوله</a>
+                    @endif
+                    @if(auth()->user()?->hasRole('admin'))
+                    <a href="{{ route('admin.settings.panel-features.index') }}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->routeIs('admin.settings.panel-features.*') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}"><span>🔐</span> دسترسی پنل‌ها</a>
+                    @endif
                 </div>
             </div>
+            @endif
         </nav>
     </aside>
 
@@ -228,8 +255,8 @@
                                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                             </div>
                             <div class="flex flex-col">
-                                <span class="font-bold text-slate-800 text-sm">{{ auth()->user()->name ?? 'مدیر سیستم' }}</span>
-                                <span class="text-xs text-slate-500 mt-0.5">ادمین کل</span>
+                                <span class="font-bold text-slate-800 text-sm">{{ auth()->user()?->hasRole('admin') ? 'مدیر سیستم' : 'کاربر انجمن' }}</span>
+                                <span class="text-xs text-slate-500 mt-0.5">{{ auth()->user()?->hasRole('admin') ? 'ادمین کل' : 'انجمن' }}</span>
                             </div>
                         </div>
                         

@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'pargar.role' => \App\Http\Middleware\CheckPargarRole::class,
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
+            'panel.features' => \App\Http\Middleware\EnsurePanelFeatureEnabled::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

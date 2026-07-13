@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\{
     FinancialController
 };
 use App\Http\Controllers\Admin\AssociationCrmController;
+use App\Http\Controllers\Admin\PanelFeatureController;
 use App\Http\Controllers\Association\AssociationController;
 use App\Http\Controllers\Association\ReportController as AssociationReportController;
 use App\Http\Controllers\Association\IssuedDozbalaghFinancialReportController;
@@ -162,9 +163,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::get('/financial/dozbalagh-monthly-report', [FinancialController::class, 'exportMonthlyDozbalaghReport'])->name('financial.dozbalaghMonthlyReport');
     Route::delete('/financial/manual-adjustment/{id}', [FinancialController::class, 'destroyAdjustment'])->name('financial.destroyAdjustment');
 
+    Route::get('/settings/panel-features', [PanelFeatureController::class, 'index'])->name('settings.panel-features.index');
+    Route::put('/settings/panel-features', [PanelFeatureController::class, 'update'])->name('settings.panel-features.update');
+
     });
 
-    Route::middleware('role:admin,association')->group(function () {
+    Route::middleware(['role:admin,association', 'panel.features'])->group(function () {
         Route::get('/association-crm', [AssociationCrmController::class, 'index'])->name('association_crm.index');
         Route::get('/association-crm/tickets/live', [AssociationCrmController::class, 'liveTickets'])->name('association_crm.tickets.live');
         Route::post('/association-crm/messages', [AssociationCrmController::class, 'storeMessage'])->name('association_crm.messages.store');
@@ -178,8 +182,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 // ==========================================
 // 🏛️ روت‌های کارتابل و مدیریت پروانه‌های انجمن صنفی
 // ==========================================
-Route::middleware(['auth', 'role:admin,association'])->group(function () {
-    Route::get('/association/dashboard', fn () => redirect()->route('association.pending.index'))->name('association.dashboard');
+Route::middleware(['auth', 'role:admin,association', 'panel.features'])->group(function () {
+    Route::get('/association/dashboard', function (\App\Services\PanelFeatureService $features) {
+        $route = $features->landingRoute('association');
+        abort_unless($route, 403, 'تمام بخش‌های پنل انجمن توسط مدیر سامانه غیرفعال شده‌اند.');
+
+        return redirect()->route($route);
+    })->name('association.dashboard');
     Route::get('/web/association/driver/list', [AssociationController::class, 'index'])->name('association.pending.index');
     Route::post('/web/association/request/process/{id}', [AssociationController::class, 'updateRequestStatus']);
     
