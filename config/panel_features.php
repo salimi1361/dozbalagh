@@ -2,6 +2,7 @@
 
 return [
     'association' => [
+        'dashboard' => ['label' => 'داشبورد انجمن', 'routes' => ['association.dashboard']],
         'requests' => ['label' => 'کارتابل درخواست‌های معلق', 'routes' => ['association.pending.*']],
         'issuance' => ['label' => 'صدور و تخصیص سریال', 'routes' => ['association.approved.*', 'association.permit.assign_serial']],
         'transit' => ['label' => 'مدیریت تردد', 'routes' => ['association.transit.*']],
@@ -11,6 +12,16 @@ return [
         'crm' => ['label' => 'پیام‌ها و CRM انجمن', 'routes' => ['admin.association_crm.*']],
         'print_layouts' => ['label' => 'تنظیمات چاپ دوزوله', 'routes' => ['association.print-layouts.*']],
         'printing' => ['label' => 'چاپ پروانه', 'routes' => ['association.permit.print', 'association.permit.print_item']],
+        'admin_dashboard' => ['label' => 'داشبورد کل ادمین', 'routes' => ['admin.dashboard'], 'default' => false],
+        'companies' => ['label' => 'مدیریت شرکت‌ها', 'routes' => ['admin.companies.*'], 'default' => false],
+        'countries' => ['label' => 'کشورها و مرزها', 'routes' => ['admin.countries.*'], 'default' => false],
+        'inventory' => ['label' => 'انبار سریال دوزوله', 'routes' => ['admin.inventory.*', 'admin.admin.inventory.*'], 'default' => false],
+        'allocations' => ['label' => 'تخصیص سهمیه‌ها', 'routes' => ['admin.allocations.*'], 'default' => false],
+        'drivers' => ['label' => 'مدیریت جامع رانندگان', 'routes' => ['admin.drivers.*', 'admin.web.admin.driver.*'], 'default' => false],
+        'fleets' => ['label' => 'مدیریت جامع ناوگان', 'routes' => ['admin.fleets.*'], 'default' => false],
+        'cargo_rules' => ['label' => 'قوانین مدارک دوزوله', 'routes' => ['admin.cargo_rules.*'], 'default' => false],
+        'admin_financial' => ['label' => 'مدیریت مالی کل', 'routes' => ['admin.financial.*'], 'default' => false],
+        'system_map' => ['label' => 'نقشه جامع سیستم', 'routes' => ['system.map'], 'default' => false],
     ],
     'company' => [
         'dashboard' => ['label' => 'داشبورد', 'routes' => ['dashboard']],

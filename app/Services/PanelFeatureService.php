@@ -22,7 +22,9 @@ class PanelFeatureService
             return false;
         }
 
-        return (bool) data_get($this->storedSettings(), "$role.$feature", true);
+        $default = (bool) ($this->definitions()[$role][$feature]['default'] ?? true);
+
+        return (bool) data_get($this->storedSettings(), "$role.$feature", $default);
     }
 
     public function enabledForRoute(string $role, ?string $routeName): bool
@@ -60,6 +62,7 @@ class PanelFeatureService
     {
         $routes = [
             'association' => [
+                'dashboard' => 'association.dashboard',
                 'requests' => 'association.pending.index',
                 'issuance' => 'association.approved.index',
                 'transit' => 'association.transit.index',

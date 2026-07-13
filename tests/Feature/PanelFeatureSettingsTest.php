@@ -59,6 +59,7 @@ class PanelFeatureSettingsTest extends TestCase
     {
         SystemSetting::setValue('panel_features', [
             'association' => [
+                'dashboard' => false,
                 'requests' => false,
                 'issuance' => false,
                 'transit' => true,
@@ -69,6 +70,25 @@ class PanelFeatureSettingsTest extends TestCase
             'association.transit.index',
             app(PanelFeatureService::class)->landingRoute('association'),
         );
+    }
+
+    public function test_admin_can_delegate_an_admin_module_to_association(): void
+    {
+        $association = $this->userWithRole('association');
+        SystemSetting::setValue('panel_features', [
+            'association' => ['companies' => true],
+        ]);
+
+        $this->actingAs($association)->get(route('admin.companies.index'))->assertOk();
+    }
+
+    public function test_association_cannot_manage_panel_settings(): void
+    {
+        $association = $this->userWithRole('association');
+
+        $this->actingAs($association)
+            ->get(route('admin.settings.panel-features.index'))
+            ->assertForbidden();
     }
 
     private function userWithRole(string $roleName): User

@@ -85,7 +85,11 @@
                 $showAssociationFeature = fn (string $feature) => auth()->user()?->hasRole('admin') || $panelFeatures->enabledForRole('association', $feature);
             @endphp
     
-            @if(auth()->user()?->hasRole('admin'))
+            @if(auth()->user()?->hasRole('association') && $showAssociationFeature('dashboard'))
+            <a href="{{ route('association.dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('association.dashboard') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">🏠 داشبورد انجمن</a>
+            @endif
+
+            @if(auth()->user()?->hasRole('admin') || $showAssociationFeature('admin_dashboard'))
             <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.dashboard') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('admin.dashboard') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
                 داشبورد کل
@@ -148,11 +152,15 @@
             </a>
             @endif
 
-            @if(auth()->user()?->hasRole('admin'))
+            @if($showAssociationFeature('companies'))
             <a href="{{ route('admin.companies.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.companies.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('admin.companies.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                 مدیریت شرکت‌ها
             </a>
+            @endif
+
+            @if(auth()->user()?->hasRole('admin'))
+            <a href="{{ route('admin.association-users.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.association-users.*') ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30' : 'hover:bg-slate-800 hover:text-white' }}">👥 مدیریت کاربران انجمن</a>
             @endif
 
             @if($showAssociationFeature('crm'))
@@ -162,40 +170,60 @@
             </a>
             @endif
             
-            @if(auth()->user()?->hasRole('admin'))
+            @if($showAssociationFeature('countries'))
             <a href="{{ route('admin.countries.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.countries.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('admin.countries.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 کشورها و مرزها
             </a>
-            
+            @endif
+
+            @if($showAssociationFeature('inventory'))
             <a href="{{ route('admin.inventory.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.inventory.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('admin.inventory.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 انبار سریال دوزوله
             </a>
-            
+            @endif
+
+            @if($showAssociationFeature('allocations'))
             <a href="{{ route('admin.allocations.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.allocations.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('admin.allocations.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
                 تخصیص سهمیه‌ها
             </a>
+            @endif
 
+            @if($showAssociationFeature('drivers') || $showAssociationFeature('fleets') || $showAssociationFeature('cargo_rules'))
             <div class="pt-4 mt-2 border-t border-slate-800">
                 <div class="px-4 mb-2 text-xs font-black text-slate-500 tracking-wider">جامعه هدف</div>
-                
+
+                @if($showAssociationFeature('drivers'))
                 <a href="{{ route('admin.drivers.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.drivers.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                     <svg class="w-5 h-5 {{ request()->routeIs('admin.drivers.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                     مدیریت رانندگان
                 </a>
-                
+                @endif
+
+                @if($showAssociationFeature('fleets'))
                 <a href="{{ route('admin.fleets.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.fleets.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                     <svg class="w-5 h-5 {{ request()->routeIs('admin.fleets.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
                     مدیریت ناوگان
                 </a>
+                @endif
 
+                @if($showAssociationFeature('cargo_rules'))
                 <a href="{{ route('admin.cargo_rules.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.cargo_rules.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                     <svg class="w-5 h-5 {{ request()->routeIs('admin.cargo_rules.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                     قوانین مدارک دوزوله
                 </a>
+                @endif
             </div>
+            @endif
+
+            @if($showAssociationFeature('admin_financial'))
+            <a href="{{ route('admin.financial.dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.financial.*') ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'hover:bg-slate-800 hover:text-white' }}">💳 مدیریت مالی کل</a>
+            @endif
+
+            @if($showAssociationFeature('system_map'))
+            <a href="{{ route('system.map') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('system.map') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">🗺️ نقشه جامع سیستم</a>
             @endif
 
             @if(auth()->user()?->hasRole('admin') || $showAssociationFeature('print_layouts'))

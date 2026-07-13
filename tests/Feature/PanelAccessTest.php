@@ -24,16 +24,14 @@ class PanelAccessTest extends TestCase
         $admin = $this->userWithRole('admin');
 
         $this->actingAs($admin)->get(route('admin.dashboard'))->assertOk();
-        $this->actingAs($admin)->get(route('association.dashboard'))
-            ->assertRedirect(route('association.pending.index'));
+        $this->actingAs($admin)->get(route('association.dashboard'))->assertOk();
     }
 
     public function test_association_cannot_enter_admin_or_company_panels(): void
     {
         $association = $this->userWithRole('association');
 
-        $this->actingAs($association)->get(route('association.dashboard'))
-            ->assertRedirect(route('association.pending.index'));
+        $this->actingAs($association)->get(route('association.dashboard'))->assertOk();
         $this->actingAs($association)->get(route('admin.dashboard'))->assertForbidden();
         $this->actingAs($association)->get(route('dashboard'))->assertForbidden();
     }

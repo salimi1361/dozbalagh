@@ -14,6 +14,8 @@ use App\Http\Controllers\Admin\{
 };
 use App\Http\Controllers\Admin\AssociationCrmController;
 use App\Http\Controllers\Admin\PanelFeatureController;
+use App\Http\Controllers\Admin\AssociationUserController;
+use App\Http\Controllers\Association\DashboardController as AssociationDashboardController;
 use App\Http\Controllers\Association\AssociationController;
 use App\Http\Controllers\Association\ReportController as AssociationReportController;
 use App\Http\Controllers\Association\IssuedDozbalaghFinancialReportController;
@@ -33,7 +35,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // پنل ادمین (یکپارچه و ایمن شده)
 // ==========================================
 Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
-    Route::middleware('role:admin')->group(function () {
+    Route::middleware(['role:admin,association', 'panel.features'])->group(function () {
     
     // 📊 داشبورد کل ادمین
     Route::get('/dashboard', function () {
@@ -163,8 +165,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::get('/financial/dozbalagh-monthly-report', [FinancialController::class, 'exportMonthlyDozbalaghReport'])->name('financial.dozbalaghMonthlyReport');
     Route::delete('/financial/manual-adjustment/{id}', [FinancialController::class, 'destroyAdjustment'])->name('financial.destroyAdjustment');
 
-    Route::get('/settings/panel-features', [PanelFeatureController::class, 'index'])->name('settings.panel-features.index');
-    Route::put('/settings/panel-features', [PanelFeatureController::class, 'update'])->name('settings.panel-features.update');
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/settings/panel-features', [PanelFeatureController::class, 'index'])->name('settings.panel-features.index');
+        Route::put('/settings/panel-features', [PanelFeatureController::class, 'update'])->name('settings.panel-features.update');
+        Route::get('/association-users', [AssociationUserController::class, 'index'])->name('association-users.index');
+        Route::post('/association-users', [AssociationUserController::class, 'store'])->name('association-users.store');
+        Route::put('/association-users/{user}', [AssociationUserController::class, 'update'])->name('association-users.update');
+    });
 
     });
 
@@ -183,12 +190,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 // 🏛️ روت‌های کارتابل و مدیریت پروانه‌های انجمن صنفی
 // ==========================================
 Route::middleware(['auth', 'role:admin,association', 'panel.features'])->group(function () {
-    Route::get('/association/dashboard', function (\App\Services\PanelFeatureService $features) {
-        $route = $features->landingRoute('association');
-        abort_unless($route, 403, 'تمام بخش‌های پنل انجمن توسط مدیر سامانه غیرفعال شده‌اند.');
-
-        return redirect()->route($route);
-    })->name('association.dashboard');
+    Route::get('/association/dashboard', [AssociationDashboardController::class, 'index'])->name('association.dashboard');
     Route::get('/web/association/driver/list', [AssociationController::class, 'index'])->name('association.pending.index');
     Route::post('/web/association/request/process/{id}', [AssociationController::class, 'updateRequestStatus']);
     
@@ -233,4 +235,4 @@ Route::middleware(['auth', 'role:admin,association', 'panel.features'])->group(f
 // ==========================================
 // 🗺️ روت اختصاصی و مستقل نقشه جامع سیستم
 // ==========================================
-Route::get('/system-map', \App\Http\Controllers\SystemMapController::class)->middleware(['auth', 'role:admin'])->name('system.map');
+Route::get('/system-map', \App\Http\Controllers\SystemMapController::class)->middleware(['auth', 'role:admin,association', 'panel.features'])->name('system.map');

@@ -1,13 +1,13 @@
 @extends('layouts.admin')
 
-@section('header_title', 'داشبورد کل سامانه')
+@section('header_title', auth()->user()?->hasRole('association') ? 'داشبورد انجمن' : 'داشبورد کل سامانه')
 
 @section('content')
 <script src="{{ asset('assets/js/apexcharts.js') }}"></script>
 
 <div class="space-y-8">
     <div class="flex flex-col gap-1">
-        <h1 class="text-2xl font-black text-slate-900">داشبورد کل سامانه</h1>
+        <h1 class="text-2xl font-black text-slate-900">{{ auth()->user()?->hasRole('association') ? 'داشبورد انجمن' : 'داشبورد کل سامانه' }}</h1>
         <p class="text-sm text-slate-500 font-semibold">خلاصه وضعیت واقعی درخواست‌ها، ناوگان، شرکت‌ها و موجودی انبار</p>
     </div>
 
