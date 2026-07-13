@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#0f172a">
     <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <title>{{ auth()->user()?->hasRole('admin') ? 'پنل مدیریت کل' : 'پنل انجمن' }} - سامانه جامع دوزوله</title>
-    
+
     <script src="{{ asset('assets/js/tailwindcss.js') }}"></script>
     <link rel="stylesheet" href="{{ asset('assets/css/iran-plate.css') }}">
     @vite(['resources/js/app.js'])
@@ -44,6 +44,9 @@
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .sidebar-tree summary::-webkit-details-marker { display: none; }
+        .sidebar-tree .tree-arrow { transition: transform .2s ease; }
+        .sidebar-tree[open] .tree-arrow { transform: rotate(180deg); }
 
         #sidebar { width: 16rem; }
         @media (min-width: 768px) {
@@ -65,6 +68,11 @@
             #sidebar:not(.sidebar-open) #subDozbalaghMenu,
             #sidebar:not(.sidebar-open) #subSettingsMenu,
             #sidebar:not(.sidebar-open) nav > .pt-4 > div:first-child { display: none; }
+            #sidebar:not(.sidebar-open) .sidebar-tree summary { justify-content: center; font-size: 0; padding-left: 0; padding-right: 0; }
+            #sidebar:not(.sidebar-open) .sidebar-tree summary span:first-child { font-size: 1.1rem; }
+            #sidebar:not(.sidebar-open) .sidebar-tree summary span:first-child { max-width: 1.5rem; overflow: hidden; white-space: nowrap; }
+            #sidebar:not(.sidebar-open) .sidebar-tree .tree-arrow,
+            #sidebar:not(.sidebar-open) .sidebar-tree > div { display: none; }
         }
     </style>
 </head>
@@ -139,6 +147,10 @@
             </div>
             @endif
 
+            @if($showAssociationFeature('reports') || $showAssociationFeature('financial'))
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('association.reports.*', 'association.issued-financial.*')) open @endif>
+                <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800 hover:text-white"><span>📊 گزارش‌های انجمن</span><span class="tree-arrow text-xs">⌄</span></summary>
+                <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
             @if($showAssociationFeature('reports'))
             <a href="{{ route('association.reports.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('association.reports.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('association.reports.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6m4 6V7m4 10v-3M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
@@ -154,7 +166,14 @@
                 مبالغ دوزوله‌های صادرشده
             </a>
             @endif
+                </div>
+            </details>
+            @endif
 
+            @if($showAssociationFeature('companies') || auth()->user()?->hasRole('admin') || $showAssociationFeature('crm'))
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('admin.companies.*', 'admin.association-users.*', 'admin.reports.pwa-installations.*', 'admin.association_crm.*')) open @endif>
+                <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800 hover:text-white"><span>🏢 اعضا و ارتباطات</span><span class="tree-arrow text-xs">⌄</span></summary>
+                <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
             @if($showAssociationFeature('companies'))
             <a href="{{ route('admin.companies.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.companies.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('admin.companies.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
@@ -173,7 +192,14 @@
                 CRM انجمن
             </a>
             @endif
-            
+                </div>
+            </details>
+            @endif
+
+            @if($showAssociationFeature('countries') || $showAssociationFeature('inventory') || $showAssociationFeature('allocations'))
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('admin.countries.*', 'admin.inventory.*', 'admin.allocations.*')) open @endif>
+                <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800 hover:text-white"><span>📦 منابع و سهمیه</span><span class="tree-arrow text-xs">⌄</span></summary>
+                <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
             @if($showAssociationFeature('countries'))
             <a href="{{ route('admin.countries.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.countries.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('admin.countries.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -194,10 +220,14 @@
                 تخصیص سهمیه‌ها
             </a>
             @endif
+                </div>
+            </details>
+            @endif
 
             @if($showAssociationFeature('drivers') || $showAssociationFeature('fleets') || $showAssociationFeature('cargo_rules'))
-            <div class="pt-4 mt-2 border-t border-slate-800">
-                <div class="px-4 mb-2 text-xs font-black text-slate-500 tracking-wider">جامعه هدف</div>
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('admin.drivers.*', 'admin.fleets.*', 'admin.cargo_rules.*')) open @endif>
+                <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800 hover:text-white"><span>🚚 رانندگان و ناوگان</span><span class="tree-arrow text-xs">⌄</span></summary>
+                <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
 
                 @if($showAssociationFeature('drivers'))
                 <a href="{{ route('admin.drivers.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.drivers.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
@@ -219,15 +249,23 @@
                     قوانین مدارک دوزوله
                 </a>
                 @endif
-            </div>
+                </div>
+            </details>
             @endif
 
+            @if($showAssociationFeature('admin_financial') || $showAssociationFeature('system_map'))
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('admin.financial.*', 'system.map')) open @endif>
+                <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800 hover:text-white"><span>🛡️ مدیریت کل</span><span class="tree-arrow text-xs">⌄</span></summary>
+                <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
             @if($showAssociationFeature('admin_financial'))
             <a href="{{ route('admin.financial.dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.financial.*') ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'hover:bg-slate-800 hover:text-white' }}">💳 مدیریت مالی کل</a>
             @endif
 
             @if($showAssociationFeature('system_map'))
             <a href="{{ route('system.map') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('system.map') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">🗺️ نقشه جامع سیستم</a>
+            @endif
+                </div>
+            </details>
             @endif
 
             @if(auth()->user()?->hasRole('admin') || $showAssociationFeature('print_layouts'))
