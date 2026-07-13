@@ -20,6 +20,7 @@ class AssociationCrmTest extends TestCase
     public function test_admin_can_publish_message_and_company_can_acknowledge_and_create_ticket(): void
     {
         $role = Role::create(['name' => 'admin', 'title_fa' => 'مدیر']);
+        $companyRole = Role::create(['name' => 'company', 'title_fa' => 'شرکت']);
         $admin = User::create([
             'role_id' => $role->id,
             'username' => 'admin',
@@ -28,7 +29,7 @@ class AssociationCrmTest extends TestCase
         ]);
 
         $companyUser = User::create([
-            'role_id' => $role->id,
+            'role_id' => $companyRole->id,
             'username' => 'company',
             'password' => Hash::make('secret'),
             'status' => 'active',

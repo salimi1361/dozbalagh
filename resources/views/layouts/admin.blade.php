@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>پنل مدیریت کل - سامانه جامع دوزوله</title>
+    <title>{{ auth()->user()?->hasRole('admin') ? 'پنل مدیریت کل' : 'پنل انجمن' }} - سامانه جامع دوزوله</title>
     
     <script src="{{ asset('assets/js/tailwindcss.js') }}"></script>
     <link rel="stylesheet" href="{{ asset('assets/css/iran-plate.css') }}">
@@ -75,16 +75,18 @@
             <img src="{{ asset('images/logo1.png') }}" alt="لوگو" class="h-16 w-auto drop-shadow-lg">
             <div class="mr-2 flex flex-col">
                 <span class="text-white font-black text-sm tracking-wide">مدیریت دوزوله</span>
-                <span class="text-slate-500 text-[10px] font-bold">انجمن خراسان رضوی</span>
+                <span class="text-slate-500 text-[10px] font-bold">{{ auth()->user()?->hasRole('admin') ? 'مدیریت کل سامانه' : 'انجمن خراسان رضوی' }}</span>
             </div>
         </div>
 
         <nav class="flex-1 overflow-y-auto py-6 px-3 space-y-1.5">
     
+            @if(auth()->user()?->hasRole('admin'))
             <a href="{{ route('admin.dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.dashboard') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('admin.dashboard') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
                 داشبورد کل
             </a>
+            @endif
 
             <div class="relative">
                 @php 
@@ -128,16 +130,19 @@
                 مبالغ دوزوله‌های صادرشده
             </a>
 
+            @if(auth()->user()?->hasRole('admin'))
             <a href="{{ route('admin.companies.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.companies.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('admin.companies.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                 مدیریت شرکت‌ها
             </a>
+            @endif
 
             <a href="{{ route('admin.association_crm.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.association_crm.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('admin.association_crm.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h8M8 14h5m-9 7l3.5-3.5H19a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10.5a2 2 0 002 2H4v3.5z"></path></svg>
                 CRM انجمن
             </a>
             
+            @if(auth()->user()?->hasRole('admin'))
             <a href="{{ route('admin.countries.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.countries.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">
                 <svg class="w-5 h-5 {{ request()->routeIs('admin.countries.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 کشورها و مرزها
@@ -171,6 +176,7 @@
                     قوانین مدارک دوزوله
                 </a>
             </div>
+            @endif
 
             <div class="relative pt-2 mt-2 border-t border-slate-800">
                 @php $isSettingsActive = request()->routeIs('association.print-layouts.*'); @endphp
@@ -193,7 +199,7 @@
                 <button onclick="toggleSidebar()" aria-label="باز و بسته کردن منو" aria-controls="sidebar" aria-expanded="true" class="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors focus:outline-none">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
-                <h1 class="text-lg sm:text-xl font-black text-slate-800 hidden sm:block">@yield('header_title', 'سامانه مدیریت دوزوله')</h1>
+                <h1 class="text-lg sm:text-xl font-black text-slate-800 hidden sm:block">@yield('header_title', auth()->user()?->hasRole('admin') ? 'مدیریت کل سامانه' : 'پنل انجمن')</h1>
             </div>
 
             <div class="flex items-center gap-3 sm:gap-4">

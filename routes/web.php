@@ -32,6 +32,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 // پنل ادمین (یکپارچه و ایمن شده)
 // ==========================================
 Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
+    Route::middleware('role:admin')->group(function () {
     
     // 📊 داشبورد کل ادمین
     Route::get('/dashboard', function () {
@@ -154,28 +155,31 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::delete('/fleets/{id}', [FleetController::class, 'destroy'])->name('fleets.destroy');
     
     // 🏛️ مدیریت مالی ادمین
-    Route::middleware('role:admin')->group(function () {
-        Route::get('/financial/dashboard', [FinancialController::class, 'dashboard'])->name('financial.dashboard');
-        Route::post('/financial/store-settlement', [FinancialController::class, 'storeSettlement'])->name('financial.storeSettlement');
-        Route::post('/financial/manual-adjustment', [FinancialController::class, 'manualAdjustment'])->name('financial.manualAdjustment');
-        Route::get('/financial/export-excel', [FinancialController::class, 'exportExcel'])->name('financial.exportExcel');
-        Route::get('/financial/dozbalagh-monthly-report', [FinancialController::class, 'exportMonthlyDozbalaghReport'])->name('financial.dozbalaghMonthlyReport');
-        Route::delete('/financial/manual-adjustment/{id}', [FinancialController::class, 'destroyAdjustment'])->name('financial.destroyAdjustment');
+    Route::get('/financial/dashboard', [FinancialController::class, 'dashboard'])->name('financial.dashboard');
+    Route::post('/financial/store-settlement', [FinancialController::class, 'storeSettlement'])->name('financial.storeSettlement');
+    Route::post('/financial/manual-adjustment', [FinancialController::class, 'manualAdjustment'])->name('financial.manualAdjustment');
+    Route::get('/financial/export-excel', [FinancialController::class, 'exportExcel'])->name('financial.exportExcel');
+    Route::get('/financial/dozbalagh-monthly-report', [FinancialController::class, 'exportMonthlyDozbalaghReport'])->name('financial.dozbalaghMonthlyReport');
+    Route::delete('/financial/manual-adjustment/{id}', [FinancialController::class, 'destroyAdjustment'])->name('financial.destroyAdjustment');
+
     });
 
-    Route::get('/association-crm', [AssociationCrmController::class, 'index'])->name('association_crm.index');
-    Route::get('/association-crm/tickets/live', [AssociationCrmController::class, 'liveTickets'])->name('association_crm.tickets.live');
-    Route::post('/association-crm/messages', [AssociationCrmController::class, 'storeMessage'])->name('association_crm.messages.store');
-    Route::put('/association-crm/messages/{message}/toggle', [AssociationCrmController::class, 'toggleMessage'])->name('association_crm.messages.toggle');
-    Route::delete('/association-crm/messages/{message}', [AssociationCrmController::class, 'destroyMessage'])->name('association_crm.messages.destroy');
-    Route::put('/association-crm/tickets/{ticket}', [AssociationCrmController::class, 'updateTicket'])->name('association_crm.tickets.update');
+    Route::middleware('role:admin,association')->group(function () {
+        Route::get('/association-crm', [AssociationCrmController::class, 'index'])->name('association_crm.index');
+        Route::get('/association-crm/tickets/live', [AssociationCrmController::class, 'liveTickets'])->name('association_crm.tickets.live');
+        Route::post('/association-crm/messages', [AssociationCrmController::class, 'storeMessage'])->name('association_crm.messages.store');
+        Route::put('/association-crm/messages/{message}/toggle', [AssociationCrmController::class, 'toggleMessage'])->name('association_crm.messages.toggle');
+        Route::delete('/association-crm/messages/{message}', [AssociationCrmController::class, 'destroyMessage'])->name('association_crm.messages.destroy');
+        Route::put('/association-crm/tickets/{ticket}', [AssociationCrmController::class, 'updateTicket'])->name('association_crm.tickets.update');
+    });
     
 });
 
 // ==========================================
 // 🏛️ روت‌های کارتابل و مدیریت پروانه‌های انجمن صنفی
 // ==========================================
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'role:admin,association'])->group(function () {
+    Route::get('/association/dashboard', fn () => redirect()->route('association.pending.index'))->name('association.dashboard');
     Route::get('/web/association/driver/list', [AssociationController::class, 'index'])->name('association.pending.index');
     Route::post('/web/association/request/process/{id}', [AssociationController::class, 'updateRequestStatus']);
     
@@ -220,4 +224,4 @@ Route::middleware(['auth'])->group(function () {
 // ==========================================
 // 🗺️ روت اختصاصی و مستقل نقشه جامع سیستم
 // ==========================================
-Route::get('/system-map', \App\Http\Controllers\SystemMapController::class)->middleware(['auth'])->name('system.map');
+Route::get('/system-map', \App\Http\Controllers\SystemMapController::class)->middleware(['auth', 'role:admin'])->name('system.map');

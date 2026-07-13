@@ -43,4 +43,14 @@ class User extends Authenticatable
     {
         return $this->hasOne(Driver::class);
     }
+
+    public function hasRole(string ...$roles): bool
+    {
+        return in_array($this->role?->name, $roles, true);
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
 }

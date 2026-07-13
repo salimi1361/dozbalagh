@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Routing\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 class AuthController extends Controller
 {
@@ -13,11 +14,15 @@ class AuthController extends Controller
     {
         // اگر کاربر قبلاً لاگین بود، بر اساس نوع کاربری هدایتش کن
         if (Auth::check()) {
-            $user = Auth::user();
-            if ($user->company) {
-                return redirect()->route('dashboard'); // هدایت به پنل شرکت
+            if (! Auth::user()->isActive()) {
+                Auth::logout();
+
+                return redirect()->route('login')->withErrors([
+                    'username' => 'حساب کاربری شما فعال نیست.',
+                ]);
             }
-            return redirect()->route('admin.dashboard')->with('success', 'به پنل مدیریت سامانه خوش آمدید!');        
+
+            return $this->redirectToPanel(Auth::user());
         }
         
         return view('auth.login');
@@ -39,6 +44,7 @@ class AuthController extends Controller
         $credentials = [
             'username' => $request->username,
             'password' => $request->password,
+            'status' => 'active',
         ];
 
         // ۳. تلاش برای لاگین
@@ -46,16 +52,7 @@ class AuthController extends Controller
             // جلوگیری از حملات Session Fixation
             $request->session()->regenerate();
 
-            $user = Auth::user();
-
-            // ۴. بررسی نقش کاربر و هدایت به مسیر درست
-            if ($user->company) {
-                // اگر رکوردی در جدول شرکت‌ها داشت، به داشبورد اختصاصی شرکت برود
-                return redirect()->route('dashboard')->with('success', 'به پنل کاربری خوش آمدید!');
-            }
-
-            // 🔴 اصلاح مهم: در غیر این صورت ادمین است و باید به داشبورد کل برود
-            return redirect()->route('admin.dashboard')->with('success', 'به پنل مدیریت سامانه خوش آمدید!');
+            return $this->redirectToPanel(Auth::user());
         }
 
         // ۵. اگر اطلاعات غلط بود
@@ -72,5 +69,24 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/login')->with('success', 'با موفقیت از سامانه خارج شدید.');
+    }
+
+    private function redirectToPanel(User $user)
+    {
+        return match ($user->role?->name) {
+            'admin' => redirect()->route('admin.dashboard')->with('success', 'به پنل مدیریت کل سامانه خوش آمدید!'),
+            'association' => redirect()->route('association.dashboard')->with('success', 'به پنل انجمن خوش آمدید!'),
+            'company' => redirect()->route('dashboard')->with('success', 'به پنل شرکت خوش آمدید!'),
+            default => $this->logoutUnsupportedUser(),
+        };
+    }
+
+    private function logoutUnsupportedUser()
+    {
+        Auth::logout();
+
+        return redirect()->route('login')->withErrors([
+            'username' => 'برای نقش این کاربر پنل وب تعریف نشده است.',
+        ]);
     }
 }
