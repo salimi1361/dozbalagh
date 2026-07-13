@@ -60,6 +60,20 @@ class NotificationController extends Controller
         ]);
     }
 
+    public function markAllAsRead(Request $request)
+    {
+        $request->user()
+            ->unreadNotifications()
+            ->get()
+            ->filter(fn ($notification) => ($notification->data['type'] ?? null) !== 'company_message')
+            ->each(fn ($notification) => $notification->markAsRead());
+
+        return response()->json([
+            'status' => 'success',
+            'unread_count' => 0,
+        ]);
+    }
+
     public function destroy(Request $request, string $id)
     {
         $notification = $request->user()

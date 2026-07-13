@@ -697,12 +697,17 @@ function fetchPermits() {
                     <div class="permit-card__dates">
                         ${datePairHtml('صدور', p.issue_date_jalali || p.issue_date, p.issue_date_gregorian)}
                     </div>
+                    ${p.fleet_plate ? `<div class="permit-card__plate">${renderPlate(p.fleet_plate)}</div>` : ''}
                     <div class="permit-card__row">
                         <span>شرکت: <b>${displayValue(p.company_name)}</b></span>
-                        <span>ناوگان: <b>${displayValue(p.fleet_plate || p.truck_type)}</b></span>
+                        <span>ناوگان: <b>${displayValue(p.truck_type || p.fleet_plate)}</b></span>
                     </div>
+                    <button type="button" class="permit-card__view-btn" onclick="event.stopPropagation(); ${p.print_copy_endpoint ? `openPermitCopy('${escapeHtml(p.print_copy_endpoint)}')` : `showPermitDetail(${p.id})`}">
+                        <span>مشاهده دوزوله</span>
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
                     <div class="permit-card__hint">
-                        <span>برای مشاهده اطلاعات کامل لمس کنید</span>
+                        <span>برای جزئیات کامل کارت را لمس کنید</span>
                         <i class="fa-solid fa-chevron-left"></i>
                     </div>
                 </div>
@@ -747,21 +752,29 @@ function fetchNotifications(silent = false) {
                 return;
             }
 
-            const latest = notificationsCache[0];
             const unreadCount = Number(data.unread_count || 0);
-            container.innerHTML = `
-                <button type="button" class="notification-summary-card ${unreadCount > 0 ? 'is-unread' : ''}" onclick="showNotificationsModal()">
-                    <span class="notification-summary-card__icon"><i class="fa-solid fa-bell"></i></span>
-                    <span class="notification-card__body">
-                        <b>${unreadCount > 0 ? `${unreadCount.toLocaleString('fa-IR')} اعلان خوانده‌نشده` : 'اعلان‌های راننده'}</b>
-                        <small>${displayValue(latest.message || 'برای مشاهده اعلان‌ها لمس کنید.')}</small>
-                    </span>
-                    <span class="notification-summary-card__action">مشاهده</span>
-                </button>`;
+            renderNotificationsSummary(container, unreadCount);
         })
         .catch(() => {
             if (container && !silent) container.innerHTML = emptyNotificationsHtml();
         });
+}
+
+function renderNotificationsSummary(container, unreadCount = null) {
+    const latest = notificationsCache[0];
+    const count = unreadCount === null
+        ? notificationsCache.filter(item => !item.read_at).length
+        : Number(unreadCount || 0);
+
+    container.innerHTML = `
+        <button type="button" class="notification-summary-card ${count > 0 ? 'is-unread' : ''}" onclick="showNotificationsModal()">
+            <span class="notification-summary-card__icon"><i class="fa-solid fa-bell"></i></span>
+            <span class="notification-card__body">
+                <b>${count > 0 ? `${count.toLocaleString('fa-IR')} اعلان خوانده‌نشده` : 'اعلان‌های راننده'}</b>
+                <small>${displayValue(latest?.message || 'برای مشاهده اعلان‌ها لمس کنید.')}</small>
+            </span>
+            <span class="notification-summary-card__action">مشاهده</span>
+        </button>`;
 }
 
 function emptyNotificationsHtml() {
@@ -872,6 +885,7 @@ function emptyCompanyMessagesHtml() {
 }
 
 function openNotification(id, permitId) {
+    markNotificationReadLocally(id);
     fetch(`${API_BASE}/notifications/${id}/read`, {
         method: 'POST',
         headers: authHeaders(),
@@ -885,6 +899,7 @@ function openNotification(id, permitId) {
 }
 
 function openCompanyMessageNotification(notificationId, messageId) {
+    markNotificationReadLocally(notificationId);
     fetch(`${API_BASE}/notifications/${notificationId}/read`, {
         method: 'POST',
         headers: authHeaders(),
@@ -903,6 +918,46 @@ function openCompanyMessageNotification(notificationId, messageId) {
     renderDashboard();
     fetchCompanyMessages(true);
     if (key) setTimeout(() => openCompanyChat(key), 80);
+}
+
+function markNotificationReadLocally(id) {
+    const item = notificationsCache.find(notification => String(notification.id) === String(id));
+    if (item && !item.read_at) item.read_at = new Date().toISOString();
+    refreshNotificationsBadge();
+}
+
+function markVisibleNotificationsRead() {
+    const unreadItems = notificationsCache.filter(item => !item.read_at);
+    if (unreadItems.length === 0) return;
+
+    unreadItems.forEach(item => {
+        item.read_at = item.read_at || new Date().toISOString();
+    });
+
+    refreshNotificationsBadge();
+    const container = document.getElementById('notifications-container');
+    if (container) renderNotificationsSummary(container, 0);
+    fetch(`${API_BASE}/notifications/read-all`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({}),
+    })
+        .then(() => fetchNotifications(true))
+        .catch(() => {
+            unreadItems.forEach(item => {
+                fetch(`${API_BASE}/notifications/${item.id}/read`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({}),
+                }).catch(() => {});
+            });
+        });
+}
+
+function refreshNotificationsBadge() {
+    const unreadCount = notificationsCache.filter(item => !item.read_at).length;
+    const badge = document.getElementById('notifications-unread-badge');
+    if (badge) badge.textContent = unreadCount.toLocaleString('fa-IR');
 }
 
 function openCompanyMessage(messageId) {
@@ -1080,6 +1135,7 @@ function deleteNotification(id, event) {
 }
 
 function showNotificationsModal() {
+    markVisibleNotificationsRead();
     const items = notificationsCache.length
         ? notificationsCache
         : [];
