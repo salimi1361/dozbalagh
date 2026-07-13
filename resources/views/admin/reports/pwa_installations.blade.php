@@ -46,8 +46,8 @@
                             <td class="px-4 py-4"><span class="rounded-full px-2.5 py-1 text-xs font-bold {{ $item->is_installed ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600' }}">{{ $item->is_installed ? 'نصب‌شده' : 'فقط مرورگر' }}</span><div class="mt-2 text-xs {{ $active ? 'text-emerald-600' : 'text-amber-600' }}">{{ $active ? 'فعال' : 'غیرفعال' }}</div></td>
                             <td class="px-4 py-4">{{ ['mobile'=>'موبایل','tablet'=>'تبلت','desktop'=>'رومیزی','unknown'=>'نامشخص'][$item->device_type] ?? 'نامشخص' }}@if($item->is_standalone)<div class="text-xs text-sky-600">اجرای standalone</div>@endif</td>
                             <td class="px-4 py-4">{{ $item->browser ?: 'نامشخص' }}<div class="text-xs text-slate-400">{{ $item->platform ?: 'نامشخص' }}</div></td>
-                            <td class="px-4 py-4">{{ $item->installed_at?->format('Y-m-d H:i') ?: '—' }}</td>
-                            <td class="px-4 py-4">{{ $item->last_seen_at?->format('Y-m-d H:i') }}</td>
+                            <td class="px-4 py-4" dir="ltr">{{ $item->installed_at ? verta($item->installed_at)->format('Y/m/d H:i') : '—' }}</td>
+                            <td class="px-4 py-4" dir="ltr">{{ $item->last_seen_at ? verta($item->last_seen_at)->format('Y/m/d H:i') : '—' }}</td>
                         </tr>
                     @empty
                         <tr><td colspan="7" class="px-4 py-12 text-center font-bold text-slate-400">هنوز اطلاعاتی ثبت نشده است.</td></tr>

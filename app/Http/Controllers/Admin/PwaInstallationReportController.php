@@ -8,6 +8,7 @@ use App\Models\PwaInstallation;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Morilog\Jalali\Jalalian;
 
 class PwaInstallationReportController extends Controller
 {
@@ -27,10 +28,15 @@ class PwaInstallationReportController extends Controller
         $users = User::with('company')->whereIn('id', $userIds)->get()->keyBy('id');
         $drivers = Driver::whereIn('id', $driverIds)->get()->keyBy('id');
 
+        $jalaliNow = Jalalian::now();
+        $jalaliMonthStart = (new Jalalian($jalaliNow->getYear(), $jalaliNow->getMonth(), 1))
+            ->toCarbon()
+            ->startOfDay();
+
         $stats = [
             'devices' => PwaInstallation::where('is_installed', true)->count(),
             'users' => PwaInstallation::where('is_installed', true)->select('actor_type', 'actor_id')->distinct()->get()->count(),
-            'month' => PwaInstallation::where('installed_at', '>=', now()->startOfMonth())->count(),
+            'month' => PwaInstallation::where('installed_at', '>=', $jalaliMonthStart)->count(),
             'active' => PwaInstallation::where('is_installed', true)->where('last_seen_at', '>=', now()->subDays(30))->count(),
         ];
 
