@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\{
 use App\Http\Controllers\Admin\AssociationCrmController;
 use App\Http\Controllers\Admin\PanelFeatureController;
 use App\Http\Controllers\Admin\AssociationUserController;
+use App\Http\Controllers\Admin\PwaInstallationReportController;
 use App\Http\Controllers\Association\DashboardController as AssociationDashboardController;
 use App\Http\Controllers\Association\AssociationController;
 use App\Http\Controllers\Association\ReportController as AssociationReportController;
@@ -30,6 +31,7 @@ Route::get('/', fn() => redirect()->route('login'));
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::post('/pwa/installations', [\App\Http\Controllers\PwaInstallationController::class, 'store'])->middleware('auth')->name('pwa.installations.store');
 
 // ==========================================
 // پنل ادمین (یکپارچه و ایمن شده)
@@ -171,6 +173,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
         Route::get('/association-users', [AssociationUserController::class, 'index'])->name('association-users.index');
         Route::post('/association-users', [AssociationUserController::class, 'store'])->name('association-users.store');
         Route::put('/association-users/{user}', [AssociationUserController::class, 'update'])->name('association-users.update');
+        Route::get('/reports/pwa-installations', [PwaInstallationReportController::class, 'index'])->name('reports.pwa-installations.index');
     });
 
     });

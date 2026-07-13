@@ -1,5 +1,5 @@
 // 👈 تغییر دادن این شماره نسخه در آینده، کِش تمام راننده‌ها را فوراً آپدیت می‌کند
-const CACHE_NAME = 'dozoleh-driver-v6.4';
+const CACHE_NAME = 'dozoleh-driver-v6.5';
 const ASSETS = [
     '/driver/',
     '/driver/index.html',
@@ -25,7 +25,7 @@ self.addEventListener('activate', (e) => {
         caches.keys().then((keys) => {
             return Promise.all(
                 keys.map((key) => {
-                    if (key !== CACHE_NAME) {
+                    if (key.startsWith('dozoleh-driver-') && key !== CACHE_NAME) {
                         return caches.delete(key); // 👈 پاک کردن کش‌های قدیمی
                     }
                 })

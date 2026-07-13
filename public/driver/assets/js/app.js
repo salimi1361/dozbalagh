@@ -20,6 +20,7 @@ window.addEventListener('beforeinstallprompt', event => {
 window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
     localStorage.setItem('driver_app_installed', 'true');
+    recordDriverPwaInstallation('installed');
     renderOpenInstalledAppHint();
 });
 
@@ -41,6 +42,8 @@ function initApp() {
         return;
     }
 
+    recordDriverPwaInstallation(isStandaloneApp() ? 'standalone' : 'seen');
+
     document.getElementById('bottom-navigation').classList.remove('hidden');
     main.classList.remove('is-centered');
     startNotificationPolling();
@@ -57,6 +60,37 @@ function registerServiceWorker() {
 
 function isStandaloneApp() {
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+function driverPwaDeviceUuid() {
+    let id = localStorage.getItem('driver_pwa_device_uuid');
+    if (!id) {
+        id = window.crypto?.randomUUID?.() || `driver-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        localStorage.setItem('driver_pwa_device_uuid', id);
+    }
+    return id;
+}
+
+function recordDriverPwaInstallation(event) {
+    const token = localStorage.getItem('driver_token');
+    if (!token) return;
+    const lastSeen = Number(localStorage.getItem('driver_pwa_last_seen') || 0);
+    if (event === 'seen' && Date.now() - lastSeen < 6 * 60 * 60 * 1000) return;
+    const ua = navigator.userAgent;
+    const deviceType = /ipad|tablet/i.test(ua) ? 'tablet' : /mobile|android|iphone|ipod/i.test(ua) ? 'mobile' : 'desktop';
+    const browser = /edg/i.test(ua) ? 'Edge' : /chrome|crios/i.test(ua) ? 'Chrome' : /safari/i.test(ua) ? 'Safari' : /firefox|fxios/i.test(ua) ? 'Firefox' : 'Other';
+
+    fetch(`${API_BASE}/pwa-installations`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+            device_uuid: driverPwaDeviceUuid(),
+            event,
+            device_type: deviceType,
+            browser,
+            platform: navigator.userAgentData?.platform || navigator.platform || 'unknown',
+        }),
+    }).then(() => localStorage.setItem('driver_pwa_last_seen', String(Date.now()))).catch(() => {});
 }
 
 function shouldShowInstallGate() {
@@ -1380,6 +1414,7 @@ function handleVerifyOtp(mobile) {
                 if (otpAbortController) otpAbortController.abort();
                 localStorage.setItem('driver_token', data.token);
                 localStorage.setItem('driver_info', JSON.stringify(data.driver));
+                recordDriverPwaInstallation(isStandaloneApp() ? 'standalone' : 'seen');
                 document.getElementById('bottom-navigation').classList.remove('hidden');
                 document.getElementById('main-content').classList.remove('is-centered');
                 showToast('ورود موفق.', 'success');

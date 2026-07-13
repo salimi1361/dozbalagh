@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <title>پنل شرکت - سامانه جامع دوزوله </title>
     
     <link class="hidden" rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
@@ -172,6 +175,7 @@
                         </div>
                         
                         <div class="p-2">
+                            <button type="button" data-pwa-install class="hidden flex items-center gap-2 w-full px-3 py-2.5 text-sm text-sky-700 font-bold hover:bg-sky-50 rounded-xl transition">📲 نصب وب‌اپلیکیشن</button>
                             @if($panelFeatures->enabledForRole('company', 'profile'))
                             <a href="{{ route('company.profile.edit') }}" class="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-slate-600 font-bold hover:bg-slate-50 rounded-xl transition">
                                 <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
@@ -201,6 +205,7 @@
 
     <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
     <script src="{{ asset('assets/js/iran-plate.js') }}"></script>
+    <script src="{{ asset('assets/js/pwa-tracker.js') }}"></script>
     <script>
         function toggleSidebar() {
             const desktop = window.matchMedia('(min-width: 768px)').matches;

@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="manifest" href="{{ asset('manifest.webmanifest') }}">
     <title>{{ auth()->user()?->hasRole('admin') ? 'پنل مدیریت کل' : 'پنل انجمن' }} - سامانه جامع دوزوله</title>
     
     <script src="{{ asset('assets/js/tailwindcss.js') }}"></script>
@@ -161,6 +164,7 @@
 
             @if(auth()->user()?->hasRole('admin'))
             <a href="{{ route('admin.association-users.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.association-users.*') ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30' : 'hover:bg-slate-800 hover:text-white' }}">👥 مدیریت کاربران انجمن</a>
+            <a href="{{ route('admin.reports.pwa-installations.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.reports.pwa-installations.*') ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30' : 'hover:bg-slate-800 hover:text-white' }}">📱 وضعیت نصب وب‌اپ</a>
             @endif
 
             @if($showAssociationFeature('crm'))
@@ -289,6 +293,7 @@
                         </div>
                         
                         <div class="p-2">
+                            <button type="button" data-pwa-install class="hidden flex items-center gap-2 w-full px-3 py-2.5 text-sm text-sky-700 font-bold hover:bg-sky-50 rounded-xl transition">📲 نصب وب‌اپلیکیشن</button>
                             <form action="{{ route('logout') }}" method="POST">
                                 @csrf
                                 <button type="submit" class="flex items-center gap-2 w-full px-3 py-2.5 text-sm text-rose-600 font-bold hover:bg-rose-50 rounded-xl transition">
@@ -311,6 +316,7 @@
     
     <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
     <script src="{{ asset('assets/js/iran-plate.js') }}"></script>
+    <script src="{{ asset('assets/js/pwa-tracker.js') }}"></script>
     
     <script>
         const sidebar = document.getElementById('sidebar');
