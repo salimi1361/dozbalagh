@@ -62,4 +62,34 @@ class CompanyAccountRoleTest extends TestCase
         $this->assertDatabaseMissing('companies', ['national_id' => '14007654321']);
         $this->assertSame($adminRole->id, $admin->fresh()->role_id);
     }
+
+    public function test_login_repairs_an_old_company_account_with_an_incorrect_admin_role(): void
+    {
+        $adminRole = Role::firstOrCreate(['name' => 'admin'], ['title_fa' => 'ادمین کل']);
+        Role::firstOrCreate(['name' => 'company'], ['title_fa' => 'شرکت']);
+        $admin = User::create([
+            'role_id' => $adminRole->id,
+            'username' => 'admin-creator',
+            'password' => Hash::make('secret-password'),
+            'status' => 'active',
+            'is_manual' => true,
+        ]);
+
+        $this->actingAs($admin)->post(route('admin.companies.store'), [
+            'national_id' => '14009876543',
+            'name' => 'شرکت قدیمی',
+            'ceo_mobile' => '09123333333',
+        ])->assertSessionHasNoErrors();
+
+        $companyUser = User::where('username', '14009876543')->firstOrFail();
+        $companyUser->update(['role_id' => $adminRole->id]);
+
+        $this->post(route('logout'));
+        $this->post(route('login.post'), [
+            'username' => '14009876543',
+            'password' => '12345678',
+        ])->assertRedirect(route('dashboard'));
+
+        $this->assertSame('company', $companyUser->fresh()->role->name);
+    }
 }

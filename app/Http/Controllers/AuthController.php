@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Routing\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Role;
 use App\Models\User;
 use App\Services\PanelFeatureService;
 
@@ -74,12 +75,32 @@ class AuthController extends Controller
 
     private function redirectToPanel(User $user)
     {
+        $user = $this->synchronizeCompanyRole($user);
+
         return match ($user->role?->name) {
             'admin' => redirect()->route('admin.dashboard')->with('success', 'به پنل مدیریت کل سامانه خوش آمدید!'),
             'association' => $this->redirectToFirstEnabledFeature('association', 'به پنل انجمن خوش آمدید!'),
             'company' => $this->redirectToFirstEnabledFeature('company', 'به پنل شرکت خوش آمدید!'),
             default => $this->logoutUnsupportedUser(),
         };
+    }
+
+    private function synchronizeCompanyRole(User $user): User
+    {
+        if ($user->role?->name === 'company' || ! $user->company()->exists()) {
+            return $user;
+        }
+
+        $companyRoleId = Role::where('name', 'company')->value('id');
+
+        if (! $companyRoleId) {
+            return $user;
+        }
+
+        $user->forceFill(['role_id' => $companyRoleId])->save();
+        $user->unsetRelation('role');
+
+        return $user;
     }
 
     private function logoutUnsupportedUser()
