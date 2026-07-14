@@ -8,6 +8,7 @@ use App\Models\DriverEvent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
 class TrackingMapController extends Controller
@@ -91,16 +92,29 @@ class TrackingMapController extends Controller
         })->filter()->values();
 
         $latestLocationsByDriver = $locations->groupBy('driver_id')->map(fn ($points) => $points->last());
-        $activeDriverIds = DB::table('permit_requests as pr')
+        $activeDriversQuery = DB::table('permit_requests as pr')
             ->join('permit_request_items as pri', 'pri.permit_request_id', '=', 'pr.id')
             ->where('pr.status', 'issued')
             ->whereNotNull('pr.driver_id')
-            ->whereNotNull('pri.d_serial_number')
-            ->whereNull('pri.company_return_submitted_at')
-            ->where(function ($query) {
+            ->whereNotNull('pri.d_serial_number');
+
+        if (Schema::hasColumn('permit_request_items', 'company_return_submitted_at')) {
+            $activeDriversQuery->whereNull('pri.company_return_submitted_at');
+        }
+
+        if (Schema::hasColumn('permit_request_items', 'item_status')) {
+            $activeDriversQuery->where(function ($query) {
                 $query->whereNull('pri.item_status')
                     ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived', 'cancelled']);
-            })
+            });
+        } elseif (Schema::hasColumn('permit_request_items', 'return_status')) {
+            $activeDriversQuery->where(function ($query) {
+                $query->whereNull('pri.return_status')
+                    ->orWhereNotIn('pri.return_status', ['company_returned', 'lost', 'collected', 'archived', 'cancelled']);
+            });
+        }
+
+        $activeDriverIds = $activeDriversQuery
             ->when($companyId, fn ($query) => $query->where('pr.company_id', $companyId))
             ->distinct()
             ->pluck('pr.driver_id');
