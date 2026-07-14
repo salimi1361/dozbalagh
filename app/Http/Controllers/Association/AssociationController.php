@@ -500,6 +500,11 @@ class AssociationController
 
                 DB::table('dozbalagh_items')->where('id', $warehouseItem->id)->update([
                     'lifecycle_status' => 'consumed',
+                    'company_id' => $permit->company_id,
+                    'driver_id' => $permit->driver_id,
+                    'fleet_id' => $permit->fleet_id,
+                    'issued_at' => $issuedAt,
+                    'returned_at' => null,
                     'updated_at' => $issuedAt
                 ]);
             }

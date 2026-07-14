@@ -372,6 +372,22 @@ function startLocationWatch(permitId, silent = false) {
     localStorage.setItem('active_permit_id', permitId);
     localStorage.setItem('is_on_trip', 'true');
     if (!silent) logTrackingEvent(permitId, 'tracking_started');
+
+    navigator.geolocation.getCurrentPosition(
+        pos => {
+            gpsPermissionState = 'granted';
+            updateGpsBadge();
+            queueLocation(pos.coords, permitId);
+            if (!silent) showToast('اولین موقعیت ارسال شد؛ نمایش روی نقشه حداکثر ۱۵ ثانیه زمان می‌برد.', 'success');
+        },
+        () => {
+            gpsPermissionState = 'denied';
+            updateGpsBadge();
+            if (!silent) showToast('دسترسی GPS فعال نیست یا موقعیت دریافت نشد.', 'error');
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
+    );
+
     watchId = navigator.geolocation.watchPosition(
         pos => {
             gpsPermissionState = 'granted';

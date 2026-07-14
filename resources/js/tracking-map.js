@@ -195,4 +195,7 @@ if (root) {
         if (event?.error?.message) status.textContent = `خطای نقشه: ${event.error.message}`;
     });
     setInterval(refresh, 15000);
+    window.addEventListener('focus', () => {
+        if (map.loaded()) refresh();
+    });
 }

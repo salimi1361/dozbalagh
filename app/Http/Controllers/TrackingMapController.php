@@ -37,7 +37,7 @@ class TrackingMapController extends Controller
             ->whereBetween('latitude', [-90, 90])
             ->whereBetween('longitude', [-180, 180])
             ->whereHas('dozbalaghItem', fn ($item) => $item
-                ->where('lifecycle_status', 'issued')
+                ->whereIn('lifecycle_status', ['issued', 'consumed'])
                 ->whereNull('returned_at'))
             ->when($request->integer('item_id'), fn ($q, $id) => $q->where('dozbalagh_item_id', $id))
             ->when($request->filled('from'), fn ($q) => $q->where('recorded_at', '>=', $request->date('from')))

@@ -140,7 +140,7 @@ class TrackingController extends Controller
     private function resolveDozbalaghItem(int $id, $driver): ?DozbalaghItem
     {
         $item = DozbalaghItem::where('id', $id)
-            ->where('lifecycle_status', 'issued')
+            ->whereIn('lifecycle_status', ['issued', 'consumed'])
             ->whereNull('returned_at')
             ->where(function ($query) use ($driver) {
                 $query->where('driver_id', $driver->id);
@@ -170,7 +170,7 @@ class TrackingController extends Controller
         }
 
         return DozbalaghItem::where('serial_number', $permit->serial_number)
-            ->where('lifecycle_status', 'issued')
+            ->whereIn('lifecycle_status', ['issued', 'consumed'])
             ->whereNull('returned_at')
             ->where(function ($query) use ($permit, $driver) {
                 $query->where('driver_id', $driver->id)

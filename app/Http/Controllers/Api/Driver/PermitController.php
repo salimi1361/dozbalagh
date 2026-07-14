@@ -196,6 +196,8 @@ class PermitController extends Controller
         }
 
         return \App\Models\DozbalaghItem::where('serial_number', $permit->serial_number)
+            ->whereIn('lifecycle_status', ['issued', 'consumed'])
+            ->whereNull('returned_at')
             ->where(function ($query) use ($permit) {
                 $query->where('driver_id', $permit->driver_id)
                     ->orWhere('fleet_id', $permit->fleet_id)
