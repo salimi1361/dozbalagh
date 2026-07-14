@@ -6,7 +6,6 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Notifications\Notifiable;
 
@@ -67,8 +66,4 @@ class Driver extends Authenticatable
         return $this->hasMany(DriverLocation::class);
     }
 
-    public function latestLocation(): HasOne
-    {
-        return $this->hasOne(DriverLocation::class)->latestOfMany('recorded_at');
-    }
 }

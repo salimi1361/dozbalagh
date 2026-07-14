@@ -38,21 +38,26 @@ class TrackingMapController extends Controller
 
         $locations = $query->orderByDesc('recorded_at')->limit(5000)->get()->sortBy('recorded_at')->values();
         $drivers = Driver::query()
-            ->with(['company', 'latestLocation'])
+            ->with('company')
             ->when($user->hasRole('company'), fn ($q) => $q->where('current_company_id', $companyId))
             ->orderBy('last_name_fa')
             ->get();
+        $latestLocationsByDriver = $locations->groupBy('driver_id')->map(fn ($points) => $points->last());
 
         return response()->json([
             'generated_at' => now()->toIso8601String(),
-            'drivers' => $drivers->map(fn (Driver $driver) => [
-                'id' => $driver->id,
-                'name' => trim(($driver->first_name_fa ?? '').' '.($driver->last_name_fa ?? '')) ?: 'راننده نامشخص',
-                'company_name' => $driver->company?->name_fa ?? $driver->company?->name,
-                'has_location' => (bool) $driver->latestLocation,
-                'last_seen_at' => $driver->latestLocation?->recorded_at?->toIso8601String(),
-                'is_online' => $driver->latestLocation?->recorded_at?->greaterThan(now()->subMinutes(5)) ?? false,
-            ])->values(),
+            'drivers' => $drivers->map(function (Driver $driver) use ($latestLocationsByDriver) {
+                $latest = $latestLocationsByDriver->get($driver->id);
+
+                return [
+                    'id' => $driver->id,
+                    'name' => trim(($driver->first_name_fa ?? '').' '.($driver->last_name_fa ?? '')) ?: 'راننده نامشخص',
+                    'company_name' => $driver->company?->name_fa ?? $driver->company?->name,
+                    'has_location' => (bool) $latest,
+                    'last_seen_at' => $latest?->recorded_at?->toIso8601String(),
+                    'is_online' => $latest?->recorded_at?->greaterThan(now()->subMinutes(5)) ?? false,
+                ];
+            })->values(),
             'tracks' => $locations->groupBy('dozbalagh_item_id')->map(function ($points, $itemId) {
                 $latest = $points->last();
                 $driver = $latest->driver;
