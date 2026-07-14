@@ -1944,3 +1944,20 @@ body {
 #tab-messages.is-active[data-unread] .nav-icon {
     color: #07566b;
 }
+
+.trip-tracking-notice {
+    padding: 12px 14px;
+    border: 1px solid #dbe5ef;
+    border-radius: 16px;
+    color: #64748b;
+    background: #f8fafc;
+    font-size: 11px;
+    font-weight: 850;
+    line-height: 1.9;
+}
+.trip-tracking-notice.is-active {
+    border-color: #fbbf24;
+    color: #92400e;
+    background: #fffbeb;
+    box-shadow: 0 0 0 3px rgba(251,191,36,.12);
+}

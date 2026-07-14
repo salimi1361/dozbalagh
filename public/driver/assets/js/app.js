@@ -10,8 +10,15 @@ let deferredInstallPrompt = null;
 let notificationPollTimer = null;
 let otpAbortController = null;
 let locationSyncInProgress = false;
+let tripWakeLock = null;
 
 window.addEventListener('online', () => flushQueuedLocations());
+document.addEventListener('visibilitychange', handleTripVisibilityChange);
+window.addEventListener('beforeunload', event => {
+    if (localStorage.getItem('is_on_trip') !== 'true') return;
+    event.preventDefault();
+    event.returnValue = '';
+});
 
 document.addEventListener('DOMContentLoaded', initApp);
 window.addEventListener('beforeinstallprompt', event => {
@@ -371,6 +378,7 @@ function startLocationWatch(permitId, silent = false) {
 
     localStorage.setItem('active_permit_id', permitId);
     localStorage.setItem('is_on_trip', 'true');
+    requestTripWakeLock();
     if (!silent) logTrackingEvent(permitId, 'tracking_started');
 
     navigator.geolocation.getCurrentPosition(
@@ -420,6 +428,42 @@ function resumeTripTrackingIfNeeded() {
     if (localStorage.getItem('is_on_trip') !== 'true') return;
     const permitId = localStorage.getItem('active_permit_id');
     if (permitId) startLocationWatch(permitId, true);
+}
+
+async function requestTripWakeLock() {
+    if (!('wakeLock' in navigator) || document.visibilityState !== 'visible' || tripWakeLock) return;
+    try {
+        tripWakeLock = await navigator.wakeLock.request('screen');
+        tripWakeLock.addEventListener('release', () => { tripWakeLock = null; });
+    } catch (_) {}
+}
+
+async function releaseTripWakeLock() {
+    if (!tripWakeLock) return;
+    try { await tripWakeLock.release(); } catch (_) {}
+    tripWakeLock = null;
+}
+
+function handleTripVisibilityChange() {
+    if (localStorage.getItem('is_on_trip') !== 'true') return;
+    if (document.visibilityState === 'visible') {
+        requestTripWakeLock();
+        resumeTripTrackingIfNeeded();
+        flushQueuedLocations();
+        return;
+    }
+
+    navigator.serviceWorker?.ready.then(registration => {
+        if (Notification.permission !== 'granted') return;
+        registration.showNotification('ردیابی سفر فعال است', {
+            body: 'برای ثبت پیوسته مسیر، وب‌اپ را باز و GPS گوشی را روشن نگه دارید. در پایان سفر حتماً «پایان سفر» را بزنید.',
+            icon: '/driver/icon-192.png',
+            badge: '/driver/icon-192.png',
+            tag: 'active-trip-warning',
+            renotify: false,
+            requireInteraction: true,
+        });
+    }).catch(() => {});
 }
 
 function toEnglishDigits(value) {
@@ -535,6 +579,7 @@ function renderHomeTab(main, driver) {
                 <i class="fa-solid fa-location-arrow"></i>
                 <span>شروع ارسال موقعیت مکانی</span>
             </button>
+            <div id="trip-tracking-notice" class="trip-tracking-notice"></div>
 
             <div>
                 <div class="section-title">گزارش دوزوله‌های متصل</div>
@@ -1314,11 +1359,13 @@ function selectPermitForTrip(id) {
 
 function toggleTripState() {
     if (localStorage.getItem('is_on_trip') === 'true') {
+        if (!window.confirm('آیا سفر به پایان رسیده است؟ با تأیید، ارسال موقعیت و ردیابی شرکت متوقف می‌شود.')) return;
         const permitId = localStorage.getItem('active_permit_id');
         if (permitId) logTrackingEvent(permitId, 'tracking_stopped');
         if (watchId) navigator.geolocation.clearWatch(watchId);
         watchId = null;
         localStorage.removeItem('is_on_trip');
+        releaseTripWakeLock();
         showToast('ارسال موقعیت متوقف شد.', 'info');
     } else {
         const permitId = localStorage.getItem('active_permit_id') || (permitsCache[0] && (permitsCache[0].tracking_item_id || permitsCache[0].id));
@@ -1326,6 +1373,7 @@ function toggleTripState() {
             showToast('ابتدا یک دوزوله انتخاب کنید.', 'error');
             return;
         }
+        if (!window.confirm('ردیابی فقط هنگام سفر فعال شود. با شروع سفر، موقعیت شما برای شرکت قابل مشاهده است. آیا سفر را شروع می‌کنید؟')) return;
         if (startLocationWatch(permitId)) showToast('ارسال موقعیت آغاز شد.', 'success');
     }
     updateTripButtonUI();
@@ -1338,8 +1386,15 @@ function updateTripButtonUI() {
     const onTrip = localStorage.getItem('is_on_trip') === 'true';
     btn.className = onTrip ? 'btn btn--danger' : 'btn btn--success';
     btn.innerHTML = onTrip
-        ? '<i class="fa-solid fa-stop"></i><span>توقف ارسال موقعیت</span>'
-        : '<i class="fa-solid fa-location-arrow"></i><span>شروع ارسال موقعیت مکانی</span>';
+        ? '<i class="fa-solid fa-stop"></i><span>پایان سفر و توقف ردیابی</span>'
+        : '<i class="fa-solid fa-location-arrow"></i><span>شروع سفر و فعال‌سازی ردیابی</span>';
+    const notice = document.getElementById('trip-tracking-notice');
+    if (notice) {
+        notice.classList.toggle('is-active', onTrip);
+        notice.textContent = onTrip
+            ? 'سفر فعال است؛ موقعیت شما برای شرکت ارسال می‌شود. در پایان سفر حتماً دکمه پایان سفر را بزنید.'
+            : 'ردیابی خاموش است و موقعیت شما برای شرکت ارسال نمی‌شود.';
+    }
 }
 
 function trackingDatabase() {
@@ -1424,6 +1479,7 @@ async function flushQueuedLocations() {
             watchId = null;
             localStorage.removeItem('is_on_trip');
             localStorage.removeItem('active_permit_id');
+            releaseTripWakeLock();
             updateTripButtonUI();
             updateGpsBadge();
             showToast('ردیابی این سفر پایان یافته است.', 'info');
@@ -1452,6 +1508,7 @@ function setConnectionStatus(online) {
 
 function logout() {
     if (watchId) navigator.geolocation.clearWatch(watchId);
+    releaseTripWakeLock();
     localStorage.clear();
     location.reload();
 }
