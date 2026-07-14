@@ -929,6 +929,11 @@ public function store(Request $request)
             'updated_at' => now(),
         ]);
 
+        // تحویل لاشه به شرکت، پایان ردیابی عملیاتی این سفر است.
+        DB::table('dozbalagh_items')
+            ->where('serial_number', $permitItem->d_serial_number)
+            ->update(['returned_at' => now(), 'updated_at' => now()]);
+
         return response()->json([
             'success' => true,
             'message' => 'لاشه با موفقیت ثبت شد. کد تحویل برای پیک ساخته شد.',

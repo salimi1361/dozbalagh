@@ -371,6 +371,7 @@ function startLocationWatch(permitId, silent = false) {
 
     localStorage.setItem('active_permit_id', permitId);
     localStorage.setItem('is_on_trip', 'true');
+    if (!silent) logTrackingEvent(permitId, 'tracking_started');
     watchId = navigator.geolocation.watchPosition(
         pos => {
             gpsPermissionState = 'granted';
@@ -389,6 +390,14 @@ function startLocationWatch(permitId, silent = false) {
     updateTripButtonUI();
     updateGpsBadge();
     return true;
+}
+
+function logTrackingEvent(permitId, eventType) {
+    fetch(`${API_BASE}/event/log`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ dozbalagh_item_id: Number(permitId), event_type: eventType }),
+    }).catch(() => {});
 }
 
 function resumeTripTrackingIfNeeded() {
@@ -1289,6 +1298,8 @@ function selectPermitForTrip(id) {
 
 function toggleTripState() {
     if (localStorage.getItem('is_on_trip') === 'true') {
+        const permitId = localStorage.getItem('active_permit_id');
+        if (permitId) logTrackingEvent(permitId, 'tracking_stopped');
         if (watchId) navigator.geolocation.clearWatch(watchId);
         watchId = null;
         localStorage.removeItem('is_on_trip');
@@ -1387,6 +1398,17 @@ async function flushQueuedLocations() {
             body: JSON.stringify({ points }),
         });
         if (!response.ok) throw new Error('sync_failed');
+        const result = await response.json();
+
+        if (Array.isArray(result.rejected) && result.rejected.length) {
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+            localStorage.removeItem('is_on_trip');
+            localStorage.removeItem('active_permit_id');
+            updateTripButtonUI();
+            updateGpsBadge();
+            showToast('ردیابی این سفر پایان یافته است.', 'info');
+        }
 
         const transaction = db.transaction('points', 'readwrite');
         points.forEach(point => transaction.objectStore('points').delete(point.client_uuid));
