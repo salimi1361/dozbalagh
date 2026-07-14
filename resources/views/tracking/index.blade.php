@@ -16,7 +16,7 @@
 
     <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div id="tracking-map-root" data-url="{{ $dataUrl }}" data-tiles="{{ $localTileUrl }}">
+            <div id="tracking-map-root" data-url="{{ $dataUrl }}" data-tiles="{{ $localTileUrl }}" data-tiles-enabled="{{ $tilesEnabled ? '1' : '0' }}" data-outline="{{ $outlineUrl }}">
                 <div id="tracking-map" class="h-[68vh] min-h-[520px] w-full"></div>
             </div>
         </section>
@@ -36,6 +36,7 @@
     .tracking-popup span { font-size: 11px; color: #475569; }
     .tracking-card { display: grid; width: 100%; grid-template-columns: 12px 1fr 1fr; gap: 10px; align-items: center; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; text-align: right; transition: .2s; }
     .tracking-card:hover { border-color: #38bdf8; background: #f0f9ff; }
+    .tracking-card.is-disabled { cursor: default; opacity: .72; }
     .tracking-card span { display: grid; gap: 3px; }
     .tracking-card small { color: #64748b; font-size: 10px; }
     .tracking-card__dot { width: 10px; height: 10px; border-radius: 50%; background: #94a3b8; }

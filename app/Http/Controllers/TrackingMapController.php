@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\DriverLocation;
+use App\Models\Driver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -18,25 +19,40 @@ class TrackingMapController extends Controller
             'scopeLabel' => $companyScope ? 'ناوگان شرکت' : 'تمام رانندگان سامانه',
             'layout' => $companyScope ? 'layouts.app' : 'layouts.admin',
             'localTileUrl' => url((string) config('tracking.tile_url', '/maps/offline-grid.svg')),
+            'tilesEnabled' => (bool) config('tracking.tiles_enabled', false),
+            'outlineUrl' => asset('maps/iran-outline.geojson'),
         ]);
     }
 
     public function data(Request $request): JsonResponse
     {
         $user = $request->user();
+        $companyId = $user->hasRole('company') ? ($user->company?->id ?? $user->company_id ?? null) : null;
         $query = DriverLocation::query()
             ->with(['driver.company', 'dozbalaghItem'])
             ->when($request->integer('item_id'), fn ($q, $id) => $q->where('dozbalagh_item_id', $id))
             ->when($request->filled('from'), fn ($q) => $q->where('recorded_at', '>=', $request->date('from')))
-            ->when($user->hasRole('company'), function ($q) use ($user) {
-                $companyId = $user->company?->id ?? $user->company_id ?? null;
+            ->when($user->hasRole('company'), function ($q) use ($companyId) {
                 $q->whereHas('driver', fn ($driver) => $driver->where('current_company_id', $companyId));
             });
 
         $locations = $query->orderByDesc('recorded_at')->limit(5000)->get()->sortBy('recorded_at')->values();
+        $drivers = Driver::query()
+            ->with(['company', 'latestLocation'])
+            ->when($user->hasRole('company'), fn ($q) => $q->where('current_company_id', $companyId))
+            ->orderBy('last_name_fa')
+            ->get();
 
         return response()->json([
             'generated_at' => now()->toIso8601String(),
+            'drivers' => $drivers->map(fn (Driver $driver) => [
+                'id' => $driver->id,
+                'name' => trim(($driver->first_name_fa ?? '').' '.($driver->last_name_fa ?? '')) ?: 'راننده نامشخص',
+                'company_name' => $driver->company?->name_fa ?? $driver->company?->name,
+                'has_location' => (bool) $driver->latestLocation,
+                'last_seen_at' => $driver->latestLocation?->recorded_at?->toIso8601String(),
+                'is_online' => $driver->latestLocation?->recorded_at?->greaterThan(now()->subMinutes(5)) ?? false,
+            ])->values(),
             'tracks' => $locations->groupBy('dozbalagh_item_id')->map(function ($points, $itemId) {
                 $latest = $points->last();
                 $driver = $latest->driver;

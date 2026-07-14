@@ -6,10 +6,21 @@ const root = document.getElementById('tracking-map-root');
 if (root) {
     const dataUrl = root.dataset.url;
     const tileUrl = root.dataset.tiles;
+    const tilesEnabled = root.dataset.tilesEnabled === '1';
+    const outlineUrl = root.dataset.outline;
     const list = document.getElementById('tracking-list');
     const status = document.getElementById('tracking-refresh-status');
     const markers = new Map();
     let firstFit = true;
+
+    const mapSources = {};
+    const mapLayers = [
+        { id: 'background', type: 'background', paint: { 'background-color': '#dce8ef' } },
+    ];
+    if (tilesEnabled) {
+        mapSources.localTiles = { type: 'raster', tiles: [tileUrl], tileSize: 256, minzoom: 0, maxzoom: 14 };
+        mapLayers.push({ id: 'local-map', type: 'raster', source: 'localTiles', minzoom: 0, maxzoom: 22 });
+    }
 
     const map = new maplibregl.Map({
         container: 'tracking-map',
@@ -18,19 +29,8 @@ if (root) {
         attributionControl: false,
         style: {
             version: 8,
-            sources: {
-                localTiles: {
-                    type: 'raster',
-                    tiles: [tileUrl],
-                    tileSize: 256,
-                    minzoom: 0,
-                    maxzoom: 14,
-                },
-            },
-            layers: [
-                { id: 'background', type: 'background', paint: { 'background-color': '#e2e8f0' } },
-                { id: 'local-map', type: 'raster', source: 'localTiles', minzoom: 0, maxzoom: 22 },
-            ],
+            sources: mapSources,
+            layers: mapLayers,
         },
     });
 
@@ -55,7 +55,7 @@ if (root) {
         };
     }
 
-    function renderTracks(tracks) {
+    function renderTracks(tracks, drivers) {
         const collection = { type: 'FeatureCollection', features: tracks.filter(t => t.points.length > 1).map(lineFeature) };
         const source = map.getSource('tracking-lines');
         if (source) {
@@ -102,15 +102,23 @@ if (root) {
                 </div>`);
         });
 
-        list.innerHTML = tracks.length ? tracks.map(track => `
-            <button type="button" class="tracking-card" data-lng="${track.latest.longitude}" data-lat="${track.latest.latitude}">
-                <span class="tracking-card__dot ${track.is_online ? 'is-online' : ''}"></span>
-                <span><b>${escapeHtml(track.driver_name)}</b><small>${escapeHtml(track.company_name || 'بدون شرکت')}</small></span>
-                <span><b>${escapeHtml(track.serial_number || track.item_id)}</b><small>${escapeHtml(faDate(track.last_seen_at))}</small></span>
-            </button>`).join('') : '<div class="rounded-xl bg-slate-50 p-8 text-center font-bold text-slate-400">هنوز موقعیتی دریافت نشده است.</div>';
+        list.innerHTML = drivers.length ? drivers.map(driver => {
+            const driverTracks = tracks.filter(track => track.driver_id === driver.id);
+            const track = driverTracks.sort((a, b) => new Date(b.last_seen_at) - new Date(a.last_seen_at))[0];
+            const locationData = track ? `data-lng="${track.latest.longitude}" data-lat="${track.latest.latitude}"` : '';
+            const state = driver.is_online ? 'آنلاین' : driver.has_location ? 'آفلاین' : 'ردیاب خاموش / بدون داده';
+            return `
+                <button type="button" class="tracking-card ${track ? '' : 'is-disabled'}" ${locationData}>
+                    <span class="tracking-card__dot ${driver.is_online ? 'is-online' : ''}"></span>
+                    <span><b>${escapeHtml(driver.name)}</b><small>${escapeHtml(driver.company_name || 'بدون شرکت')}</small></span>
+                    <span><b>${escapeHtml(state)}</b><small>${escapeHtml(faDate(driver.last_seen_at))}</small></span>
+                </button>`;
+        }).join('') : '<div class="rounded-xl bg-slate-50 p-8 text-center font-bold text-slate-400">راننده‌ای در این محدوده دسترسی ثبت نشده است.</div>';
 
         list.querySelectorAll('.tracking-card').forEach(button => button.addEventListener('click', () => {
-            map.flyTo({ center: [Number(button.dataset.lng), Number(button.dataset.lat)], zoom: 13 });
+            if (button.dataset.lng && button.dataset.lat) {
+                map.flyTo({ center: [Number(button.dataset.lng), Number(button.dataset.lat)], zoom: 13 });
+            }
         }));
 
         if (firstFit && tracks.length) {
@@ -126,13 +134,21 @@ if (root) {
             const response = await fetch(dataUrl, { headers: { Accept: 'application/json' } });
             if (!response.ok) throw new Error('request_failed');
             const payload = await response.json();
-            renderTracks(payload.tracks || []);
+            renderTracks(payload.tracks || [], payload.drivers || []);
             status.textContent = `به‌روزرسانی: ${faDate(payload.generated_at)}`;
         } catch (_) {
             status.textContent = 'خطا در دریافت موقعیت‌ها';
         }
     }
 
-    map.on('load', refresh);
+    map.on('load', () => {
+        map.addSource('iran-outline', { type: 'geojson', data: outlineUrl });
+        map.addLayer({ id: 'iran-fill', type: 'fill', source: 'iran-outline', paint: { 'fill-color': '#f8fafc', 'fill-opacity': 0.92 } });
+        map.addLayer({ id: 'iran-border', type: 'line', source: 'iran-outline', paint: { 'line-color': '#64748b', 'line-width': 2 } });
+        refresh();
+    });
+    map.on('error', event => {
+        if (event?.error?.message) status.textContent = `خطای نقشه: ${event.error.message}`;
+    });
     setInterval(refresh, 15000);
 }

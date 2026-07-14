@@ -7,3 +7,4 @@ The application never requests a third-party tile service. Until a licensed Iran
 After copying a local tile package, set this server environment value and clear the config cache:
 
     MAP_TILE_URL=/maps/tiles/{z}/{x}/{y}.png
+    MAP_TILES_ENABLED=true
