@@ -55,8 +55,22 @@ if (root) {
         };
     }
 
+    const isValidPoint = point => point
+        && Number.isFinite(Number(point.longitude))
+        && Number.isFinite(Number(point.latitude))
+        && Number(point.longitude) >= -180
+        && Number(point.longitude) <= 180
+        && Number(point.latitude) >= -90
+        && Number(point.latitude) <= 90;
+
     function renderTracks(tracks, drivers) {
-        const collection = { type: 'FeatureCollection', features: tracks.filter(t => t.points.length > 1).map(lineFeature) };
+        const validTracks = tracks
+            .map(track => ({
+                ...track,
+                points: Array.isArray(track.points) ? track.points.filter(isValidPoint) : [],
+            }))
+            .filter(track => isValidPoint(track.latest));
+        const collection = { type: 'FeatureCollection', features: validTracks.filter(t => t.points.length > 1).map(lineFeature) };
         const source = map.getSource('tracking-lines');
         if (source) {
             source.setData(collection);
@@ -70,7 +84,7 @@ if (root) {
             });
         }
 
-        const currentIds = new Set(tracks.map(track => String(track.item_id)));
+        const currentIds = new Set(validTracks.map(track => String(track.item_id)));
         markers.forEach((marker, id) => {
             if (!currentIds.has(id)) {
                 marker.remove();
@@ -78,7 +92,7 @@ if (root) {
             }
         });
 
-        tracks.forEach(track => {
+        validTracks.forEach(track => {
             const id = String(track.item_id);
             let marker = markers.get(id);
             if (!marker) {
@@ -103,7 +117,7 @@ if (root) {
         });
 
         list.innerHTML = drivers.length ? drivers.map(driver => {
-            const driverTracks = tracks.filter(track => track.driver_id === driver.id);
+            const driverTracks = validTracks.filter(track => Number(track.driver_id) === Number(driver.id));
             const track = driverTracks.sort((a, b) => new Date(b.last_seen_at) - new Date(a.last_seen_at))[0];
             const locationData = track ? `data-lng="${track.latest.longitude}" data-lat="${track.latest.latitude}"` : '';
             const state = driver.is_online ? 'آنلاین' : driver.has_location ? 'آفلاین' : 'ردیاب خاموش / بدون داده';
@@ -121,9 +135,18 @@ if (root) {
             }
         }));
 
-        if (firstFit && tracks.length) {
+        if (firstFit && validTracks.length === 1) {
+            map.flyTo({
+                center: [Number(validTracks[0].latest.longitude), Number(validTracks[0].latest.latitude)],
+                zoom: 13,
+            });
+            firstFit = false;
+        } else if (firstFit && validTracks.length > 1) {
             const bounds = new maplibregl.LngLatBounds();
-            tracks.forEach(track => bounds.extend([track.latest.longitude, track.latest.latitude]));
+            validTracks.forEach(track => bounds.extend([
+                Number(track.latest.longitude),
+                Number(track.latest.latitude),
+            ]));
             map.fitBounds(bounds, { padding: 70, maxZoom: 13 });
             firstFit = false;
         }

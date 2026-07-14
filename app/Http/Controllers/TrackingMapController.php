@@ -30,6 +30,10 @@ class TrackingMapController extends Controller
         $companyId = $user->hasRole('company') ? ($user->company?->id ?? $user->company_id ?? null) : null;
         $query = DriverLocation::query()
             ->with(['driver.company', 'dozbalaghItem'])
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->whereBetween('latitude', [-90, 90])
+            ->whereBetween('longitude', [-180, 180])
             ->when($request->integer('item_id'), fn ($q, $id) => $q->where('dozbalagh_item_id', $id))
             ->when($request->filled('from'), fn ($q) => $q->where('recorded_at', '>=', $request->date('from')))
             ->when($user->hasRole('company'), function ($q) use ($companyId) {
