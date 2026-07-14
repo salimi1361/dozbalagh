@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dozoleh-web-shell-v1';
+const CACHE_NAME = 'dozoleh-web-shell-v2';
 const STATIC_ASSETS = [
     '/manifest.webmanifest',
     '/driver/icon-192.png',

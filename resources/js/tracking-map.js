@@ -131,13 +131,31 @@ if (root) {
 
     async function refresh() {
         try {
-            const response = await fetch(dataUrl, { headers: { Accept: 'application/json' } });
-            if (!response.ok) throw new Error('request_failed');
+            const url = new URL(dataUrl, window.location.origin);
+            url.searchParams.set('_', Date.now().toString());
+            const response = await fetch(url, {
+                credentials: 'same-origin',
+                cache: 'no-store',
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                throw new Error('پاسخ سرور JSON نیست؛ احتمالاً نشست کاربری منقضی شده است');
+            }
+
             const payload = await response.json();
+            if (!Array.isArray(payload.tracks) || !Array.isArray(payload.drivers)) {
+                throw new Error('ساختار پاسخ سرور معتبر نیست');
+            }
             renderTracks(payload.tracks || [], payload.drivers || []);
             status.textContent = `به‌روزرسانی: ${faDate(payload.generated_at)}`;
-        } catch (_) {
-            status.textContent = 'خطا در دریافت موقعیت‌ها';
+        } catch (error) {
+            status.textContent = `خطا در دریافت موقعیت‌ها (${error?.message || 'خطای ناشناخته'})`;
         }
     }
 
