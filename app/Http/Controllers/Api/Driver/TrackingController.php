@@ -142,20 +142,37 @@ class TrackingController extends Controller
         $item = DozbalaghItem::where('id', $id)
             ->whereIn('lifecycle_status', ['issued', 'consumed'])
             ->whereNull('returned_at')
-            ->where(function ($query) use ($driver) {
-                $query->where('driver_id', $driver->id);
-
-                if (!empty($driver->fleet_id)) {
-                    $query->orWhere('fleet_id', $driver->fleet_id);
-                }
-            })
             ->first();
 
-        if ($item) {
+        if ($item && (int) $item->driver_id === (int) $driver->id) {
             return $item;
         }
 
+        if ($item) {
+            $ownsIssuedItem = DB::table('permit_request_items as pri')
+                ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
+                ->where('pri.d_serial_number', $item->serial_number)
+                ->where('pr.driver_id', $driver->id)
+                ->where('pr.status', 'issued')
+                ->where(function ($query) {
+                    $query->whereNull('pri.item_status')
+                        ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived', 'cancelled']);
+                })
+                ->exists();
+
+            if ($ownsIssuedItem) {
+                if (! $item->driver_id) {
+                    $item->forceFill(['driver_id' => $driver->id])->save();
+                }
+
+                return $item;
+            }
+
+            return null;
+        }
+
         $permit = PermitRequest::where('id', $id)
+            ->where('status', 'issued')
             ->where(function ($query) use ($driver) {
                 $query->where('driver_id', $driver->id);
 

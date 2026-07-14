@@ -1413,7 +1413,10 @@ async function flushQueuedLocations() {
             headers: authHeaders(),
             body: JSON.stringify({ points }),
         });
-        if (!response.ok) throw new Error('sync_failed');
+        if (!response.ok) {
+            const message = await response.text();
+            throw new Error(`sync_failed_${response.status}_${message.slice(0, 120)}`);
+        }
         const result = await response.json();
 
         if (Array.isArray(result.rejected) && result.rejected.length) {
@@ -1431,8 +1434,10 @@ async function flushQueuedLocations() {
         await transactionDone(transaction);
         setConnectionStatus(true);
         setTimeout(flushQueuedLocations, 50);
-    } catch (_) {
+    } catch (error) {
         setConnectionStatus(false);
+        localStorage.setItem('last_tracking_error', String(error?.message || error));
+        showToast(`ارسال موقعیت ناموفق بود (${String(error?.message || 'خطای شبکه').slice(0, 80)})`, 'error');
     } finally {
         locationSyncInProgress = false;
     }
