@@ -54,7 +54,7 @@ class TrackingMapController extends Controller
             ->orderBy('created_at')
             ->get()
             ->keyBy(fn (DriverEvent $event) => $event->driver_id.':'.$event->dozbalagh_item_id);
-        $onlineSince = now()->subMinutes((int) config('tracking.online_timeout_minutes', 3));
+        $onlineSince = now()->subMinutes((int) config('tracking.online_timeout_minutes', 15));
 
         $tracks = $locations->groupBy('dozbalagh_item_id')->map(function ($points, $itemId) use ($latestStarts, $onlineSince) {
             $allPoints = $points;
@@ -124,13 +124,6 @@ class TrackingMapController extends Controller
             ->whereIn('id', $activeDriverIds)
             ->orderBy('last_name_fa')
             ->get();
-        $recentActivity = DriverEvent::query()
-            ->with('driver')
-            ->where('event_type', 'tracking_online')
-            ->whereIn('driver_id', $activeDriverIds)
-            ->latest()
-            ->limit(20)
-            ->get();
 
         return response()->json([
             'generated_at' => now()->toIso8601String(),
@@ -148,12 +141,6 @@ class TrackingMapController extends Controller
                 ];
             })->values(),
             'tracks' => $tracks,
-            'recent_activity' => $recentActivity->map(fn (DriverEvent $event) => [
-                'id' => $event->id,
-                'driver_name' => trim(($event->driver?->first_name_fa ?? '').' '.($event->driver?->last_name_fa ?? '')) ?: 'راننده نامشخص',
-                'event' => 'آنلاین شد',
-                'created_at' => $event->created_at?->toIso8601String(),
-            ])->values(),
         ]);
     }
 

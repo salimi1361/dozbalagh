@@ -9,7 +9,6 @@ if (root) {
     const tilesEnabled = root.dataset.tilesEnabled === '1';
     const outlineUrl = root.dataset.outline;
     const list = document.getElementById('tracking-list');
-    const activity = document.getElementById('tracking-activity');
     const status = document.getElementById('tracking-refresh-status');
     const markers = new Map();
     let firstFit = true;
@@ -64,7 +63,7 @@ if (root) {
         && Number(point.latitude) >= -90
         && Number(point.latitude) <= 90;
 
-    function renderTracks(tracks, drivers, recentActivity = []) {
+    function renderTracks(tracks, drivers) {
         const validTracks = tracks
             .map(track => ({
                 ...track,
@@ -127,7 +126,7 @@ if (root) {
                 <button type="button" class="tracking-card ${track ? '' : 'is-disabled'}" ${locationData}>
                     <span class="tracking-card__dot ${driver.is_online ? 'is-online' : ''}"></span>
                     <span><b>${escapeHtml(driver.name)}</b><small>${escapeHtml(driver.company_name || 'بدون شرکت')}</small></span>
-                    <span><b>${escapeHtml(state)}</b><small>${escapeHtml(faDate(driver.last_seen_at))}</small></span>
+                    <span><b>${escapeHtml(state)}</b><small>آخرین ارتباط: ${escapeHtml(faDate(driver.last_seen_at))}</small></span>
                 </button>`;
         }).join('') : '<div class="rounded-xl bg-slate-50 p-8 text-center font-bold text-slate-400">راننده‌ای در این محدوده دسترسی ثبت نشده است.</div>';
 
@@ -136,14 +135,6 @@ if (root) {
                 map.flyTo({ center: [Number(button.dataset.lng), Number(button.dataset.lat)], zoom: 13 });
             }
         }));
-
-        if (activity) {
-            activity.innerHTML = recentActivity.length ? recentActivity.map(event => `
-                <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs">
-                    <b class="text-emerald-800">${escapeHtml(event.driver_name)} ${escapeHtml(event.event)}</b>
-                    <small class="mt-1 block text-emerald-600">${escapeHtml(faDate(event.created_at))}</small>
-                </div>`).join('') : '<div class="text-xs font-bold text-slate-400">هنوز اتصال جدیدی ثبت نشده است.</div>';
-        }
 
         if (firstFit && validTracks.length === 1) {
             map.flyTo({
@@ -185,7 +176,7 @@ if (root) {
             if (!Array.isArray(payload.tracks) || !Array.isArray(payload.drivers)) {
                 throw new Error('ساختار پاسخ سرور معتبر نیست');
             }
-            renderTracks(payload.tracks || [], payload.drivers || [], payload.recent_activity || []);
+            renderTracks(payload.tracks || [], payload.drivers || []);
             status.textContent = `به‌روزرسانی: ${faDate(payload.generated_at)}`;
         } catch (error) {
             status.textContent = `خطا در دریافت موقعیت‌ها (${error?.message || 'خطای ناشناخته'})`;
