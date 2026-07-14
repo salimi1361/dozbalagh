@@ -12,6 +12,7 @@ use App\Http\Controllers\Company\{
     ReportController,
     WalletController
 };
+use App\Http\Controllers\TrackingMapController;
 
 Route::middleware(['auth', 'role:company', 'panel.features'])->group(function () {
     Route::get('/web/company/profile', [ProfileController::class, 'edit'])->name('company.profile.edit');
@@ -32,6 +33,8 @@ Route::middleware(['auth', 'role:company', 'panel.features'])->group(function ()
         Route::post('/dozbalagh/check-fleet', [DozbalaghController::class, 'checkFleetStatus'])->name('dozbalagh.check_fleet');
 
         Route::get('/web/company/driver/index', [CompanyDriverController::class, 'index'])->name('web.company.driver.index');
+        Route::get('/web/company/tracking', [TrackingMapController::class, 'index'])->name('company.tracking.index');
+        Route::get('/web/company/tracking/data', [TrackingMapController::class, 'data'])->name('company.tracking.data');
         Route::post('/web/company/driver/inquire', [CompanyDriverController::class, 'inquireApi'])->name('web.company.driver.inquire');
         Route::post('/web/company/driver/store', [CompanyDriverController::class, 'store'])->name('web.company.driver.store');
         Route::post('/web/company/driver/notify', [CompanyDriverController::class, 'notify'])->name('web.company.driver.notify');

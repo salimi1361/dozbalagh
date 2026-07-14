@@ -48,6 +48,7 @@ Route::prefix('v1/driver')->group(function () {
         // لوکیشن و رویدادها
         Route::post('/event/log', [TrackingController::class, 'logEvent']); // ثبت رویداد و ارسال نوتیف
         Route::post('/location/sync', [TrackingController::class, 'syncLocation']); // ارسال لوکیشن زنده
+        Route::post('/locations/sync', [TrackingController::class, 'syncLocations']); // همگام‌سازی گروهی نقاط آفلاین
         
         // اطلاعات دوزبلاغ‌ها
         Route::get('/permits', [PermitController::class, 'index']); // لیست دوزبلاغ‌های راننده

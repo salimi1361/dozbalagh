@@ -64,6 +64,7 @@ class PermitController extends Controller
 
     private function formatPermit(PermitRequest $permit): array
     {
+        $trackingItem = $this->matchingDozbalaghItem($permit);
         $issuedAt = $permit->issued_at ?? $permit->created_at;
         $validUntil = $permit->permit_valid_until;
         $items = $this->permitItems($permit->id);
@@ -81,6 +82,7 @@ class PermitController extends Controller
 
         return [
             'id' => $permit->id,
+            'tracking_item_id' => $trackingItem?->id,
             'serial_number' => $this->toPersianNumbers($serial),
             'raw_serial_number' => $permit->serial_number,
             'd_code' => $this->toPersianNumbers($permit->d_code),

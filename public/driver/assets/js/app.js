@@ -9,6 +9,9 @@ let gpsPermissionState = 'prompt';
 let deferredInstallPrompt = null;
 let notificationPollTimer = null;
 let otpAbortController = null;
+let locationSyncInProgress = false;
+
+window.addEventListener('online', () => flushQueuedLocations());
 
 document.addEventListener('DOMContentLoaded', initApp);
 window.addEventListener('beforeinstallprompt', event => {
@@ -372,7 +375,7 @@ function startLocationWatch(permitId, silent = false) {
         pos => {
             gpsPermissionState = 'granted';
             updateGpsBadge();
-            sendLocation(pos.coords.latitude, pos.coords.longitude, permitId);
+            queueLocation(pos.coords, permitId);
         },
         () => {
             gpsPermissionState = 'denied';
@@ -666,7 +669,7 @@ function fetchPermits() {
             if (currentTab === 'fleet') renderDashboard();
             if (badge) badge.textContent = permitsCache.length.toLocaleString('fa-IR');
             if (localStorage.getItem('is_on_trip') === 'true' && !localStorage.getItem('active_permit_id') && permitsCache[0]) {
-                startLocationWatch(permitsCache[0].id, true);
+                startLocationWatch(permitsCache[0].tracking_item_id || permitsCache[0].id, true);
             }
 
             if (permitsCache.length === 0) {
@@ -1248,7 +1251,7 @@ function showPermitDetail(id) {
                             ${dozolehItems ? `<div class="section-title" style="margin-top:8px">ردیف‌های دوزوله</div>${dozolehItems}` : ''}
                             <div class="section-title" style="margin-top:8px">تاریخچه رویدادها</div>
                             ${events}
-                            <button type="button" onclick="selectPermitForTrip(${p.id}); closeModal();" class="btn btn--outline" style="margin-top:8px">
+                            <button type="button" onclick="selectPermitForTrip(${p.tracking_item_id || p.id}); closeModal();" class="btn btn--outline" style="margin-top:8px">
                                 <i class="fa-solid fa-check"></i>
                                 انتخاب برای ردیابی GPS
                             </button>
@@ -1291,7 +1294,7 @@ function toggleTripState() {
         localStorage.removeItem('is_on_trip');
         showToast('ارسال موقعیت متوقف شد.', 'info');
     } else {
-        const permitId = localStorage.getItem('active_permit_id') || (permitsCache[0] && permitsCache[0].id);
+        const permitId = localStorage.getItem('active_permit_id') || (permitsCache[0] && (permitsCache[0].tracking_item_id || permitsCache[0].id));
         if (!permitId) {
             showToast('ابتدا یک دوزوله انتخاب کنید.', 'error');
             return;
@@ -1312,16 +1315,89 @@ function updateTripButtonUI() {
         : '<i class="fa-solid fa-location-arrow"></i><span>شروع ارسال موقعیت مکانی</span>';
 }
 
-function sendLocation(lat, lng, permitId) {
-    fetch(`${API_BASE}/location/sync`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({
-            dozbalagh_item_id: parseInt(permitId, 10),
-            latitude: lat,
-            longitude: lng,
+function trackingDatabase() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('dozoleh-driver-tracking', 1);
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains('points')) {
+                const store = db.createObjectStore('points', { keyPath: 'client_uuid' });
+                store.createIndex('recorded_at', 'recorded_at');
+            }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+function transactionDone(transaction) {
+    return new Promise((resolve, reject) => {
+        transaction.oncomplete = resolve;
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error);
+    });
+}
+
+async function queueLocation(coords, permitId) {
+    const point = {
+        client_uuid: crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
+            const value = Math.random() * 16 | 0;
+            return (char === 'x' ? value : (value & 0x3 | 0x8)).toString(16);
         }),
-    }).catch(() => {});
+        dozbalagh_item_id: parseInt(permitId, 10),
+        driver_id: Number((JSON.parse(localStorage.getItem('driver_info') || '{}')).id || 0),
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+        accuracy: Number.isFinite(coords.accuracy) ? coords.accuracy : null,
+        altitude: Number.isFinite(coords.altitude) ? coords.altitude : null,
+        speed: Number.isFinite(coords.speed) ? coords.speed : null,
+        heading: Number.isFinite(coords.heading) ? coords.heading : null,
+        recorded_at: new Date().toISOString(),
+    };
+
+    try {
+        const db = await trackingDatabase();
+        const transaction = db.transaction('points', 'readwrite');
+        transaction.objectStore('points').put(point);
+        await transactionDone(transaction);
+        flushQueuedLocations();
+    } catch (_) {
+        setConnectionStatus(false);
+    }
+}
+
+async function flushQueuedLocations() {
+    if (locationSyncInProgress || !navigator.onLine || !localStorage.getItem('driver_token')) return;
+    locationSyncInProgress = true;
+
+    try {
+        const db = await trackingDatabase();
+        const readTransaction = db.transaction('points', 'readonly');
+        const request = readTransaction.objectStore('points').getAll();
+        const currentDriverId = Number((JSON.parse(localStorage.getItem('driver_info') || '{}')).id || 0);
+        const points = await new Promise((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result.filter(point => point.driver_id === currentDriverId).slice(0, 100));
+            request.onerror = () => reject(request.error);
+        });
+        if (!points.length) return;
+
+        const response = await fetch(`${API_BASE}/locations/sync`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ points }),
+        });
+        if (!response.ok) throw new Error('sync_failed');
+
+        const transaction = db.transaction('points', 'readwrite');
+        points.forEach(point => transaction.objectStore('points').delete(point.client_uuid));
+        await transactionDone(transaction);
+        setConnectionStatus(true);
+        setTimeout(flushQueuedLocations, 50);
+    } catch (_) {
+        setConnectionStatus(false);
+    } finally {
+        locationSyncInProgress = false;
+    }
 }
 
 function setConnectionStatus(online) {

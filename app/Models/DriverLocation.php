@@ -7,19 +7,27 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class DriverLocation extends Model
 {
-    public $timestamps = false;
-
     protected $fillable = [
+        'client_uuid',
         'driver_id',
         'dozbalagh_item_id',
         'latitude',
         'longitude',
+        'accuracy',
+        'altitude',
         'speed',
+        'heading',
         'recorded_at',
     ];
 
     protected $casts = [
         'recorded_at' => 'datetime',
+        'latitude' => 'float',
+        'longitude' => 'float',
+        'accuracy' => 'float',
+        'altitude' => 'float',
+        'speed' => 'float',
+        'heading' => 'float',
     ];
 
     public function driver(): BelongsTo

@@ -224,8 +224,8 @@
             </details>
             @endif
 
-            @if($showAssociationFeature('drivers') || $showAssociationFeature('fleets') || $showAssociationFeature('cargo_rules'))
-            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('admin.drivers.*', 'admin.fleets.*', 'admin.cargo_rules.*')) open @endif>
+            @if($showAssociationFeature('drivers') || $showAssociationFeature('tracking') || $showAssociationFeature('fleets') || $showAssociationFeature('cargo_rules'))
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('admin.drivers.*', 'admin.tracking.*', 'admin.fleets.*', 'admin.cargo_rules.*')) open @endif>
                 <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800 hover:text-white"><span>🚚 رانندگان و ناوگان</span><span class="tree-arrow text-xs">⌄</span></summary>
                 <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
 
@@ -234,6 +234,10 @@
                     <svg class="w-5 h-5 {{ request()->routeIs('admin.drivers.*') ? 'text-white' : 'text-slate-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                     مدیریت رانندگان
                 </a>
+                @endif
+
+                @if($showAssociationFeature('tracking'))
+                <a href="{{ route('admin.tracking.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.tracking.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">📍 ردیابی رانندگان</a>
                 @endif
 
                 @if($showAssociationFeature('fleets'))

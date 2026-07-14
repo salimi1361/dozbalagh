@@ -20,6 +20,7 @@ use App\Http\Controllers\Association\DashboardController as AssociationDashboard
 use App\Http\Controllers\Association\AssociationController;
 use App\Http\Controllers\Association\ReportController as AssociationReportController;
 use App\Http\Controllers\Association\IssuedDozbalaghFinancialReportController;
+use App\Http\Controllers\TrackingMapController;
 // ==========================================
 // روت اصلی
 // ==========================================
@@ -152,6 +153,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::get('/drivers', [DriverController::class, 'index'])->name('drivers.index');
     Route::put('/drivers/{id}/company', [DriverController::class, 'updateCompany'])->name('drivers.update_company');
     Route::delete('/drivers/{id}', [DriverController::class, 'destroy'])->name('drivers.destroy');
+    Route::get('/tracking', [TrackingMapController::class, 'index'])->name('tracking.index');
+    Route::get('/tracking/data', [TrackingMapController::class, 'data'])->name('tracking.data');
     Route::get('/web/admin/driver/dashboard', [App\Http\Controllers\Admin\AdminMenuController::class, 'index'])->name('web.admin.driver.index');
     
     // 🚛 مدیریت جامع ناوگان
