@@ -52,8 +52,9 @@ class TrackingMapController extends Controller
             ->orderBy('created_at')
             ->get()
             ->keyBy(fn (DriverEvent $event) => $event->driver_id.':'.$event->dozbalagh_item_id);
+        $onlineSince = now()->subMinutes((int) config('tracking.online_timeout_minutes', 15));
 
-        $tracks = $locations->groupBy('dozbalagh_item_id')->map(function ($points, $itemId) use ($latestStarts) {
+        $tracks = $locations->groupBy('dozbalagh_item_id')->map(function ($points, $itemId) use ($latestStarts, $onlineSince) {
             $driverId = $points->last()?->driver_id;
             $startedAt = $latestStarts->get($driverId.':'.$itemId)?->created_at;
             if ($startedAt) {
@@ -64,7 +65,7 @@ class TrackingMapController extends Controller
             }
 
             $latest = $points->last();
-            if (! $latest || ! ($latest->created_at ?? $latest->recorded_at)?->greaterThan(now()->subMinutes(5))) {
+            if (! $latest || ! ($latest->created_at ?? $latest->recorded_at)?->greaterThan($onlineSince)) {
                 return null;
             }
 
@@ -92,7 +93,7 @@ class TrackingMapController extends Controller
 
         return response()->json([
             'generated_at' => now()->toIso8601String(),
-            'drivers' => $drivers->map(function (Driver $driver) use ($latestLocationsByDriver) {
+            'drivers' => $drivers->map(function (Driver $driver) use ($latestLocationsByDriver, $onlineSince) {
                 $latest = $latestLocationsByDriver->get($driver->id);
                 $lastSeenAt = $latest?->created_at ?? $latest?->recorded_at;
 
@@ -102,7 +103,7 @@ class TrackingMapController extends Controller
                     'company_name' => $driver->company?->name_fa ?? $driver->company?->name,
                     'has_location' => (bool) $latest,
                     'last_seen_at' => $lastSeenAt?->toIso8601String(),
-                    'is_online' => $lastSeenAt?->greaterThan(now()->subMinutes(5)) ?? false,
+                    'is_online' => $lastSeenAt?->greaterThan($onlineSince) ?? false,
                 ];
             })->values(),
             'tracks' => $tracks,
