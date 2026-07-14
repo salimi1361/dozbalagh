@@ -9,6 +9,7 @@ if (root) {
     const tilesEnabled = root.dataset.tilesEnabled === '1';
     const outlineUrl = root.dataset.outline;
     const list = document.getElementById('tracking-list');
+    const activity = document.getElementById('tracking-activity');
     const status = document.getElementById('tracking-refresh-status');
     const markers = new Map();
     let firstFit = true;
@@ -63,7 +64,7 @@ if (root) {
         && Number(point.latitude) >= -90
         && Number(point.latitude) <= 90;
 
-    function renderTracks(tracks, drivers) {
+    function renderTracks(tracks, drivers, recentActivity = []) {
         const validTracks = tracks
             .map(track => ({
                 ...track,
@@ -136,6 +137,14 @@ if (root) {
             }
         }));
 
+        if (activity) {
+            activity.innerHTML = recentActivity.length ? recentActivity.map(event => `
+                <div class="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs">
+                    <b class="text-emerald-800">${escapeHtml(event.driver_name)} ${escapeHtml(event.event)}</b>
+                    <small class="mt-1 block text-emerald-600">${escapeHtml(faDate(event.created_at))}</small>
+                </div>`).join('') : '<div class="text-xs font-bold text-slate-400">هنوز اتصال جدیدی ثبت نشده است.</div>';
+        }
+
         if (firstFit && validTracks.length === 1) {
             map.flyTo({
                 center: [Number(validTracks[0].latest.longitude), Number(validTracks[0].latest.latitude)],
@@ -176,7 +185,7 @@ if (root) {
             if (!Array.isArray(payload.tracks) || !Array.isArray(payload.drivers)) {
                 throw new Error('ساختار پاسخ سرور معتبر نیست');
             }
-            renderTracks(payload.tracks || [], payload.drivers || []);
+            renderTracks(payload.tracks || [], payload.drivers || [], payload.recent_activity || []);
             status.textContent = `به‌روزرسانی: ${faDate(payload.generated_at)}`;
         } catch (error) {
             status.textContent = `خطا در دریافت موقعیت‌ها (${error?.message || 'خطای ناشناخته'})`;

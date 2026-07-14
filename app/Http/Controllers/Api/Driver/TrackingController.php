@@ -111,8 +111,12 @@ class TrackingController extends Controller
         $driver = $request->user();
         $accepted = 0;
         $rejected = [];
+        $onlineItem = null;
+        $wasOnline = $driver->locations()
+            ->where('created_at', '>=', now()->subMinutes((int) config('tracking.online_timeout_minutes', 3)))
+            ->exists();
 
-        DB::transaction(function () use ($validated, $driver, &$accepted, &$rejected) {
+        DB::transaction(function () use ($validated, $driver, &$accepted, &$rejected, &$onlineItem) {
             foreach ($validated['points'] as $point) {
                 $item = $this->resolveDozbalaghItem((int) $point['dozbalagh_item_id'], $driver);
                 if (! $item) {
@@ -133,11 +137,26 @@ class TrackingController extends Controller
                         'recorded_at' => Carbon::parse($point['recorded_at'])->setTimezone(config('app.timezone')),
                     ],
                 );
+                $onlineItem ??= $item;
                 $accepted++;
             }
         });
 
-        return response()->json(['status' => 'success', 'accepted' => $accepted, 'rejected' => $rejected]);
+        if ($accepted > 0 && ! $wasOnline && $onlineItem) {
+            DriverEvent::create([
+                'driver_id' => $driver->id,
+                'dozbalagh_item_id' => $onlineItem->id,
+                'event_type' => 'tracking_online',
+                'description' => 'ارتباط موقعیت مکانی راننده برقرار شد.',
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'accepted' => $accepted,
+            'rejected' => $rejected,
+            'became_online' => $accepted > 0 && ! $wasOnline,
+        ]);
     }
 
     private function resolveDozbalaghItem(int $id, $driver): ?DozbalaghItem

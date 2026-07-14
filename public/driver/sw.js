@@ -1,5 +1,5 @@
 // 👈 تغییر دادن این شماره نسخه در آینده، کِش تمام راننده‌ها را فوراً آپدیت می‌کند
-const CACHE_NAME = 'dozoleh-driver-v7.3';
+const CACHE_NAME = 'dozoleh-driver-v7.4';
 const ASSETS = [
     '/driver/',
     '/driver/index.html',

@@ -7,6 +7,7 @@ use App\Models\Driver;
 use App\Models\DriverEvent;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class TrackingMapController extends Controller
@@ -52,9 +53,10 @@ class TrackingMapController extends Controller
             ->orderBy('created_at')
             ->get()
             ->keyBy(fn (DriverEvent $event) => $event->driver_id.':'.$event->dozbalagh_item_id);
-        $onlineSince = now()->subMinutes((int) config('tracking.online_timeout_minutes', 15));
+        $onlineSince = now()->subMinutes((int) config('tracking.online_timeout_minutes', 3));
 
         $tracks = $locations->groupBy('dozbalagh_item_id')->map(function ($points, $itemId) use ($latestStarts, $onlineSince) {
+            $allPoints = $points;
             $driverId = $points->last()?->driver_id;
             $startedAt = $latestStarts->get($driverId.':'.$itemId)?->created_at;
             if ($startedAt) {
@@ -64,8 +66,12 @@ class TrackingMapController extends Controller
                 )->values();
             }
 
+            if ($points->isEmpty()) {
+                $points = $allPoints->take(-1)->values();
+            }
+
             $latest = $points->last();
-            if (! $latest || ! ($latest->created_at ?? $latest->recorded_at)?->greaterThan($onlineSince)) {
+            if (! $latest) {
                 return null;
             }
 
@@ -78,17 +84,38 @@ class TrackingMapController extends Controller
                 'company_name' => $driver?->company?->name_fa ?? $driver?->company?->name,
                 'serial_number' => $latest->dozbalaghItem?->serial_number,
                 'last_seen_at' => ($latest->created_at ?? $latest->recorded_at)?->toIso8601String(),
-                'is_online' => true,
+                'is_online' => ($latest->created_at ?? $latest->recorded_at)?->greaterThan($onlineSince) ?? false,
                 'latest' => $this->point($latest),
                 'points' => $points->map(fn ($point) => $this->point($point))->values(),
             ];
         })->filter()->values();
 
         $latestLocationsByDriver = $locations->groupBy('driver_id')->map(fn ($points) => $points->last());
+        $activeDriverIds = DB::table('permit_requests as pr')
+            ->join('permit_request_items as pri', 'pri.permit_request_id', '=', 'pr.id')
+            ->where('pr.status', 'issued')
+            ->whereNotNull('pr.driver_id')
+            ->whereNotNull('pri.d_serial_number')
+            ->whereNull('pri.company_return_submitted_at')
+            ->where(function ($query) {
+                $query->whereNull('pri.item_status')
+                    ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived', 'cancelled']);
+            })
+            ->when($companyId, fn ($query) => $query->where('pr.company_id', $companyId))
+            ->distinct()
+            ->pluck('pr.driver_id');
+
         $drivers = Driver::query()
             ->with('company')
-            ->whereIn('id', $tracks->pluck('driver_id')->filter()->unique())
+            ->whereIn('id', $activeDriverIds)
             ->orderBy('last_name_fa')
+            ->get();
+        $recentActivity = DriverEvent::query()
+            ->with('driver')
+            ->where('event_type', 'tracking_online')
+            ->whereIn('driver_id', $activeDriverIds)
+            ->latest()
+            ->limit(20)
             ->get();
 
         return response()->json([
@@ -107,6 +134,12 @@ class TrackingMapController extends Controller
                 ];
             })->values(),
             'tracks' => $tracks,
+            'recent_activity' => $recentActivity->map(fn (DriverEvent $event) => [
+                'id' => $event->id,
+                'driver_name' => trim(($event->driver?->first_name_fa ?? '').' '.($event->driver?->last_name_fa ?? '')) ?: 'راننده نامشخص',
+                'event' => 'آنلاین شد',
+                'created_at' => $event->created_at?->toIso8601String(),
+            ])->values(),
         ]);
     }
 

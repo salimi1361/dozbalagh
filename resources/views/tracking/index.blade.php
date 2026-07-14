@@ -28,6 +28,8 @@
         <aside class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <h3 class="mb-3 font-black text-slate-800">آخرین وضعیت رانندگان</h3>
             <div id="tracking-list" class="max-h-[65vh] space-y-2 overflow-auto"></div>
+            <h3 class="mb-3 mt-5 border-t border-slate-200 pt-4 font-black text-slate-800">لاگ اتصال رانندگان</h3>
+            <div id="tracking-activity" class="max-h-48 space-y-2 overflow-auto"></div>
         </aside>
     </div>
 </div>

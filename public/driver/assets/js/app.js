@@ -11,7 +11,6 @@ let notificationPollTimer = null;
 let otpAbortController = null;
 let locationSyncInProgress = false;
 let tripWakeLock = null;
-let locationHeartbeatTimer = null;
 
 window.addEventListener('online', () => flushQueuedLocations());
 document.addEventListener('visibilitychange', handleTripVisibilityChange);
@@ -380,7 +379,6 @@ function startLocationWatch(permitId, silent = false) {
     localStorage.setItem('active_permit_id', permitId);
     localStorage.setItem('is_on_trip', 'true');
     requestTripWakeLock();
-    startLocationHeartbeat(permitId);
     if (!silent) logTrackingEvent(permitId, 'tracking_started');
 
     navigator.geolocation.getCurrentPosition(
@@ -416,24 +414,6 @@ function startLocationWatch(permitId, silent = false) {
     updateTripButtonUI();
     updateGpsBadge();
     return true;
-}
-
-function startLocationHeartbeat(permitId) {
-    stopLocationHeartbeat();
-    locationHeartbeatTimer = window.setInterval(() => {
-        if (localStorage.getItem('is_on_trip') !== 'true') return;
-        navigator.geolocation.getCurrentPosition(
-            position => queueLocation(position.coords, permitId),
-            () => {},
-            { enableHighAccuracy: true, maximumAge: 60000, timeout: 20000 }
-        );
-    }, 10 * 60 * 1000);
-}
-
-function stopLocationHeartbeat() {
-    if (!locationHeartbeatTimer) return;
-    window.clearInterval(locationHeartbeatTimer);
-    locationHeartbeatTimer = null;
 }
 
 function logTrackingEvent(permitId, eventType) {
@@ -1385,7 +1365,6 @@ function toggleTripState() {
         if (watchId) navigator.geolocation.clearWatch(watchId);
         watchId = null;
         localStorage.removeItem('is_on_trip');
-        stopLocationHeartbeat();
         releaseTripWakeLock();
         showToast('ارسال موقعیت متوقف شد.', 'info');
     } else {
@@ -1500,7 +1479,6 @@ async function flushQueuedLocations() {
             watchId = null;
             localStorage.removeItem('is_on_trip');
             localStorage.removeItem('active_permit_id');
-            stopLocationHeartbeat();
             releaseTripWakeLock();
             updateTripButtonUI();
             updateGpsBadge();
@@ -1530,7 +1508,6 @@ function setConnectionStatus(online) {
 
 function logout() {
     if (watchId) navigator.geolocation.clearWatch(watchId);
-    stopLocationHeartbeat();
     releaseTripWakeLock();
     localStorage.clear();
     location.reload();
