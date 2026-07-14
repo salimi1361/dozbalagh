@@ -101,11 +101,12 @@ if (root) {
                 element.type = 'button';
                 element.innerHTML = '<span></span>';
                 marker = new maplibregl.Marker({ element })
+                    .setLngLat([Number(track.latest.longitude), Number(track.latest.latitude)])
                     .setPopup(new maplibregl.Popup({ offset: 20 }))
                     .addTo(map);
                 markers.set(id, marker);
             }
-            marker.setLngLat([track.latest.longitude, track.latest.latitude]);
+            marker.setLngLat([Number(track.latest.longitude), Number(track.latest.latitude)]);
             marker.getElement().classList.toggle('is-online', Boolean(track.is_online));
             marker.getPopup().setHTML(`
                 <div dir="rtl" class="tracking-popup">
