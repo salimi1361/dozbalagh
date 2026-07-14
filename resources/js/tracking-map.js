@@ -18,7 +18,7 @@ if (root) {
         { id: 'background', type: 'background', paint: { 'background-color': '#dce8ef' } },
     ];
     if (tilesEnabled) {
-        mapSources.localTiles = { type: 'raster', tiles: [tileUrl], tileSize: 256, minzoom: 0, maxzoom: 14 };
+        mapSources.localTiles = { type: 'raster', tiles: [tileUrl], tileSize: 256, minzoom: 0, maxzoom: 19 };
         mapLayers.push({ id: 'local-map', type: 'raster', source: 'localTiles', minzoom: 0, maxzoom: 22 });
     }
 
@@ -184,7 +184,7 @@ if (root) {
 
     map.on('load', () => {
         map.addSource('iran-outline', { type: 'geojson', data: outlineUrl });
-        map.addLayer({ id: 'iran-fill', type: 'fill', source: 'iran-outline', paint: { 'fill-color': '#f8fafc', 'fill-opacity': 0.92 } });
+        map.addLayer({ id: 'iran-fill', type: 'fill', source: 'iran-outline', paint: { 'fill-color': '#f8fafc', 'fill-opacity': tilesEnabled ? 0.04 : 0.92 } });
         map.addLayer({ id: 'iran-border', type: 'line', source: 'iran-outline', paint: { 'line-color': '#64748b', 'line-width': 2 } });
         refresh();
     });

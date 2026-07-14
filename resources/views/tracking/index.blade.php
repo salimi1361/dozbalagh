@@ -18,6 +18,11 @@
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div id="tracking-map-root" data-url="{{ $dataUrl }}" data-tiles="{{ $localTileUrl }}" data-tiles-enabled="{{ $tilesEnabled ? '1' : '0' }}" data-outline="{{ $outlineUrl }}">
                 <div id="tracking-map" class="h-[68vh] min-h-[520px] w-full"></div>
+                @if ($showMapAttribution)
+                    <div class="relative z-10 -mt-7 w-fit rounded-tl-md bg-white/90 px-2 py-1 text-[10px] text-slate-600" dir="ltr">
+                        © <a class="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>
+                    </div>
+                @endif
             </div>
         </section>
         <aside class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">

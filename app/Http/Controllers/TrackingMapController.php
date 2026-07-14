@@ -20,6 +20,7 @@ class TrackingMapController extends Controller
             'layout' => $companyScope ? 'layouts.app' : 'layouts.admin',
             'localTileUrl' => url((string) config('tracking.tile_url', '/maps/offline-grid.svg')),
             'tilesEnabled' => (bool) config('tracking.tiles_enabled', false),
+            'showMapAttribution' => (bool) config('tracking.online_tiles_enabled', false),
             'outlineUrl' => asset('maps/iran-outline.geojson'),
         ]);
     }

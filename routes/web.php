@@ -21,6 +21,7 @@ use App\Http\Controllers\Association\AssociationController;
 use App\Http\Controllers\Association\ReportController as AssociationReportController;
 use App\Http\Controllers\Association\IssuedDozbalaghFinancialReportController;
 use App\Http\Controllers\TrackingMapController;
+use App\Http\Controllers\MapTileController;
 // ==========================================
 // روت اصلی
 // ==========================================
@@ -33,6 +34,10 @@ Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/pwa/installations', [\App\Http\Controllers\PwaInstallationController::class, 'store'])->middleware('auth')->name('pwa.installations.store');
+Route::get('/maps/online/{z}/{x}/{y}.png', [MapTileController::class, 'show'])
+    ->whereNumber(['z', 'x', 'y'])
+    ->middleware(['auth', 'throttle:600,1'])
+    ->name('maps.online-tile');
 
 // ==========================================
 // پنل ادمین (یکپارچه و ایمن شده)
