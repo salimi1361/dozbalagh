@@ -57,11 +57,14 @@ class TrackingMapController extends Controller
             $driverId = $points->last()?->driver_id;
             $startedAt = $latestStarts->get($driverId.':'.$itemId)?->created_at;
             if ($startedAt) {
-                $points = $points->filter(fn ($point) => $point->recorded_at?->greaterThanOrEqualTo($startedAt))->values();
+                $points = $points->filter(fn ($point) =>
+                    $point->created_at?->greaterThanOrEqualTo($startedAt)
+                    || $point->recorded_at?->greaterThanOrEqualTo($startedAt)
+                )->values();
             }
 
             $latest = $points->last();
-            if (! $latest || ! $latest->recorded_at?->greaterThan(now()->subMinutes(5))) {
+            if (! $latest || ! ($latest->created_at ?? $latest->recorded_at)?->greaterThan(now()->subMinutes(5))) {
                 return null;
             }
 
@@ -73,7 +76,7 @@ class TrackingMapController extends Controller
                 'driver_name' => trim(($driver?->first_name_fa ?? '').' '.($driver?->last_name_fa ?? '')) ?: 'راننده نامشخص',
                 'company_name' => $driver?->company?->name_fa ?? $driver?->company?->name,
                 'serial_number' => $latest->dozbalaghItem?->serial_number,
-                'last_seen_at' => $latest->recorded_at?->toIso8601String(),
+                'last_seen_at' => ($latest->created_at ?? $latest->recorded_at)?->toIso8601String(),
                 'is_online' => true,
                 'latest' => $this->point($latest),
                 'points' => $points->map(fn ($point) => $this->point($point))->values(),
@@ -91,14 +94,15 @@ class TrackingMapController extends Controller
             'generated_at' => now()->toIso8601String(),
             'drivers' => $drivers->map(function (Driver $driver) use ($latestLocationsByDriver) {
                 $latest = $latestLocationsByDriver->get($driver->id);
+                $lastSeenAt = $latest?->created_at ?? $latest?->recorded_at;
 
                 return [
                     'id' => $driver->id,
                     'name' => trim(($driver->first_name_fa ?? '').' '.($driver->last_name_fa ?? '')) ?: 'راننده نامشخص',
                     'company_name' => $driver->company?->name_fa ?? $driver->company?->name,
                     'has_location' => (bool) $latest,
-                    'last_seen_at' => $latest?->recorded_at?->toIso8601String(),
-                    'is_online' => $latest?->recorded_at?->greaterThan(now()->subMinutes(5)) ?? false,
+                    'last_seen_at' => $lastSeenAt?->toIso8601String(),
+                    'is_online' => $lastSeenAt?->greaterThan(now()->subMinutes(5)) ?? false,
                 ];
             })->values(),
             'tracks' => $tracks,

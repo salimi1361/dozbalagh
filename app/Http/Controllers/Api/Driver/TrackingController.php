@@ -10,6 +10,7 @@ use App\Notifications\DriverEventNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 
 class TrackingController extends Controller
 {
@@ -84,7 +85,9 @@ class TrackingController extends Controller
             'altitude' => $request->altitude,
             'speed' => $request->speed,
             'heading' => $request->heading,
-            'recorded_at' => $request->date('recorded_at') ?? now(),
+            'recorded_at' => $request->filled('recorded_at')
+                ? Carbon::parse($request->input('recorded_at'))->setTimezone(config('app.timezone'))
+                : now(),
         ]);
 
         return response()->json(['status' => 'success', 'accepted' => 1]);
@@ -127,7 +130,7 @@ class TrackingController extends Controller
                         'altitude' => $point['altitude'] ?? null,
                         'speed' => $point['speed'] ?? null,
                         'heading' => $point['heading'] ?? null,
-                        'recorded_at' => $point['recorded_at'],
+                        'recorded_at' => Carbon::parse($point['recorded_at'])->setTimezone(config('app.timezone')),
                     ],
                 );
                 $accepted++;
