@@ -81,6 +81,9 @@
             @if($panelFeatures->enabledForRole('company', 'driver_messages'))
             <a href="{{ route('company.driver_messages.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('company.driver_messages.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">💬 پیام رانندگان</a>
             @endif
+            @if($panelFeatures->enabledForRole('company', 'driver_announcements'))
+            <a href="{{ route('driver-announcements.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('driver-announcements.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📢 اطلاع‌رسانی به رانندگان</a>
+            @endif
             @if($panelFeatures->enabledForRole('company', 'association_crm'))
             <a href="{{ route('company.association_crm.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('company.association_crm.index') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">پیام‌ها و پشتیبانی انجمن</a>
             @endif

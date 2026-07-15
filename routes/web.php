@@ -24,6 +24,8 @@ use App\Http\Controllers\TrackingMapController;
 use App\Http\Controllers\MapTileController;
 use App\Http\Controllers\DriverDeviceController;
 use App\Http\Controllers\Association\AccountSecurityController;
+use App\Http\Controllers\Admin\MobileAppVersionController;
+use App\Http\Controllers\DriverAnnouncementController;
 // ==========================================
 // روت اصلی
 // ==========================================
@@ -44,6 +46,11 @@ Route::middleware(['auth', 'role:admin,association,company', 'panel.features'])-
 Route::middleware(['auth', 'role:association', 'panel.features'])->group(function () {
     Route::get('/association/account/security', [AccountSecurityController::class, 'edit'])->name('association.account.security.edit');
     Route::put('/association/account/security', [AccountSecurityController::class, 'update'])->name('association.account.security.update');
+});
+Route::middleware(['auth', 'role:admin,association,company', 'panel.features'])->group(function () {
+    Route::get('/driver-announcements', [DriverAnnouncementController::class, 'index'])->name('driver-announcements.index');
+    Route::post('/driver-announcements', [DriverAnnouncementController::class, 'store'])->name('driver-announcements.store');
+    Route::put('/driver-announcements/{announcement}/toggle', [DriverAnnouncementController::class, 'toggle'])->name('driver-announcements.toggle');
 });
 Route::get('/maps/online/{z}/{x}/{y}.png', [MapTileController::class, 'show'])
     ->whereNumber(['z', 'x', 'y'])
@@ -187,6 +194,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::delete('/financial/manual-adjustment/{id}', [FinancialController::class, 'destroyAdjustment'])->name('financial.destroyAdjustment');
 
     Route::middleware('role:admin')->group(function () {
+        Route::get('/mobile-app/versions', [MobileAppVersionController::class, 'index'])->name('mobile-app.versions.index');
+        Route::put('/mobile-app/versions/{platform}', [MobileAppVersionController::class, 'update'])->name('mobile-app.versions.update');
         Route::get('/settings/panel-features', [PanelFeatureController::class, 'index'])->name('settings.panel-features.index');
         Route::put('/settings/panel-features', [PanelFeatureController::class, 'update'])->name('settings.panel-features.update');
         Route::get('/association-users', [AssociationUserController::class, 'index'])->name('association-users.index');

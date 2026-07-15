@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\Driver\NotificationController;
 use App\Http\Controllers\Api\Driver\CompanyMessageController;
 use App\Http\Controllers\Api\Driver\PwaInstallationController;
 use App\Http\Controllers\Api\Driver\MobileAppInstallationController;
+use App\Http\Controllers\Api\Driver\StartupAnnouncementController;
+use App\Http\Controllers\Api\MobileAppVersionController as ApiMobileAppVersionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -30,6 +32,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 // General API Routes
 // ==========================================
 Route::post('/dozbalagh/{id}/renew', [DozbalaghController::class, 'renew']);
+Route::get('/v1/mobile-app/version', [ApiMobileAppVersionController::class, 'show']);
 
 
 // ==========================================
@@ -64,6 +67,8 @@ Route::prefix('v1/driver')->group(function () {
         Route::post('/company-messages/reply', [CompanyMessageController::class, 'reply']);
         Route::post('/pwa-installations', [PwaInstallationController::class, 'store']);
         Route::post('/app-installations', [MobileAppInstallationController::class, 'store']);
+        Route::get('/startup-announcements', [StartupAnnouncementController::class, 'index']);
+        Route::post('/startup-announcements/{announcement}/acknowledge', [StartupAnnouncementController::class, 'acknowledge']);
     });
 
 });

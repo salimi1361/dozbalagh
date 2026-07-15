@@ -25,6 +25,7 @@ return [
         'system_map' => ['label' => 'نقشه جامع سیستم', 'routes' => ['system.map'], 'default' => false],
         'driver_device_reset' => ['label' => 'ریست دستگاه اپلیکیشن رانندگان', 'routes' => ['driver-device-reset.*']],
         'account_security' => ['label' => 'تغییر رمز ورود پنل انجمن', 'routes' => ['association.account.security.*']],
+        'driver_announcements' => ['label' => 'اطلاع‌رسانی به رانندگان', 'routes' => ['driver-announcements.*'], 'default' => false],
     ],
     'company' => [
         'dashboard' => ['label' => 'داشبورد', 'routes' => ['dashboard']],
@@ -39,5 +40,6 @@ return [
         'wallet' => ['label' => 'کیف پول', 'routes' => ['company.wallet.*']],
         'profile' => ['label' => 'پروفایل و تغییر رمز', 'routes' => ['company.profile.*', 'company.password.*']],
         'driver_device_reset' => ['label' => 'ریست دستگاه اپلیکیشن رانندگان شرکت', 'routes' => ['driver-device-reset.*']],
+        'driver_announcements' => ['label' => 'اطلاع‌رسانی به رانندگان شرکت', 'routes' => ['driver-announcements.*'], 'default' => false],
     ],
 ];

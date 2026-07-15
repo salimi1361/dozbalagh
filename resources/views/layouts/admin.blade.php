@@ -224,8 +224,8 @@
             </details>
             @endif
 
-            @if($showAssociationFeature('drivers') || $showAssociationFeature('tracking') || $showAssociationFeature('fleets') || $showAssociationFeature('cargo_rules'))
-            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('admin.drivers.*', 'admin.tracking.*', 'admin.fleets.*', 'admin.cargo_rules.*')) open @endif>
+            @if($showAssociationFeature('drivers') || $showAssociationFeature('tracking') || $showAssociationFeature('fleets') || $showAssociationFeature('cargo_rules') || $showAssociationFeature('driver_announcements'))
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('admin.drivers.*', 'admin.tracking.*', 'admin.fleets.*', 'admin.cargo_rules.*', 'driver-announcements.*')) open @endif>
                 <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800 hover:text-white"><span>🚚 رانندگان و ناوگان</span><span class="tree-arrow text-xs">⌄</span></summary>
                 <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
 
@@ -238,6 +238,10 @@
 
                 @if($showAssociationFeature('tracking'))
                 <a href="{{ route('admin.tracking.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.tracking.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">📍 ردیابی رانندگان</a>
+                @endif
+
+                @if($showAssociationFeature('driver_announcements'))
+                <a href="{{ route('driver-announcements.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('driver-announcements.*') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">📢 اطلاع‌رسانی به رانندگان</a>
                 @endif
 
                 @if($showAssociationFeature('fleets'))
@@ -274,7 +278,7 @@
 
             @if(auth()->user()?->hasRole('admin') || $showAssociationFeature('print_layouts') || $showAssociationFeature('driver_device_reset') || $showAssociationFeature('account_security'))
             <div class="relative pt-2 mt-2 border-t border-slate-800">
-                @php $isSettingsActive = request()->routeIs('association.print-layouts.*', 'admin.settings.panel-features.*'); @endphp
+                @php $isSettingsActive = request()->routeIs('association.print-layouts.*', 'admin.settings.panel-features.*', 'admin.mobile-app.versions.*', 'driver-device-reset.*', 'association.account.security.*'); @endphp
                 <button onclick="toggleSettingsMenu()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ $isSettingsActive ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white' }}">
                     <div class="flex items-center gap-3"><span class="text-lg">⚙️</span><span>تنظیمات</span></div>
                     <svg id="arrowSettings" class="w-4 h-4 transform transition-transform duration-200 {{ $isSettingsActive ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
@@ -290,6 +294,7 @@
                     <a href="{{ route('association.account.security.edit') }}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->routeIs('association.account.security.*') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}"><span>🔐</span> تغییر رمز ورود</a>
                     @endif
                     @if(auth()->user()?->hasRole('admin'))
+                    <a href="{{ route('admin.mobile-app.versions.index') }}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->routeIs('admin.mobile-app.versions.*') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}"><span>🔄</span> نسخه و بروزرسانی اپ</a>
                     <a href="{{ route('admin.settings.panel-features.index') }}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->routeIs('admin.settings.panel-features.*') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}"><span>🔐</span> دسترسی پنل‌ها</a>
                     @endif
                 </div>
