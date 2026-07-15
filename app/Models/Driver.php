@@ -66,4 +66,9 @@ class Driver extends Authenticatable
         return $this->hasMany(DriverLocation::class);
     }
 
+    public function appInstallations(): HasMany
+    {
+        return $this->hasMany(MobileAppInstallation::class);
+    }
+
 }

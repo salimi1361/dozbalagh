@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Driver\PermitController;
 use App\Http\Controllers\Api\Driver\NotificationController;
 use App\Http\Controllers\Api\Driver\CompanyMessageController;
 use App\Http\Controllers\Api\Driver\PwaInstallationController;
+use App\Http\Controllers\Api\Driver\MobileAppInstallationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -62,6 +63,7 @@ Route::prefix('v1/driver')->group(function () {
         Route::post('/company-messages/{id}/read', [CompanyMessageController::class, 'markAsRead']);
         Route::post('/company-messages/reply', [CompanyMessageController::class, 'reply']);
         Route::post('/pwa-installations', [PwaInstallationController::class, 'store']);
+        Route::post('/app-installations', [MobileAppInstallationController::class, 'store']);
     });
 
 });

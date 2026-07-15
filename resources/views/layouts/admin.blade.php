@@ -183,7 +183,7 @@
 
             @if(auth()->user()?->hasRole('admin'))
             <a href="{{ route('admin.association-users.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.association-users.*') ? 'bg-violet-600 text-white shadow-lg shadow-violet-600/30' : 'hover:bg-slate-800 hover:text-white' }}">👥 مدیریت کاربران انجمن</a>
-            <a href="{{ route('admin.reports.pwa-installations.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.reports.pwa-installations.*') ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30' : 'hover:bg-slate-800 hover:text-white' }}">📱 وضعیت نصب وب‌اپ</a>
+            <a href="{{ route('admin.reports.pwa-installations.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.reports.pwa-installations.*') ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-600/30' : 'hover:bg-slate-800 hover:text-white' }}">📱 وضعیت اپلیکیشن‌ها</a>
             @endif
 
             @if($showAssociationFeature('crm'))
