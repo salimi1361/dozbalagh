@@ -91,6 +91,14 @@ class PanelFeatureSettingsTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_driver_device_reset_is_available_for_association_and_company_by_default(): void
+    {
+        $features = app(PanelFeatureService::class);
+
+        $this->assertTrue($features->enabledForRole('association', 'driver_device_reset'));
+        $this->assertTrue($features->enabledForRole('company', 'driver_device_reset'));
+    }
+
     private function userWithRole(string $roleName): User
     {
         $role = Role::create(['name' => $roleName, 'title_fa' => $roleName]);

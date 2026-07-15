@@ -11,11 +11,13 @@ class MobileAppInstallation extends Model
         'driver_id', 'device_uuid', 'platform', 'manufacturer', 'model',
         'device_name', 'os_version', 'sdk_version', 'app_version', 'app_build',
         'app_identifier', 'locale', 'last_ip', 'installed_at', 'last_seen_at',
+        'revoked_at', 'revoked_by_user_id',
     ];
 
     protected $casts = [
         'installed_at' => 'datetime',
         'last_seen_at' => 'datetime',
+        'revoked_at' => 'datetime',
     ];
 
     public function driver(): BelongsTo

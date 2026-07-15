@@ -23,6 +23,8 @@ return [
         'cargo_rules' => ['label' => 'قوانین مدارک دوزوله', 'routes' => ['admin.cargo_rules.*'], 'default' => false],
         'admin_financial' => ['label' => 'مدیریت مالی کل', 'routes' => ['admin.financial.*'], 'default' => false],
         'system_map' => ['label' => 'نقشه جامع سیستم', 'routes' => ['system.map'], 'default' => false],
+        'driver_device_reset' => ['label' => 'ریست دستگاه اپلیکیشن رانندگان', 'routes' => ['driver-device-reset.*']],
+        'account_security' => ['label' => 'تغییر رمز ورود پنل انجمن', 'routes' => ['association.account.security.*']],
     ],
     'company' => [
         'dashboard' => ['label' => 'داشبورد', 'routes' => ['dashboard']],
@@ -36,5 +38,6 @@ return [
         'reports' => ['label' => 'گزارش‌ها', 'routes' => ['report.*']],
         'wallet' => ['label' => 'کیف پول', 'routes' => ['company.wallet.*']],
         'profile' => ['label' => 'پروفایل و تغییر رمز', 'routes' => ['company.profile.*', 'company.password.*']],
+        'driver_device_reset' => ['label' => 'ریست دستگاه اپلیکیشن رانندگان شرکت', 'routes' => ['driver-device-reset.*']],
     ],
 ];

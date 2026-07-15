@@ -22,6 +22,8 @@ use App\Http\Controllers\Association\ReportController as AssociationReportContro
 use App\Http\Controllers\Association\IssuedDozbalaghFinancialReportController;
 use App\Http\Controllers\TrackingMapController;
 use App\Http\Controllers\MapTileController;
+use App\Http\Controllers\DriverDeviceController;
+use App\Http\Controllers\Association\AccountSecurityController;
 // ==========================================
 // روت اصلی
 // ==========================================
@@ -34,6 +36,15 @@ Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/pwa/installations', [\App\Http\Controllers\PwaInstallationController::class, 'store'])->middleware('auth')->name('pwa.installations.store');
+Route::middleware(['auth', 'role:admin,association,company', 'panel.features'])->group(function () {
+    Route::get('/driver-devices', [DriverDeviceController::class, 'index'])->name('driver-device-reset.index');
+    Route::delete('/driver-devices/{driver}', [DriverDeviceController::class, 'destroy'])->name('driver-device-reset.destroy');
+});
+
+Route::middleware(['auth', 'role:association', 'panel.features'])->group(function () {
+    Route::get('/association/account/security', [AccountSecurityController::class, 'edit'])->name('association.account.security.edit');
+    Route::put('/association/account/security', [AccountSecurityController::class, 'update'])->name('association.account.security.update');
+});
 Route::get('/maps/online/{z}/{x}/{y}.png', [MapTileController::class, 'show'])
     ->whereNumber(['z', 'x', 'y'])
     ->middleware(['auth', 'throttle:600,1'])

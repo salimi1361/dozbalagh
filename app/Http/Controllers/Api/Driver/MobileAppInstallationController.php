@@ -31,6 +31,26 @@ class MobileAppInstallationController extends Controller
             'device_uuid' => $data['device_uuid'],
         ]);
 
+        if ($installation->exists && $installation->revoked_at) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'دسترسی این دستگاه لغو شده است. برای فعال‌سازی مجدد با شرکت یا انجمن تماس بگیرید.',
+            ], 409);
+        }
+
+        $hasAnotherActiveDevice = MobileAppInstallation::query()
+            ->where('driver_id', $request->user()->getKey())
+            ->whereNull('revoked_at')
+            ->when($installation->exists, fn ($query) => $query->where('id', '!=', $installation->getKey()))
+            ->exists();
+
+        if ($hasAnotherActiveDevice) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'یک گوشی دیگر برای این راننده فعال است. ابتدا دستگاه قبلی باید از پنل مدیریت ریست شود.',
+            ], 409);
+        }
+
         if (! $installation->exists) {
             $installation->installed_at = $now;
         }

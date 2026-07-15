@@ -72,6 +72,9 @@
             @if($panelFeatures->enabledForRole('company', 'drivers'))
             <a href="{{ route('web.company.driver.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('web.company.driver.index') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">👤 رانندگان</a>
             @endif
+            @if($panelFeatures->enabledForRole('company', 'driver_device_reset'))
+            <a href="{{ route('driver-device-reset.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('driver-device-reset.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📱 دستگاه رانندگان</a>
+            @endif
             @if($panelFeatures->enabledForRole('company', 'tracking'))
             <a href="{{ route('company.tracking.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('company.tracking.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📍 ردیابی ناوگان</a>
             @endif

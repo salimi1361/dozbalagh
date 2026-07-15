@@ -39,20 +39,20 @@
         <form method="GET" class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-3">
             <input type="hidden" name="section" value="app">
             <select name="platform" class="rounded-xl border border-slate-300 px-3 py-2.5"><option value="">همه سیستم‌عامل‌ها</option><option value="android" @selected(request('platform') === 'android')>Android</option><option value="ios" @selected(request('platform') === 'ios')>iPhone / iOS</option></select>
-            <select name="status" class="rounded-xl border border-slate-300 px-3 py-2.5"><option value="">همه وضعیت‌ها</option><option value="active" @selected(request('status') === 'active')>فعال ۳۰ روز اخیر</option><option value="inactive" @selected(request('status') === 'inactive')>غیرفعال</option></select>
+            <select name="status" class="rounded-xl border border-slate-300 px-3 py-2.5"><option value="">همه وضعیت‌ها</option><option value="active" @selected(request('status') === 'active')>فعال ۳۰ روز اخیر</option><option value="inactive" @selected(request('status') === 'inactive')>غیرفعال</option><option value="revoked" @selected(request('status') === 'revoked')>لغوشده / ریست‌شده</option></select>
             <button class="rounded-xl bg-slate-800 px-5 py-2.5 font-bold text-white">اعمال فیلتر</button>
         </form>
 
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
-                    <thead class="bg-slate-50 text-slate-500"><tr><th class="px-4 py-3 text-right">راننده</th><th class="px-4 py-3 text-right">سیستم‌عامل</th><th class="px-4 py-3 text-right">گوشی واقعی</th><th class="px-4 py-3 text-right">نسخه اپ</th><th class="px-4 py-3 text-right">شناسه دستگاه</th><th class="px-4 py-3 text-right">تاریخ نصب</th><th class="px-4 py-3 text-right">آخرین اتصال</th></tr></thead>
+                    <thead class="bg-slate-50 text-slate-500"><tr><th class="px-4 py-3 text-right">راننده</th><th class="px-4 py-3 text-right">سیستم‌عامل</th><th class="px-4 py-3 text-right">گوشی واقعی</th><th class="px-4 py-3 text-right">نسخه اپ</th><th class="px-4 py-3 text-right">شناسه دستگاه</th><th class="px-4 py-3 text-right">تاریخ نصب</th><th class="px-4 py-3 text-right">آخرین اتصال</th><th class="px-4 py-3 text-center">عملیات</th></tr></thead>
                     <tbody class="divide-y divide-slate-100">
                         @forelse($installations as $item)
                             @php
                                 $driver = $item->driver;
                                 $driverName = trim(($driver?->first_name_fa ?? '').' '.($driver?->last_name_fa ?? ''));
-                                $active = $item->last_seen_at?->gte(now()->subDays(30));
+                                $active = ! $item->revoked_at && $item->last_seen_at?->gte(now()->subDays(30));
                             @endphp
                             <tr class="hover:bg-slate-50">
                                 <td class="px-4 py-4 font-bold text-slate-800">{{ $driverName ?: 'راننده حذف‌شده' }}<div class="mt-1 text-xs font-normal text-slate-400">{{ $driver?->mobile }} · {{ $driver?->company?->name_fa }}</div></td>
@@ -61,10 +61,11 @@
                                 <td class="px-4 py-4" dir="ltr">{{ $item->app_version ?: '—' }} @if($item->app_build)<span class="text-xs text-slate-400">({{ $item->app_build }})</span>@endif</td>
                                 <td class="max-w-56 break-all px-4 py-4 font-mono text-xs text-slate-500">{{ $item->device_uuid }}</td>
                                 <td class="px-4 py-4 whitespace-nowrap" dir="ltr">{{ $item->installed_at ? verta($item->installed_at)->format('Y/m/d H:i') : '—' }}</td>
-                                <td class="px-4 py-4 whitespace-nowrap" dir="ltr"><span class="font-bold {{ $active ? 'text-emerald-600' : 'text-amber-600' }}">{{ $active ? 'فعال' : 'غیرفعال' }}</span><div class="mt-1 text-xs text-slate-500">{{ $item->last_seen_at ? verta($item->last_seen_at)->format('Y/m/d H:i') : '—' }}</div></td>
+                                <td class="px-4 py-4 whitespace-nowrap" dir="ltr"><span class="font-bold {{ $item->revoked_at ? 'text-rose-600' : ($active ? 'text-emerald-600' : 'text-amber-600') }}">{{ $item->revoked_at ? 'لغوشده' : ($active ? 'فعال' : 'غیرفعال') }}</span><div class="mt-1 text-xs text-slate-500">{{ $item->last_seen_at ? verta($item->last_seen_at)->format('Y/m/d H:i') : '—' }}</div></td>
+                                <td class="px-4 py-4 text-center">@if(! $item->revoked_at && $driver)<form method="POST" action="{{ route('driver-device-reset.destroy', $driver) }}" onsubmit="return confirm('دستگاه قبلی از مدار خارج و نشست‌های راننده بسته شود؟')">@csrf @method('DELETE')<button class="rounded-lg bg-rose-600 px-3 py-2 text-xs font-black text-white">ریست دستگاه</button></form>@else<span class="text-xs text-slate-400">—</span>@endif</td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="px-4 py-12 text-center font-bold text-slate-400">هنوز اپلیکیشن موبایل از هیچ دستگاهی اطلاعات ارسال نکرده است.</td></tr>
+                            <tr><td colspan="8" class="px-4 py-12 text-center font-bold text-slate-400">هنوز اپلیکیشن موبایل از هیچ دستگاهی اطلاعات ارسال نکرده است.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

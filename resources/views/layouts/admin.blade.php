@@ -272,7 +272,7 @@
             </details>
             @endif
 
-            @if(auth()->user()?->hasRole('admin') || $showAssociationFeature('print_layouts'))
+            @if(auth()->user()?->hasRole('admin') || $showAssociationFeature('print_layouts') || $showAssociationFeature('driver_device_reset') || $showAssociationFeature('account_security'))
             <div class="relative pt-2 mt-2 border-t border-slate-800">
                 @php $isSettingsActive = request()->routeIs('association.print-layouts.*', 'admin.settings.panel-features.*'); @endphp
                 <button onclick="toggleSettingsMenu()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ $isSettingsActive ? 'bg-slate-800 text-white' : 'hover:bg-slate-800 hover:text-white' }}">
@@ -282,6 +282,12 @@
                 <div id="subSettingsMenu" class="{{ $isSettingsActive ? '' : 'hidden' }} mt-1 mr-3 pr-2 border-r-2 border-slate-800 space-y-1">
                     @if($showAssociationFeature('print_layouts'))
                     <a href="{{ route('association.print-layouts.index') }}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->routeIs('association.print-layouts.*') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}"><span>🖨️</span> تنظیمات چاپ دوزوله</a>
+                    @endif
+                    @if($showAssociationFeature('driver_device_reset'))
+                    <a href="{{ route('driver-device-reset.index') }}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->routeIs('driver-device-reset.*') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}"><span>📱</span> دستگاه اپلیکیشن رانندگان</a>
+                    @endif
+                    @if(auth()->user()?->hasRole('association') && $showAssociationFeature('account_security'))
+                    <a href="{{ route('association.account.security.edit') }}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->routeIs('association.account.security.*') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}"><span>🔐</span> تغییر رمز ورود</a>
                     @endif
                     @if(auth()->user()?->hasRole('admin'))
                     <a href="{{ route('admin.settings.panel-features.index') }}" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all {{ request()->routeIs('admin.settings.panel-features.*') ? 'text-sky-400 bg-slate-800/50' : 'text-slate-400 hover:text-white' }}"><span>🔐</span> دسترسی پنل‌ها</a>

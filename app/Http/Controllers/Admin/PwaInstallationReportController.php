@@ -26,8 +26,9 @@ class PwaInstallationReportController extends Controller
         $query->when($request->filled('device_type'), fn ($q) => $q->where('device_type', $request->device_type));
         $query->when($request->status === 'installed', fn ($q) => $q->where('is_installed', true));
         $query->when($request->status === 'browser', fn ($q) => $q->where('is_installed', false));
-        $query->when($request->status === 'active', fn ($q) => $q->where('last_seen_at', '>=', now()->subDays(30)));
-        $query->when($request->status === 'inactive', fn ($q) => $q->where('last_seen_at', '<', now()->subDays(30)));
+        $query->when($request->status === 'active', fn ($q) => $q->whereNull('revoked_at')->where('last_seen_at', '>=', now()->subDays(30)));
+        $query->when($request->status === 'inactive', fn ($q) => $q->whereNull('revoked_at')->where('last_seen_at', '<', now()->subDays(30)));
+        $query->when($request->status === 'revoked', fn ($q) => $q->whereNotNull('revoked_at'));
 
         $installations = $query->paginate(30)->withQueryString();
         $userIds = $installations->where('actor_type', 'user')->pluck('actor_id');
@@ -70,10 +71,10 @@ class PwaInstallationReportController extends Controller
             ->startOfDay();
 
         $stats = [
-            'devices' => MobileAppInstallation::distinct()->count('device_uuid'),
-            'users' => MobileAppInstallation::distinct()->count('driver_id'),
-            'month' => MobileAppInstallation::where('installed_at', '>=', $jalaliMonthStart)->count(),
-            'active' => MobileAppInstallation::where('last_seen_at', '>=', now()->subDays(30))->count(),
+            'devices' => MobileAppInstallation::whereNull('revoked_at')->distinct()->count('device_uuid'),
+            'users' => MobileAppInstallation::whereNull('revoked_at')->distinct()->count('driver_id'),
+            'month' => MobileAppInstallation::whereNull('revoked_at')->where('installed_at', '>=', $jalaliMonthStart)->count(),
+            'active' => MobileAppInstallation::whereNull('revoked_at')->where('last_seen_at', '>=', now()->subDays(30))->count(),
         ];
 
         return view('admin.reports.pwa_installations', compact('section', 'installations', 'users', 'drivers', 'stats'));
