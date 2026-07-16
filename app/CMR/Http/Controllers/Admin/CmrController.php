@@ -4,6 +4,8 @@ namespace App\CMR\Http\Controllers\Admin;
 
 use App\CMR\Models\CmrDocument;
 use App\CMR\Models\CmrEvent;
+use App\CMR\Models\CmrCompanySetting;
+use App\CMR\Models\CmrPrintTemplate;
 use App\CMR\Models\CmrSetting;
 use App\CMR\Models\CmrTariffHistory;
 use App\CMR\Services\CmrIssuanceService;
@@ -60,17 +62,46 @@ class CmrController extends Controller
             'planned_delivery_at' => ['nullable', 'date'],
             'sender_instructions' => ['nullable', 'string', $latin],
             'special_agreements' => ['nullable', 'string', $latin],
+            'attached_documents_text' => ['nullable', 'string', $latin],
+            'carrier_reservations' => ['nullable', 'string', $latin],
+            'carriage_payment' => ['nullable', 'in:paid,carriage_forward'],
+            'cash_on_delivery' => ['nullable', 'numeric', 'min:0'],
+            'established_at_place' => ['nullable', 'string', 'max:255', $latin],
+            'established_at_date' => ['nullable', 'date'],
+            'charges.freight' => ['nullable', 'numeric', 'min:0'],
+            'charges.supplementary' => ['nullable', 'numeric', 'min:0'],
+            'charges.customs' => ['nullable', 'numeric', 'min:0'],
+            'charges.other' => ['nullable', 'numeric', 'min:0'],
             'goods' => ['required', 'array', 'min:1'],
             'goods.*.description' => ['required', 'string', 'max:255', $latin],
+            'goods.*.marks_and_numbers' => ['nullable', 'string', 'max:255', $latin],
             'goods.*.package_type' => ['nullable', 'string', 'max:100', $latin],
             'goods.*.package_count' => ['nullable', 'numeric', 'min:0'],
             'goods.*.gross_weight_kg' => ['nullable', 'numeric', 'min:0'],
             'goods.*.volume_m3' => ['nullable', 'numeric', 'min:0'],
+            'goods.*.commodity_code' => ['nullable', 'string', 'max:100', $latin],
+            'goods.*.un_number' => ['nullable', 'string', 'max:20', $latin],
+            'goods.*.adr_class' => ['nullable', 'string', 'max:50', $latin],
         ]);
+
+        $companyId = (int) $data['company_id'];
+        if (CmrCompanySetting::forCompany($companyId)->assignment_policy === 'same_company') {
+            if (! empty($data['driver_id']) && (int) Driver::findOrFail($data['driver_id'])->company_id !== $companyId) {
+                return back()->withInput()->withErrors(['driver_id' => 'راننده باید متعلق به شرکت انتخاب‌شده باشد.']);
+            }
+            if (! empty($data['fleet_id']) && (int) Fleet::findOrFail($data['fleet_id'])->company_id !== $companyId) {
+                return back()->withInput()->withErrors(['fleet_id' => 'ناوگان باید متعلق به شرکت انتخاب‌شده باشد.']);
+            }
+        }
 
         $document = DB::transaction(function () use ($data) {
             $goods = $data['goods'];
             unset($data['goods']);
+            $data['attached_documents'] = collect(preg_split('/\r\n|\r|\n|,/', $data['attached_documents_text'] ?? ''))
+                ->map(fn ($item) => trim($item))->filter()->values()->all();
+            unset($data['attached_documents_text']);
+            $data['print_template_id'] = CmrPrintTemplate::where('company_id', $data['company_id'])
+                ->where('is_default', true)->where('is_active', true)->value('id');
             $document = CmrDocument::create($data + ['uuid' => (string) Str::uuid(), 'status' => 'draft']);
             foreach ($goods as $index => $good) {
                 $document->goods()->create($good + ['line_number' => $index + 1]);
@@ -94,6 +125,12 @@ class CmrController extends Controller
     {
         $cmr->load(['company', 'driver', 'fleet', 'goods', 'events', 'walletEntries']);
         return view('CMR.admin.show', compact('cmr'));
+    }
+
+    public function print(CmrDocument $cmr)
+    {
+        $cmr->load(['company', 'driver', 'fleet', 'goods']);
+        return view('CMR.print.standard', compact('cmr'));
     }
 
     public function issue(CmrDocument $cmr, CmrIssuanceService $service)

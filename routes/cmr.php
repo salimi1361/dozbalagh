@@ -14,6 +14,7 @@ Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin'
     Route::put('/company-settings/{company}', [CmrCompanyConfigurationController::class, 'updateSettings'])->name('company-settings.update');
     Route::post('/company-settings/{company}/serial-pools', [CmrCompanyConfigurationController::class, 'storeSerialPool'])->name('company-settings.serial-pools.store');
     Route::post('/company-settings/{company}/print-templates', [CmrCompanyConfigurationController::class, 'storeTemplate'])->name('company-settings.print-templates.store');
+    Route::get('/{cmr}/print', [CmrController::class, 'print'])->name('print');
     Route::get('/{cmr}', [CmrController::class, 'show'])->name('show');
     Route::post('/{cmr}/issue', [CmrController::class, 'issue'])->name('issue');
     Route::post('/{cmr}/cancel', [CmrController::class, 'cancel'])->name('cancel');
