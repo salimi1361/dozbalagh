@@ -26,6 +26,7 @@ use App\Http\Controllers\DriverDeviceController;
 use App\Http\Controllers\Association\AccountSecurityController;
 use App\Http\Controllers\Admin\MobileAppVersionController;
 use App\Http\Controllers\DriverAnnouncementController;
+require __DIR__.'/cmr.php';
 // ==========================================
 // روت اصلی
 // ==========================================
