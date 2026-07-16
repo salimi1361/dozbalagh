@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 // ==========================================
 use App\Http\Controllers\Company\DozbalaghController;
 use App\Http\Controllers\Api\Driver\AuthController;
+use App\Http\Controllers\Api\Driver\RecognizedDeviceAuthController;
 use App\Http\Controllers\Api\Driver\TrackingController;
 use App\Http\Controllers\Api\Driver\PermitController;
 use App\Http\Controllers\Api\Driver\NotificationController;
@@ -42,6 +43,8 @@ Route::prefix('v1/driver')->group(function () {
     
     // ۱. مسیرهای عمومی احراز هویت (بدون نیاز به توکن)
     Route::prefix('auth')->group(function () {
+        Route::post('/device-status', [RecognizedDeviceAuthController::class, 'status'])->middleware('throttle:30,1');
+        Route::post('/device-login', [RecognizedDeviceAuthController::class, 'login'])->middleware('throttle:6,1');
         Route::post('/request-otp', [AuthController::class, 'requestOtp']); // درخواست کد تایید (بله/پیامک)
         Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);   // تایید کد و دریافت توکن Sanctum
     });
@@ -67,6 +70,7 @@ Route::prefix('v1/driver')->group(function () {
         Route::post('/company-messages/reply', [CompanyMessageController::class, 'reply']);
         Route::post('/pwa-installations', [PwaInstallationController::class, 'store']);
         Route::post('/app-installations', [MobileAppInstallationController::class, 'store']);
+        Route::post('/auth/device-pin', [RecognizedDeviceAuthController::class, 'setPin'])->middleware('throttle:10,1');
         Route::get('/startup-announcements', [StartupAnnouncementController::class, 'index']);
         Route::post('/startup-announcements/{announcement}/seen', [StartupAnnouncementController::class, 'seen']);
         Route::post('/startup-announcements/{announcement}/acknowledge', [StartupAnnouncementController::class, 'acknowledge']);
