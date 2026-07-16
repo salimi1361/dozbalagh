@@ -86,4 +86,34 @@ class CmrLifecycleController extends Controller
         CmrEvent::create(['cmr_document_id' => $cmr->id, 'event_type' => 'signed', 'from_status' => $cmr->status, 'to_status' => $cmr->status, 'actor_user_id' => auth()->id(), 'actor_role' => $data['signer_role'], 'description' => 'Electronic acknowledgement recorded.', 'metadata' => ['version' => $cmr->version, 'role' => $data['signer_role']], 'occurred_at' => $signedAt]);
         return back()->with('success', 'تأیید الکترونیکی برای نسخه جاری ثبت شد.');
     }
+
+    public function finalize(CmrDocument $cmr)
+    {
+        try {
+            DB::transaction(function () use ($cmr) {
+            $document = CmrDocument::query()->lockForUpdate()->findOrFail($cmr->id);
+            if ($document->status !== 'delivered') {
+                throw new \RuntimeException('فقط CMR تحویل‌شده قابل نهایی‌سازی است.');
+            }
+            $roles = CmrSignature::where('cmr_document_id', $document->id)
+                ->where('document_version', $document->version)->pluck('signer_role');
+            if (! $roles->contains('driver') || ! $roles->contains('consignee')) {
+                throw new \RuntimeException('تأیید راننده و گیرنده برای نسخه جاری الزامی است.');
+            }
+
+            $finalizedAt = now();
+            $snapshot = collect($document->load(['goods', 'signatures'])->attributesToArray())
+                ->except(['created_at', 'updated_at', 'deleted_at', 'integrity_hash'])
+                ->merge(['status' => 'finalized', 'finalized_at' => $finalizedAt->toIso8601String(), 'goods' => $document->goods->toArray(), 'signatures' => $document->signatures->where('document_version', $document->version)->values()->toArray()])->all();
+            $hash = hash('sha256', json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            $document->update(['status' => 'finalized', 'finalized_at' => $finalizedAt, 'integrity_hash' => $hash]);
+            CmrVersion::updateOrCreate(['cmr_document_id' => $document->id, 'version' => $document->version], ['snapshot' => $snapshot, 'integrity_hash' => $hash, 'created_by' => auth()->id(), 'reason' => 'Final delivery record']);
+            CmrEvent::create(['cmr_document_id' => $document->id, 'event_type' => 'finalized', 'from_status' => 'delivered', 'to_status' => 'finalized', 'actor_user_id' => auth()->id(), 'actor_role' => 'admin', 'description' => 'Final delivery record locked.', 'metadata' => ['version' => $document->version, 'hash' => $hash], 'occurred_at' => $finalizedAt]);
+            });
+            return back()->with('success', 'سند نهایی و قفل شد.');
+        } catch (\Throwable $exception) {
+            report($exception);
+            return back()->withErrors(['finalize' => $exception->getMessage()]);
+        }
+    }
 }

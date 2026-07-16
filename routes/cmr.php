@@ -23,6 +23,7 @@ Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin'
     Route::post('/{cmr}/attachments', [CmrLifecycleController::class, 'upload'])->name('attachments.store');
     Route::get('/{cmr}/attachments/{attachment}', [CmrLifecycleController::class, 'download'])->name('attachments.download');
     Route::post('/{cmr}/signatures', [CmrLifecycleController::class, 'sign'])->name('signatures.store');
+    Route::post('/{cmr}/finalize', [CmrLifecycleController::class, 'finalize'])->name('finalize');
     Route::get('/{cmr}', [CmrController::class, 'show'])->name('show');
     Route::post('/{cmr}/issue', [CmrController::class, 'issue'])->name('issue');
     Route::post('/{cmr}/cancel', [CmrController::class, 'cancel'])->name('cancel');
