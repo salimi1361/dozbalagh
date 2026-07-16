@@ -24,6 +24,11 @@ class CmrDocument extends Model
         'taking_over_at' => 'datetime',
         'planned_delivery_at' => 'datetime',
         'issuance_fee' => 'decimal:2',
+        'attached_documents' => 'array',
+        'successive_carriers' => 'array',
+        'charges' => 'array',
+        'cash_on_delivery' => 'decimal:2',
+        'established_at_date' => 'date',
     ];
 
     public function company(): BelongsTo { return $this->belongsTo(Company::class); }

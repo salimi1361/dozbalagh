@@ -14,6 +14,8 @@ use RuntimeException;
 
 class CmrIssuanceService
 {
+    public function __construct(private readonly CmrSerialService $serials) {}
+
     public function issue(CmrDocument $document, int $userId): CmrDocument
     {
         return DB::transaction(function () use ($document, $userId) {
@@ -35,9 +37,11 @@ class CmrIssuanceService
             }
 
             $number = 'ECMR-'.now()->format('Y').'-'.str_pad((string) $document->id, 8, '0', STR_PAD_LEFT);
+            $companySerial = $this->serials->allocate($document);
             $issuedAt = now();
             $snapshot = $this->snapshot($document->load('goods'), [
                 'number' => $number,
+                'company_serial' => $companySerial ?: $document->company_serial,
                 'status' => 'issued',
                 'issued_at' => $issuedAt->toIso8601String(),
                 'issuance_fee' => $fee,
@@ -64,6 +68,7 @@ class CmrIssuanceService
 
             $document->update([
                 'number' => $number,
+                'company_serial' => $companySerial ?: $document->company_serial,
                 'status' => 'issued',
                 'issued_at' => $issuedAt,
                 'issued_by' => $userId,
