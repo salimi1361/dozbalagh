@@ -14,6 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             \Illuminate\Support\Facades\Route::middleware('web')
                 ->group(__DIR__.'/../routes/company.php');
+            \Illuminate\Support\Facades\Route::middleware('api')
+                ->prefix('api')
+                ->group(__DIR__.'/../routes/cmr_api.php');
         },
     )
     ->withMiddleware(function (Middleware $middleware) {
