@@ -61,6 +61,40 @@ class _CmrScreenState extends State<CmrScreen> {
     await _preview.open(endpoint: document.printUrl, token: widget.token);
   }
 
+  Future<void> _runAction(DriverCmr document) async {
+    final reservation = TextEditingController();
+    final consignee = TextEditingController();
+    final action = document.status == 'issued' ? 'accept' : document.status == 'accepted' ? 'start' : 'deliver';
+    final confirmed = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
+      title: Text(action == 'accept' ? 'تأیید تحویل گرفتن کالا' : action == 'start' ? 'شروع حمل' : 'ثبت تحویل به گیرنده'),
+      content: Column(mainAxisSize: MainAxisSize.min, children: [
+        if (action == 'deliver') TextField(controller: consignee, textDirection: TextDirection.ltr, decoration: const InputDecoration(labelText: 'نام لاتین تحویل‌گیرنده *')),
+        if (action != 'start') TextField(controller: reservation, textDirection: TextDirection.ltr, maxLines: 2, decoration: const InputDecoration(labelText: 'ملاحظه یا مغایرت (اختیاری)')),
+        const SizedBox(height: 12),
+        Text(action == 'deliver' ? 'گیرنده باید متن و نسخه فعلی CMR را روی همین دستگاه مشاهده و تأیید کند.' : 'این عملیات همراه زمان، نسخه و هش سند ثبت می‌شود.'),
+      ]),
+      actions: [TextButton(onPressed: ()=>Navigator.pop(context,false), child: const Text('انصراف')), FilledButton(onPressed: ()=>Navigator.pop(context,true), child: const Text('تأیید'))],
+    ));
+    if (confirmed != true) return;
+    if (action == 'deliver' && consignee.text.trim().isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('نام لاتین تحویل‌گیرنده الزامی است.')));
+      return;
+    }
+    try {
+      await _repository.updateStatus(widget.token, document.id, action, data: action == 'accept'
+        ? {'confirmed': true, 'reservation': reservation.text.trim()}
+        : action == 'deliver'
+          ? {'confirmed_by_consignee': true, 'consignee_signer_name': consignee.text.trim(), 'reservation': reservation.text.trim()}
+          : const {});
+      await _load(silent: true);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('عملیات CMR با موفقیت ثبت شد.')));
+    } on CmrException catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      reservation.dispose(); consignee.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) => RefreshIndicator(
         onRefresh: _load,
@@ -117,6 +151,14 @@ class _CmrScreenState extends State<CmrScreen> {
                               label: const Text('مشاهده نسخه چاپی CMR'),
                             ),
                           ),
+                          if (['issued','accepted','in_transit'].contains(document.status)) ...[
+                            const SizedBox(height: 8),
+                            SizedBox(width: double.infinity, child: OutlinedButton.icon(
+                              onPressed: () => _runAction(document),
+                              icon: Icon(document.status == 'issued' ? Icons.task_alt : document.status == 'accepted' ? Icons.local_shipping_outlined : Icons.inventory_2_outlined),
+                              label: Text(document.status == 'issued' ? 'تأیید دریافت کالا' : document.status == 'accepted' ? 'شروع حمل' : 'ثبت تحویل به گیرنده'),
+                            )),
+                          ],
                         ],
                       ),
                     ),

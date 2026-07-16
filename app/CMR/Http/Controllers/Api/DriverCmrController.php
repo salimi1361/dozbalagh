@@ -3,8 +3,12 @@
 namespace App\CMR\Http\Controllers\Api;
 
 use App\CMR\Models\CmrDocument;
+use App\CMR\Models\CmrEvent;
+use App\CMR\Models\CmrSignature;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class DriverCmrController extends Controller
@@ -56,6 +60,67 @@ class DriverCmrController extends Controller
         $cmr->load(['company', 'driver', 'fleet', 'goods']);
 
         return view('CMR.print.standard', compact('cmr'));
+    }
+
+    public function accept(Request $request, CmrDocument $cmr): JsonResponse
+    {
+        $data = $request->validate(['reservation' => ['nullable', 'string', 'max:2000'], 'confirmed' => ['accepted']]);
+        $this->assertOwner($cmr);
+        $driver = auth()->user();
+        $name = trim(($driver->first_name_en ?? '').' '.($driver->last_name_en ?? '')) ?: 'Driver #'.$driver->id;
+
+        DB::transaction(function () use ($cmr, $data, $request, $name, $driver) {
+            $document = CmrDocument::query()->lockForUpdate()->findOrFail($cmr->id);
+            abort_unless($document->status === 'issued', 409, 'Only an issued CMR can be accepted.');
+            $this->recordSignature($document, 'driver', $name, $data['reservation'] ?? null, $request, (int) $driver->id);
+            $document->update(['status' => 'accepted', 'carrier_reservations' => $data['reservation'] ?? $document->carrier_reservations]);
+            $this->event($document, 'accepted', 'issued', 'accepted', 'Driver accepted the goods and the current CMR version.', (int) $driver->id);
+        });
+        return response()->json(['message' => 'CMR accepted.', 'status' => 'accepted']);
+    }
+
+    public function start(CmrDocument $cmr): JsonResponse
+    {
+        $this->assertOwner($cmr);
+        DB::transaction(function () use ($cmr) {
+            $document = CmrDocument::query()->lockForUpdate()->findOrFail($cmr->id);
+            abort_unless($document->status === 'accepted', 409, 'The CMR must first be accepted.');
+            $document->update(['status' => 'in_transit']);
+            $this->event($document, 'transport_started', 'accepted', 'in_transit', 'International road carriage started.', (int) auth()->id());
+        });
+        return response()->json(['message' => 'Transport started.', 'status' => 'in_transit']);
+    }
+
+    public function deliver(Request $request, CmrDocument $cmr): JsonResponse
+    {
+        $latin = 'regex:/^[\p{Latin}\p{N}\p{P}\p{Z}\r\n]+$/u';
+        $data = $request->validate(['consignee_signer_name' => ['required', 'string', 'max:255', $latin], 'reservation' => ['nullable', 'string', 'max:2000'], 'confirmed_by_consignee' => ['accepted']]);
+        $this->assertOwner($cmr);
+        DB::transaction(function () use ($cmr, $data, $request) {
+            $document = CmrDocument::query()->lockForUpdate()->findOrFail($cmr->id);
+            abort_unless($document->status === 'in_transit', 409, 'Only a CMR in transit can be delivered.');
+            $this->recordSignature($document, 'consignee', $data['consignee_signer_name'], $data['reservation'] ?? null, $request, (int) auth()->id(), 'witnessed_on_driver_device');
+            $document->update(['status' => 'delivered']);
+            $this->event($document, 'delivered', 'in_transit', 'delivered', 'Goods received and box 24 acknowledgement recorded.', (int) auth()->id());
+        });
+        return response()->json(['message' => 'Delivery recorded.', 'status' => 'delivered']);
+    }
+
+    private function assertOwner(CmrDocument $cmr): void
+    {
+        abort_unless((int) $cmr->driver_id === (int) auth()->id(), 403);
+    }
+
+    private function recordSignature(CmrDocument $document, string $role, string $name, ?string $reservation, Request $request, int $driverId, string $type = 'electronic_acknowledgement'): void
+    {
+        $signedAt = now();
+        $evidence = ['cmr_id' => $document->id, 'version' => $document->version, 'role' => $role, 'name' => $name, 'hash' => $document->integrity_hash, 'signed_at' => $signedAt->toIso8601String(), 'ip' => $request->ip()];
+        CmrSignature::updateOrCreate(['cmr_document_id' => $document->id, 'document_version' => $document->version, 'signer_role' => $role], ['signer_name' => $name, 'signature_type' => $type, 'reservation' => $reservation, 'document_hash' => $document->integrity_hash, 'evidence_hash' => hash('sha256', json_encode($evidence, JSON_UNESCAPED_UNICODE)), 'driver_id' => $driverId, 'ip_address' => $request->ip(), 'user_agent' => mb_substr((string) $request->userAgent(), 0, 2000), 'signed_at' => $signedAt]);
+    }
+
+    private function event(CmrDocument $document, string $type, string $from, string $to, string $description, int $driverId): void
+    {
+        CmrEvent::create(['cmr_document_id' => $document->id, 'event_type' => $type, 'from_status' => $from, 'to_status' => $to, 'actor_driver_id' => $driverId, 'actor_role' => 'driver', 'description' => $description, 'occurred_at' => now()]);
     }
 
     private function summary(CmrDocument $document): array

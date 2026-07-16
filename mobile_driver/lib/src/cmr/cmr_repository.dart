@@ -74,6 +74,32 @@ class CmrRepository {
       client.close(force: true);
     }
   }
+
+  Future<void> updateStatus(String token, int cmrId, String action, {Map<String, dynamic>? data}) async {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
+    try {
+      final request = await client.postUrl(Uri.parse('${AppConfig.driverApi}/cmr/$cmrId/$action'));
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      request.headers.set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
+      request.write(jsonEncode(data ?? const <String, dynamic>{}));
+      final response = await request.close().timeout(const Duration(seconds: 25));
+      final body = await utf8.decoder.bind(response).join();
+      final decoded = body.isEmpty ? <String, dynamic>{} : jsonDecode(body);
+      final json = decoded is Map ? Map<String, dynamic>.from(decoded) : <String, dynamic>{};
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw CmrException(json['message']?.toString() ?? 'ثبت عملیات CMR انجام نشد.');
+      }
+    } on CmrException {
+      rethrow;
+    } on SocketException {
+      throw const CmrException('اتصال اینترنت برقرار نیست.');
+    } catch (_) {
+      throw const CmrException('ثبت عملیات CMR انجام نشد.');
+    } finally {
+      client.close(force: true);
+    }
+  }
 }
 
 class CmrException implements Exception {
