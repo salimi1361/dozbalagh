@@ -129,7 +129,7 @@ class CmrController extends Controller
 
     public function print(CmrDocument $cmr)
     {
-        $cmr->load(['company', 'driver', 'fleet', 'goods']);
+        $cmr->load(['company', 'driver', 'fleet', 'goods', 'signatures']);
         return view('CMR.print.standard', compact('cmr'));
     }
 

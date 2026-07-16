@@ -57,7 +57,7 @@ class DriverCmrController extends Controller
     {
         abort_unless((int) $cmr->driver_id === (int) auth()->id(), 403);
         abort_if($cmr->status === 'draft', 404);
-        $cmr->load(['company', 'driver', 'fleet', 'goods']);
+        $cmr->load(['company', 'driver', 'fleet', 'goods', 'signatures']);
 
         return view('CMR.print.standard', compact('cmr'));
     }
