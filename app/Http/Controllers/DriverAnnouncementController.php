@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\SendDriverAnnouncementPush;
 use App\Models\Company;
 use App\Models\Driver;
 use App\Models\DriverAnnouncement;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Morilog\Jalali\Jalalian;
 
 class DriverAnnouncementController extends Controller
 {
@@ -44,9 +47,17 @@ class DriverAnnouncementController extends Controller
             'driver_ids' => ['nullable', 'array'],
             'driver_ids.*' => ['integer', 'exists:drivers,id'],
             'acknowledgement_text' => ['nullable', 'string', 'max:100'],
-            'starts_at' => ['nullable', 'date'],
-            'ends_at' => ['nullable', 'date', 'after:starts_at'],
+            'starts_at_jalali' => ['nullable', 'string'],
+            'ends_at_jalali' => ['nullable', 'string'],
         ]);
+
+        $startsAt = $this->jalaliDateTime($validated['starts_at_jalali'] ?? null, 'starts_at_jalali') ?? now();
+        $endsAt = $this->jalaliDateTime($validated['ends_at_jalali'] ?? null, 'ends_at_jalali');
+        if ($endsAt && $endsAt->lte($startsAt)) {
+            throw ValidationException::withMessages([
+                'ends_at_jalali' => 'زمان پایان اعتبار باید بعد از زمان شروع باشد.',
+            ]);
+        }
 
         if ($role === 'company' && $validated['audience_type'] === 'company') {
             $validated['audience_type'] = 'all';
@@ -72,7 +83,7 @@ class DriverAnnouncementController extends Controller
             return back()->withInput()->with('error', 'هیچ راننده‌ای در محدوده انتخاب‌شده وجود ندارد.');
         }
 
-        DB::transaction(function () use ($request, $validated, $role, $driverIds): void {
+        $announcement = DB::transaction(function () use ($request, $validated, $role, $driverIds, $startsAt, $endsAt): DriverAnnouncement {
             $announcement = DriverAnnouncement::create([
                 'created_by_user_id' => $request->user()->id,
                 'company_id' => $role === 'company' ? $request->user()->company?->id : ($validated['company_id'] ?? null),
@@ -85,8 +96,8 @@ class DriverAnnouncementController extends Controller
                 'show_once' => $request->boolean('show_once'),
                 'requires_acknowledgement' => $request->boolean('requires_acknowledgement') || in_array($validated['display_mode'], ['mandatory', 'emergency'], true),
                 'acknowledgement_text' => $validated['acknowledgement_text'] ?: 'مطالعه کردم',
-                'starts_at' => $validated['starts_at'] ?? now(),
-                'ends_at' => $validated['ends_at'] ?? null,
+                'starts_at' => $startsAt,
+                'ends_at' => $endsAt,
                 'is_active' => true,
             ]);
 
@@ -97,7 +108,14 @@ class DriverAnnouncementController extends Controller
                 'created_at' => $now,
                 'updated_at' => $now,
             ])->all());
+
+            return $announcement;
         });
+
+        $push = SendDriverAnnouncementPush::dispatch($announcement->id);
+        if ($announcement->starts_at?->isFuture()) {
+            $push->delay($announcement->starts_at);
+        }
 
         return back()->with('success', 'اطلاعیه برای '.number_format($driverIds->count()).' راننده منتشر شد.');
     }
@@ -125,5 +143,26 @@ class DriverAnnouncementController extends Controller
     private function authorizeAnnouncement(Request $request, DriverAnnouncement $announcement): void
     {
         abort_unless($request->user()->hasRole('admin') || $announcement->created_by_user_id === $request->user()->id, 403);
+    }
+
+    private function jalaliDateTime(?string $value, string $field): mixed
+    {
+        if (blank($value)) {
+            return null;
+        }
+
+        $value = strtr(trim($value), [
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+        ]);
+        if (! preg_match('/^1[34-9]\d{2}\/(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01]) ([01]\d|2[0-3]):[0-5]\d$/', $value)) {
+            throw ValidationException::withMessages([$field => 'تاریخ و ساعت شمسی معتبر نیست.']);
+        }
+
+        try {
+            return Jalalian::fromFormat('Y/m/d H:i', $value)->toCarbon();
+        } catch (\Throwable) {
+            throw ValidationException::withMessages([$field => 'تاریخ و ساعت شمسی معتبر نیست.']);
+        }
     }
 }

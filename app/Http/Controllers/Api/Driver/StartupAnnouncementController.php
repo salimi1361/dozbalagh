@@ -45,7 +45,7 @@ class StartupAnnouncementController extends Controller
         DriverAnnouncementReceipt::query()
             ->whereIn('id', $receipts->pluck('id'))
             ->whereNull('delivered_at')
-            ->update(['delivered_at' => $now, 'seen_at' => $now, 'updated_at' => $now]);
+            ->update(['delivered_at' => $now, 'updated_at' => $now]);
 
         return response()->json([
             'status' => 'success',
@@ -79,6 +79,22 @@ class StartupAnnouncementController extends Controller
             'seen_at' => $receipt->seen_at ?? now(),
             'acknowledged_at' => $receipt->acknowledged_at ?? now(),
             'device_uuid' => $validated['device_uuid'] ?? null,
+            'last_ip' => $request->ip(),
+        ]);
+
+        return response()->json(['status' => 'success']);
+    }
+
+    public function seen(Request $request, int $announcement): JsonResponse
+    {
+        $receipt = DriverAnnouncementReceipt::query()
+            ->where('driver_id', $request->user()->id)
+            ->where('announcement_id', $announcement)
+            ->firstOrFail();
+
+        $receipt->update([
+            'delivered_at' => $receipt->delivered_at ?? now(),
+            'seen_at' => $receipt->seen_at ?? now(),
             'last_ip' => $request->ip(),
         ]);
 

@@ -61,6 +61,39 @@ class DriverStartupAnnouncementTest extends TestCase
         ]);
     }
 
+    public function test_non_blocking_announcement_is_removed_after_seen_receipt(): void
+    {
+        $driver = $this->driver();
+        $admin = $this->user('admin', 'seen-announcement-admin');
+        $announcement = DriverAnnouncement::create([
+            'created_by_user_id' => $admin->id,
+            'source_role' => 'admin',
+            'title' => 'اطلاعیه فوری',
+            'message' => 'متن اطلاعیه',
+            'priority' => 'important',
+            'display_mode' => 'important',
+            'audience_type' => 'all',
+            'show_once' => true,
+            'requires_acknowledgement' => false,
+            'starts_at' => now()->subMinute(),
+            'is_active' => true,
+        ]);
+        DriverAnnouncementReceipt::create([
+            'announcement_id' => $announcement->id,
+            'driver_id' => $driver->id,
+        ]);
+
+        Sanctum::actingAs($driver);
+        $this->getJson('/api/v1/driver/startup-announcements')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $announcement->id);
+        $this->postJson("/api/v1/driver/startup-announcements/{$announcement->id}/seen")
+            ->assertOk();
+        $this->getJson('/api/v1/driver/startup-announcements')
+            ->assertOk()
+            ->assertJson(['blocking' => false, 'data' => []]);
+    }
+
     private function user(string $role, string $username): User
     {
         $roleModel = Role::firstOrCreate(['name' => $role], ['title_fa' => $role]);

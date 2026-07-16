@@ -68,6 +68,7 @@ Route::prefix('v1/driver')->group(function () {
         Route::post('/pwa-installations', [PwaInstallationController::class, 'store']);
         Route::post('/app-installations', [MobileAppInstallationController::class, 'store']);
         Route::get('/startup-announcements', [StartupAnnouncementController::class, 'index']);
+        Route::post('/startup-announcements/{announcement}/seen', [StartupAnnouncementController::class, 'seen']);
         Route::post('/startup-announcements/{announcement}/acknowledge', [StartupAnnouncementController::class, 'acknowledge']);
     });
 

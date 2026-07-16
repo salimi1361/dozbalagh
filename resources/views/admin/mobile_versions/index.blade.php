@@ -20,6 +20,11 @@
         <p class="mt-2 text-sm font-semibold leading-7 text-slate-500">مقایسه نسخه بر اساس شماره Build انجام می‌شود. حداقل Build مجاز، نسخه‌های قدیمی‌تر را مسدود می‌کند.</p>
     </div>
 
+    <div class="flex flex-col gap-4 rounded-3xl border border-rose-200 bg-gradient-to-l from-rose-50 to-amber-50 p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div><h2 class="text-lg font-black text-rose-900">پیام فوری برای رانندگان</h2><p class="mt-2 text-sm font-semibold leading-7 text-rose-700">بدون انتشار نسخه جدید، برای همه رانندگان، رانندگان یک شرکت یا افراد انتخابی Push بفرستید و متن کامل را هنگام بازشدن اپ نمایش دهید.</p></div>
+        <a href="{{ route('driver-announcements.index') }}" class="whitespace-nowrap rounded-xl bg-rose-600 px-5 py-3 text-center font-black text-white hover:bg-rose-700">ایجاد پیام فوری</a>
+    </div>
+
     <div class="grid gap-6 xl:grid-cols-2">
         @foreach(['android' => 'Android', 'ios' => 'iPhone / iOS'] as $platform => $platformLabel)
             @php $version = $versions->get($platform); @endphp
@@ -48,7 +53,7 @@
                 <div><label class="mb-2 block text-xs font-black text-slate-600">SHA-256 فایل (اختیاری)</label><input name="file_checksum" value="{{ old('file_checksum', $version?->file_checksum) }}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-xs" dir="ltr"></div>
                 <div><label class="mb-2 block text-xs font-black text-slate-600">پیام به‌روزرسانی</label><textarea name="message" rows="2" class="w-full rounded-xl border border-slate-300 px-3 py-2.5">{{ old('message', $version?->message) }}</textarea></div>
                 <div><label class="mb-2 block text-xs font-black text-slate-600">تغییرات نسخه</label><textarea name="release_notes" rows="4" class="w-full rounded-xl border border-slate-300 px-3 py-2.5">{{ old('release_notes', $version?->release_notes) }}</textarea></div>
-                <div><label class="mb-2 block text-xs font-black text-slate-600">زمان انتشار (هجری شمسی)</label><input type="text" name="published_at_jalali" value="{{ old('published_at_jalali', $version?->published_at ? verta($version->published_at)->format('Y/m/d H:i') : '') }}" placeholder="۱۴۰۵/۰۴/۲۵ ۱۴:۳۰" readonly autocomplete="off" class="jalali-datetime-picker w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-center" dir="ltr"><p class="mt-2 text-xs font-semibold text-slate-400">تاریخ و ساعت از تقویم شمسی انتخاب می‌شود.</p></div>
+                <div><label class="mb-2 block text-xs font-black text-slate-600">زمان انتشار (هجری شمسی)</label><input type="text" name="published_at_jalali" value="{{ old('published_at_jalali', $version?->published_at ? verta($version->published_at)->format('Y/m/d H:i') : '') }}" placeholder="1405/04/25 14:30" inputmode="numeric" autocomplete="off" class="jalali-datetime-picker w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-center" dir="ltr"><p class="mt-2 text-xs font-semibold text-slate-400">از تقویم شمسی انتخاب کنید؛ اگر تقویم باز نشد، با قالب 1405/04/25 14:30 وارد کنید.</p></div>
                 <div class="grid gap-3 sm:grid-cols-3">
                     <label class="flex items-center gap-2 rounded-xl bg-slate-50 p-3 text-xs font-black"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $version?->is_active ?? true))> سیاست فعال</label>
                     <label class="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-xs font-black text-amber-800"><input type="checkbox" name="force_update" value="1" @checked(old('force_update', $version?->force_update))> آپدیت اجباری</label>
