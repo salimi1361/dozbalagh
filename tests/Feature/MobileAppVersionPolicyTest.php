@@ -2,8 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendMobileAppUpdatePush;
 use App\Models\MobileAppVersion;
+use App\Models\Role;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class MobileAppVersionPolicyTest extends TestCase
@@ -50,5 +55,34 @@ class MobileAppVersionPolicyTest extends TestCase
                 'update_available' => true,
                 'update_required' => false,
             ]);
+    }
+
+    public function test_admin_can_queue_update_notification_while_saving_version(): void
+    {
+        Queue::fake();
+        $role = Role::firstOrCreate(['name' => 'admin'], ['title_fa' => 'مدیر']);
+        $admin = User::create([
+            'role_id' => $role->id,
+            'username' => 'version-notification-admin',
+            'password' => Hash::make('secret-password'),
+            'status' => 'active',
+            'is_manual' => true,
+        ]);
+
+        $this->actingAs($admin)->put(route('admin.mobile-app.versions.update', 'android'), [
+            'version_name' => '2.2.0',
+            'latest_build' => 22,
+            'minimum_build' => 20,
+            'download_url' => 'https://example.test/app.apk',
+            'message' => 'نسخه جدید را دریافت کنید.',
+            'is_active' => '1',
+            'send_push_notification' => '1',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $version = MobileAppVersion::where('platform', 'android')->firstOrFail();
+        Queue::assertPushed(
+            SendMobileAppUpdatePush::class,
+            fn (SendMobileAppUpdatePush $job) => $job->versionId === $version->id,
+        );
     }
 }
