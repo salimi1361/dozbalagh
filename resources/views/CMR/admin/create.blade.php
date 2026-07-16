@@ -39,7 +39,7 @@
 
 <section class="cmr-step hidden space-y-4" data-step="2">
  <div id="goods-list" class="space-y-4"><div class="goods-row grid gap-3 rounded-2xl border bg-white p-5 md:grid-cols-4">
-  <h3 class="md:col-span-4 font-black">ردیف کالا — خانه‌های ۶ تا ۱۲</h3>
+  <div class="flex items-center justify-between md:col-span-4"><h3 class="font-black">ردیف کالای ۱ — خانه‌های ۶ تا ۱۲</h3><button type="button" class="remove-good hidden rounded-lg border border-rose-300 px-3 py-1 text-sm font-bold text-rose-700">حذف ردیف</button></div>
   <input dir="ltr" class="rounded-xl border p-2 md:col-span-2" name="goods[0][description]" placeholder="Nature of goods *" required>
   <input dir="ltr" class="rounded-xl border p-2" name="goods[0][marks_and_numbers]" placeholder="Marks and numbers">
   <input dir="ltr" class="rounded-xl border p-2" name="goods[0][package_type]" placeholder="Method of packing">
@@ -79,7 +79,10 @@
 (()=>{let step=0;const sections=[...document.querySelectorAll('.cmr-step')],tabs=[...document.querySelectorAll('.step-tab')],next=document.getElementById('next'),prev=document.getElementById('prev');
 function show(i){step=Math.max(0,Math.min(4,i));sections.forEach((s,n)=>s.classList.toggle('hidden',n!==step));tabs.forEach((t,n)=>{t.classList.toggle('bg-sky-600',n===step);t.classList.toggle('text-white',n===step);t.classList.toggle('bg-slate-100',n!==step)});prev.classList.toggle('hidden',step===0);next.classList.toggle('hidden',step===4);window.scrollTo({top:0,behavior:'smooth'})}
 next.onclick=()=>show(step+1);prev.onclick=()=>show(step-1);tabs.forEach(t=>t.onclick=()=>show(+t.dataset.go));
-document.getElementById('add-good').onclick=()=>{const list=document.getElementById('goods-list'),row=list.firstElementChild.cloneNode(true),i=list.children.length;row.querySelectorAll('input').forEach(x=>{x.value='';x.name=x.name.replace(/goods\[\d+\]/,`goods[${i}]`)});row.querySelector('h3').textContent=`ردیف کالای ${i+1} — خانه‌های ۶ تا ۱۲`;list.appendChild(row)};
+const goodsList=document.getElementById('goods-list');
+function renumberGoods(){[...goodsList.children].forEach((row,i)=>{row.querySelector('h3').textContent=`ردیف کالای ${i+1} — خانه‌های ۶ تا ۱۲`;row.querySelectorAll('[name^="goods["]').forEach(x=>x.name=x.name.replace(/goods\[\d+\]/,`goods[${i}]`));row.querySelector('.remove-good').classList.toggle('hidden',i===0)})}
+document.getElementById('add-good').onclick=()=>{const row=goodsList.firstElementChild.cloneNode(true);row.querySelectorAll('input').forEach(x=>x.value='');goodsList.appendChild(row);renumberGoods()};
+goodsList.addEventListener('click',event=>{const button=event.target.closest('.remove-good');if(!button)return;button.closest('.goods-row').remove();renumberGoods()});
 })();
 </script>
 @endsection
