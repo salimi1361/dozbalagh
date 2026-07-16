@@ -6,6 +6,9 @@ use App\CMR\Models\CmrDocument;
 use App\CMR\Models\CmrEvent;
 use App\CMR\Models\CmrCompanySetting;
 use App\CMR\Models\CmrPrintTemplate;
+use App\CMR\Models\CmrParty;
+use App\CMR\Models\CmrLocation;
+use App\CMR\Models\CmrGoodsTemplate;
 use App\CMR\Models\CmrSetting;
 use App\CMR\Models\CmrTariffHistory;
 use App\CMR\Services\CmrIssuanceService;
@@ -31,6 +34,9 @@ class CmrController extends Controller
             'companies' => Company::orderBy('name')->get(),
             'drivers' => Driver::orderBy('last_name_fa')->get(),
             'fleets' => Fleet::orderBy('id')->get(),
+            'masterParties' => CmrParty::where('is_active', true)->orderByDesc('usage_count')->get(),
+            'masterLocations' => CmrLocation::where('is_active', true)->orderByDesc('usage_count')->get(),
+            'masterGoods' => CmrGoodsTemplate::where('is_active', true)->orderByDesc('usage_count')->get(),
         ]);
     }
 
@@ -82,6 +88,10 @@ class CmrController extends Controller
             'goods.*.commodity_code' => ['nullable', 'string', 'max:100', $latin],
             'goods.*.un_number' => ['nullable', 'string', 'max:20', $latin],
             'goods.*.adr_class' => ['nullable', 'string', 'max:50', $latin],
+            'save_party' => ['nullable', 'array'],
+            'save_party.*' => ['nullable', 'boolean'],
+            'save_locations' => ['nullable', 'boolean'],
+            'save_goods' => ['nullable', 'boolean'],
         ]);
 
         $companyId = (int) $data['company_id'];
@@ -96,7 +106,10 @@ class CmrController extends Controller
 
         $document = DB::transaction(function () use ($data) {
             $goods = $data['goods'];
-            unset($data['goods']);
+            $saveParty = $data['save_party'] ?? [];
+            $saveLocations = (bool) ($data['save_locations'] ?? false);
+            $saveGoods = (bool) ($data['save_goods'] ?? false);
+            unset($data['goods'], $data['save_party'], $data['save_locations'], $data['save_goods']);
             $data['attached_documents'] = collect(preg_split('/\r\n|\r|\n|,/', $data['attached_documents_text'] ?? ''))
                 ->map(fn ($item) => trim($item))->filter()->values()->all();
             unset($data['attached_documents_text']);
@@ -105,6 +118,23 @@ class CmrController extends Controller
             $document = CmrDocument::create($data + ['uuid' => (string) Str::uuid(), 'status' => 'draft']);
             foreach ($goods as $index => $good) {
                 $document->goods()->create($good + ['line_number' => $index + 1]);
+            }
+            foreach (['consignor', 'consignee', 'carrier'] as $type) {
+                if (! empty($saveParty[$type])) {
+                    $party = CmrParty::updateOrCreate(['company_id'=>$document->company_id,'party_type'=>$type,'legal_name'=>$document->{$type.'_name'}], ['identifier'=>$document->{$type.'_identifier'},'address'=>$document->{$type.'_address'},'country_code'=>$document->{$type.'_country_code'},'is_active'=>true]);
+                    $party->increment('usage_count'); $party->update(['last_used_at'=>now()]);
+                }
+            }
+            if ($saveLocations) {
+                foreach (['taking_over'=>'taking_over_place','delivery'=>'delivery_place'] as $type=>$field) {
+                    $location = CmrLocation::updateOrCreate(['company_id'=>$document->company_id,'location_type'=>$type,'name'=>$document->{$field}], ['is_active'=>true]);
+                    $location->increment('usage_count'); $location->update(['last_used_at'=>now()]);
+                }
+            }
+            if ($saveGoods) {
+                foreach ($goods as $good) {
+                    CmrGoodsTemplate::updateOrCreate(['company_id'=>$document->company_id,'name'=>$good['description']], collect($good)->only(['description','package_type','commodity_code','un_number','adr_class'])->all()+['is_active'=>true]);
+                }
             }
             CmrEvent::create([
                 'cmr_document_id' => $document->id,

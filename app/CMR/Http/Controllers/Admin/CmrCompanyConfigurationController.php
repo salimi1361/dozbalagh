@@ -5,6 +5,7 @@ namespace App\CMR\Http\Controllers\Admin;
 use App\CMR\Models\CmrCompanySetting;
 use App\CMR\Models\CmrPrintTemplate;
 use App\CMR\Models\CmrSerialPool;
+use App\CMR\Models\CmrSerial;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use Illuminate\Http\Request;
@@ -25,6 +26,8 @@ class CmrCompanyConfigurationController extends Controller
             'settings' => $company ? CmrCompanySetting::forCompany($company->id) : null,
             'serialPools' => $company ? CmrSerialPool::where('company_id', $company->id)->latest()->get() : collect(),
             'templates' => $company ? CmrPrintTemplate::where('company_id', $company->id)->latest()->get() : collect(),
+            'availableSerials' => $company ? CmrSerial::where('company_id', $company->id)->where('status', 'available')->latest()->limit(100)->get() : collect(),
+            'availableSerialCount' => $company ? CmrSerial::where('company_id', $company->id)->where('status', 'available')->count() : 0,
         ]);
     }
 
@@ -32,13 +35,29 @@ class CmrCompanyConfigurationController extends Controller
     {
         $data = $request->validate([
             'assignment_policy' => ['required', 'in:same_company,any_registered,authorized_external'],
-            'serial_mode' => ['required', 'in:system,manual,pool'],
             'print_language' => ['required', 'in:en'],
             'require_latin_data' => ['nullable', 'boolean'],
         ]);
         $data['require_latin_data'] = true;
+        $data['serial_mode'] = 'pool';
         CmrCompanySetting::forCompany($company->id)->update($data);
         return back()->with('success', 'سیاست CMR شرکت ذخیره شد.');
+    }
+
+    public function storeSerialList(Request $request, Company $company)
+    {
+        $data = $request->validate(['serials' => ['required', 'string', 'max:20000']]);
+        $serials = collect(preg_split('/[\r\n,;]+/', $data['serials']))->map(fn ($value) => trim($value))->filter()->unique();
+        if ($serials->isEmpty()) {
+            return back()->withErrors(['serials' => 'حداقل یک شماره معتبر وارد کنید.']);
+        }
+        DB::transaction(function () use ($serials, $company) {
+            foreach ($serials as $serial) {
+                CmrSerial::firstOrCreate(['company_id' => $company->id, 'serial' => $serial], ['status' => 'available']);
+            }
+            CmrCompanySetting::forCompany($company->id)->update(['serial_mode' => 'pool']);
+        });
+        return back()->with('success', $serials->count().' شماره رسمی شرکت ثبت شد.');
     }
 
     public function storeSerialPool(Request $request, Company $company)

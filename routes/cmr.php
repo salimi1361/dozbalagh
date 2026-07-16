@@ -3,6 +3,7 @@
 use App\CMR\Http\Controllers\Admin\CmrController;
 use App\CMR\Http\Controllers\Admin\CmrCompanyConfigurationController;
 use App\CMR\Http\Controllers\Admin\CmrLifecycleController;
+use App\CMR\Http\Controllers\Admin\CmrMasterDataController;
 use App\CMR\Http\Controllers\CmrVerificationController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,8 +16,13 @@ Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin'
     Route::get('/settings', [CmrController::class, 'settings'])->name('settings');
     Route::put('/settings', [CmrController::class, 'updateSettings'])->name('settings.update');
     Route::get('/company-settings', [CmrCompanyConfigurationController::class, 'index'])->name('company-settings.index');
+    Route::get('/master-data', [CmrMasterDataController::class, 'index'])->name('master-data.index');
+    Route::post('/master-data/{company}/parties', [CmrMasterDataController::class, 'storeParty'])->name('master-data.parties.store');
+    Route::post('/master-data/{company}/locations', [CmrMasterDataController::class, 'storeLocation'])->name('master-data.locations.store');
+    Route::post('/master-data/{company}/goods', [CmrMasterDataController::class, 'storeGoods'])->name('master-data.goods.store');
     Route::put('/company-settings/{company}', [CmrCompanyConfigurationController::class, 'updateSettings'])->name('company-settings.update');
     Route::post('/company-settings/{company}/serial-pools', [CmrCompanyConfigurationController::class, 'storeSerialPool'])->name('company-settings.serial-pools.store');
+    Route::post('/company-settings/{company}/serial-list', [CmrCompanyConfigurationController::class, 'storeSerialList'])->name('company-settings.serial-list.store');
     Route::post('/company-settings/{company}/print-templates', [CmrCompanyConfigurationController::class, 'storeTemplate'])->name('company-settings.print-templates.store');
     Route::get('/{cmr}/print', [CmrController::class, 'print'])->name('print');
     Route::post('/{cmr}/amendments', [CmrLifecycleController::class, 'amend'])->name('amendments.store');

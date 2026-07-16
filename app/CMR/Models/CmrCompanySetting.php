@@ -14,7 +14,7 @@ class CmrCompanySetting extends Model
     {
         return static::firstOrCreate(['company_id' => $companyId], [
             'assignment_policy' => 'same_company',
-            'serial_mode' => 'system',
+            'serial_mode' => 'pool',
             'print_language' => 'en',
             'require_latin_data' => true,
         ]);

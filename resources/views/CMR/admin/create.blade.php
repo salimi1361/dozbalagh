@@ -12,34 +12,34 @@
 
 <section class="cmr-step space-y-4" data-step="0">
  <div class="grid gap-4 rounded-2xl border bg-white p-5 md:grid-cols-3">
-  <label>شرکت<select name="company_id" class="mt-1 w-full rounded-xl border p-2" required>@foreach($companies as $company)<option value="{{ $company->id }}" @selected(old('company_id')==$company->id)>{{ $company->name_fa ?: $company->name }}</option>@endforeach</select></label>
+  <label>شرکت<select id="cmr-company" name="company_id" class="mt-1 w-full rounded-xl border p-2" required>@foreach($companies as $company)<option value="{{ $company->id }}" @selected(old('company_id')==$company->id)>{{ $company->name_fa ?: $company->name }}</option>@endforeach</select></label>
   <label>راننده<select name="driver_id" class="mt-1 w-full rounded-xl border p-2"><option value="">انتخاب نشده</option>@foreach($drivers as $driver)<option value="{{ $driver->id }}" @selected(old('driver_id')==$driver->id)>{{ $driver->first_name_en }} {{ $driver->last_name_en }}</option>@endforeach</select></label>
   <label>ناوگان<select name="fleet_id" class="mt-1 w-full rounded-xl border p-2"><option value="">انتخاب نشده</option>@foreach($fleets as $fleet)<option value="{{ $fleet->id }}" @selected(old('fleet_id')==$fleet->id)>{{ $fleet->transit_plate ?: $fleet->smart_card_number ?: '#'.$fleet->id }}</option>@endforeach</select></label>
   <label>زبان رسمی<input name="language" value="en" readonly class="mt-1 w-full rounded-xl border bg-slate-100 p-2" dir="ltr"></label>
-  <label>شماره سریال شرکت<input name="company_serial" value="{{ old('company_serial') }}" class="mt-1 w-full rounded-xl border p-2" dir="ltr" placeholder="Only for manual serial mode"></label>
+  <div class="rounded-xl bg-indigo-50 p-3 text-sm text-indigo-800">شماره رسمی CMR هنگام صدور از شماره‌ها یا بازه ثبت‌شده شرکت تخصیص می‌یابد.</div>
   <label>نوع حمل<input name="transport_type" value="{{ old('transport_type','International road carriage') }}" class="mt-1 w-full rounded-xl border p-2" dir="ltr"></label>
  </div>
 </section>
 
 <section class="cmr-step hidden space-y-4" data-step="1">
  @foreach(['consignor'=>'فرستنده — خانه ۱','consignee'=>'گیرنده — خانه ۲','carrier'=>'حمل‌کننده — خانه ۱۶'] as $key=>$title)
- <div class="grid gap-4 rounded-2xl border bg-white p-5 md:grid-cols-3"><h3 class="md:col-span-3 font-black">{{ $title }}</h3>
+ <div class="grid gap-4 rounded-2xl border bg-white p-5 md:grid-cols-3"><h3 class="md:col-span-3 font-black">{{ $title }}</h3><select class="master-party rounded-xl border bg-indigo-50 p-2 md:col-span-3" data-type="{{ $key }}"><option value="">انتخاب از اطلاعات پایه</option>@foreach($masterParties->where('party_type',$key) as $party)<option data-company="{{ $party->company_id }}" data-name="{{ $party->legal_name }}" data-identifier="{{ $party->identifier }}" data-address="{{ $party->address }}" data-country="{{ $party->country_code }}">{{ $party->legal_name }}</option>@endforeach</select>
   <input class="rounded-xl border p-2" dir="ltr" name="{{ $key }}_name" value="{{ old($key.'_name') }}" placeholder="Legal name" required>
   <input class="rounded-xl border p-2" dir="ltr" name="{{ $key }}_identifier" value="{{ old($key.'_identifier') }}" placeholder="Registration / identifier">
   <input class="rounded-xl border p-2" dir="ltr" name="{{ $key }}_country_code" value="{{ old($key.'_country_code') }}" maxlength="2" placeholder="Country code, e.g. IR">
-  <textarea class="rounded-xl border p-2 md:col-span-3" dir="ltr" name="{{ $key }}_address" placeholder="Full address">{{ old($key.'_address') }}</textarea>
+  <textarea class="rounded-xl border p-2 md:col-span-3" dir="ltr" name="{{ $key }}_address" placeholder="Full address">{{ old($key.'_address') }}</textarea><label class="md:col-span-3 text-sm"><input type="checkbox" name="save_party[{{ $key }}]" value="1"> ذخیره در اطلاعات پایه برای استفاده بعدی</label>
  </div>@endforeach
  <div class="grid gap-4 rounded-2xl border bg-white p-5 md:grid-cols-2">
-  <label>محل تحویل کالا به حمل‌کننده — خانه ۴<input dir="ltr" class="mt-1 w-full rounded-xl border p-2" name="taking_over_place" value="{{ old('taking_over_place') }}" required></label>
+  <label>محل تحویل کالا به حمل‌کننده — خانه ۴<select class="master-location mt-1 w-full rounded-xl border bg-indigo-50 p-2" data-type="taking_over"><option value="">انتخاب از اطلاعات پایه</option>@foreach($masterLocations->where('location_type','taking_over') as $location)<option data-company="{{ $location->company_id }}" data-name="{{ $location->name }}">{{ $location->name }}</option>@endforeach</select><input dir="ltr" class="mt-1 w-full rounded-xl border p-2" name="taking_over_place" value="{{ old('taking_over_place') }}" required></label>
   <label>تاریخ تحویل<input class="mt-1 w-full rounded-xl border p-2" type="datetime-local" name="taking_over_at" value="{{ old('taking_over_at') }}"></label>
-  <label>محل تحویل نهایی — خانه ۳<input dir="ltr" class="mt-1 w-full rounded-xl border p-2" name="delivery_place" value="{{ old('delivery_place') }}" required></label>
+  <label>محل تحویل نهایی — خانه ۳<select class="master-location mt-1 w-full rounded-xl border bg-indigo-50 p-2" data-type="delivery"><option value="">انتخاب از اطلاعات پایه</option>@foreach($masterLocations->where('location_type','delivery') as $location)<option data-company="{{ $location->company_id }}" data-name="{{ $location->name }}">{{ $location->name }}</option>@endforeach</select><input dir="ltr" class="mt-1 w-full rounded-xl border p-2" name="delivery_place" value="{{ old('delivery_place') }}" required></label>
   <label>تاریخ برنامه‌ریزی‌شده<input class="mt-1 w-full rounded-xl border p-2" type="datetime-local" name="planned_delivery_at" value="{{ old('planned_delivery_at') }}"></label>
- </div>
+ </div><label class="block text-sm"><input type="checkbox" name="save_locations" value="1"> مکان‌های واردشده در اطلاعات پایه ذخیره شوند</label>
 </section>
 
 <section class="cmr-step hidden space-y-4" data-step="2">
  <div id="goods-list" class="space-y-4"><div class="goods-row grid gap-3 rounded-2xl border bg-white p-5 md:grid-cols-4">
-  <div class="flex items-center justify-between md:col-span-4"><h3 class="font-black">ردیف کالای ۱ — خانه‌های ۶ تا ۱۲</h3><button type="button" class="remove-good hidden rounded-lg border border-rose-300 px-3 py-1 text-sm font-bold text-rose-700">حذف ردیف</button></div>
+  <div class="flex items-center justify-between md:col-span-4"><h3 class="font-black">ردیف کالای ۱ — خانه‌های ۶ تا ۱۲</h3><button type="button" class="remove-good hidden rounded-lg border border-rose-300 px-3 py-1 text-sm font-bold text-rose-700">حذف ردیف</button></div><select class="master-good rounded-xl border bg-indigo-50 p-2 md:col-span-4"><option value="">انتخاب کالا از اطلاعات پایه</option>@foreach($masterGoods as $template)<option data-company="{{ $template->company_id }}" data-description="{{ $template->description }}" data-package="{{ $template->package_type }}" data-code="{{ $template->commodity_code }}" data-un="{{ $template->un_number }}" data-adr="{{ $template->adr_class }}">{{ $template->name }}</option>@endforeach</select>
   <input dir="ltr" class="rounded-xl border p-2 md:col-span-2" name="goods[0][description]" placeholder="Nature of goods *" required>
   <input dir="ltr" class="rounded-xl border p-2" name="goods[0][marks_and_numbers]" placeholder="Marks and numbers">
   <input dir="ltr" class="rounded-xl border p-2" name="goods[0][package_type]" placeholder="Method of packing">
@@ -50,7 +50,7 @@
   <input dir="ltr" class="rounded-xl border p-2" name="goods[0][un_number]" placeholder="UN number (ADR)">
   <input dir="ltr" class="rounded-xl border p-2" name="goods[0][adr_class]" placeholder="ADR class">
  </div></div>
- <button type="button" id="add-good" class="rounded-xl border border-sky-600 px-4 py-2 font-bold text-sky-700">افزودن ردیف کالا</button>
+ <button type="button" id="add-good" class="rounded-xl border border-sky-600 px-4 py-2 font-bold text-sky-700">افزودن ردیف کالا</button><label class="mr-3 text-sm"><input type="checkbox" name="save_goods" value="1"> کالاهای جدید در اطلاعات پایه ذخیره شوند</label>
 </section>
 
 <section class="cmr-step hidden space-y-4" data-step="3">
@@ -81,8 +81,14 @@ function show(i){step=Math.max(0,Math.min(4,i));sections.forEach((s,n)=>s.classL
 next.onclick=()=>show(step+1);prev.onclick=()=>show(step-1);tabs.forEach(t=>t.onclick=()=>show(+t.dataset.go));
 const goodsList=document.getElementById('goods-list');
 function renumberGoods(){[...goodsList.children].forEach((row,i)=>{row.querySelector('h3').textContent=`ردیف کالای ${i+1} — خانه‌های ۶ تا ۱۲`;row.querySelectorAll('[name^="goods["]').forEach(x=>x.name=x.name.replace(/goods\[\d+\]/,`goods[${i}]`));row.querySelector('.remove-good').classList.toggle('hidden',i===0)})}
-document.getElementById('add-good').onclick=()=>{const row=goodsList.firstElementChild.cloneNode(true);row.querySelectorAll('input').forEach(x=>x.value='');goodsList.appendChild(row);renumberGoods()};
+document.getElementById('add-good').onclick=()=>{const row=goodsList.firstElementChild.cloneNode(true);row.querySelectorAll('input').forEach(x=>x.value='');row.querySelector('.master-good').value='';goodsList.appendChild(row);renumberGoods()};
 goodsList.addEventListener('click',event=>{const button=event.target.closest('.remove-good');if(!button)return;button.closest('.goods-row').remove();renumberGoods()});
+const company=document.getElementById('cmr-company');
+function filterMasterData(){document.querySelectorAll('.master-party option[data-company],.master-location option[data-company],.master-good option[data-company]').forEach(option=>{option.hidden=option.dataset.company!==company.value;option.disabled=option.hidden});document.querySelectorAll('.master-party,.master-location,.master-good').forEach(select=>select.value='')}
+company.addEventListener('change',filterMasterData);filterMasterData();
+document.querySelectorAll('.master-party').forEach(select=>select.addEventListener('change',()=>{const option=select.selectedOptions[0],type=select.dataset.type;if(!option?.dataset.name)return;document.querySelector(`[name="${type}_name"]`).value=option.dataset.name||'';document.querySelector(`[name="${type}_identifier"]`).value=option.dataset.identifier||'';document.querySelector(`[name="${type}_address"]`).value=option.dataset.address||'';document.querySelector(`[name="${type}_country_code"]`).value=option.dataset.country||''}));
+document.querySelectorAll('.master-location').forEach(select=>select.addEventListener('change',()=>{const option=select.selectedOptions[0],field=select.dataset.type==='taking_over'?'taking_over_place':'delivery_place';if(option?.dataset.name)document.querySelector(`[name="${field}"]`).value=option.dataset.name}));
+goodsList.addEventListener('change',event=>{const select=event.target.closest('.master-good');if(!select)return;const option=select.selectedOptions[0],row=select.closest('.goods-row');if(!option?.dataset.description)return;row.querySelector('[name$="[description]"]').value=option.dataset.description||'';row.querySelector('[name$="[package_type]"]').value=option.dataset.package||'';row.querySelector('[name$="[commodity_code]"]').value=option.dataset.code||'';row.querySelector('[name$="[un_number]"]').value=option.dataset.un||'';row.querySelector('[name$="[adr_class]"]').value=option.dataset.adr||''});
 })();
 </script>
 @endsection

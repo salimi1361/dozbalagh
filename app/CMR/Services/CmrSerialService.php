@@ -14,17 +14,16 @@ class CmrSerialService
     {
         $settings = CmrCompanySetting::forCompany((int) $document->company_id);
 
-        if ($settings->serial_mode === 'system') {
-            return null;
+        if ($settings->serial_mode !== 'pool') {
+            throw new RuntimeException('شماره CMR باید پیش از صدور توسط شرکت در مخزن شماره‌ها ثبت شود.');
         }
 
-        if ($settings->serial_mode === 'manual') {
-            $serial = trim((string) $document->company_serial);
-            if ($serial === '') {
-                throw new RuntimeException('شماره سریال CMR شرکت پیش از صدور الزامی است.');
-            }
-            $this->assertUnique($document, $serial);
-            return $serial;
+        $provided = CmrSerial::query()->where('company_id', $document->company_id)
+            ->where('status', 'available')->whereNull('serial_pool_id')->lockForUpdate()->first();
+        if ($provided) {
+            $this->assertUnique($document, $provided->serial);
+            $provided->update(['status' => 'used', 'cmr_document_id' => $document->id, 'reserved_at' => now(), 'used_at' => now()]);
+            return $provided->serial;
         }
 
         $pool = CmrSerialPool::query()
