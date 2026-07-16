@@ -3,6 +3,11 @@
 @section('header_title', 'مدیریت نسخه اپلیکیشن')
 
 @section('content')
+<link rel="stylesheet" href="{{ asset('assets/css/persian-datepicker.vendor.min.css') }}">
+<style>
+    .datepicker-plot-area { font-family: 'Vazirmatn', Tahoma, sans-serif !important; z-index: 99999 !important; }
+    .jalali-datetime-picker { cursor: pointer; }
+</style>
 <div class="mx-auto max-w-6xl space-y-6" dir="rtl">
     @if(session('success'))<div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-bold text-emerald-700">{{ session('success') }}</div>@endif
     @if($errors->any())
@@ -43,7 +48,7 @@
                 <div><label class="mb-2 block text-xs font-black text-slate-600">SHA-256 فایل (اختیاری)</label><input name="file_checksum" value="{{ old('file_checksum', $version?->file_checksum) }}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-xs" dir="ltr"></div>
                 <div><label class="mb-2 block text-xs font-black text-slate-600">پیام به‌روزرسانی</label><textarea name="message" rows="2" class="w-full rounded-xl border border-slate-300 px-3 py-2.5">{{ old('message', $version?->message) }}</textarea></div>
                 <div><label class="mb-2 block text-xs font-black text-slate-600">تغییرات نسخه</label><textarea name="release_notes" rows="4" class="w-full rounded-xl border border-slate-300 px-3 py-2.5">{{ old('release_notes', $version?->release_notes) }}</textarea></div>
-                <div><label class="mb-2 block text-xs font-black text-slate-600">زمان انتشار</label><input type="datetime-local" name="published_at" value="{{ old('published_at', $version?->published_at?->format('Y-m-d\TH:i')) }}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5" dir="ltr"></div>
+                <div><label class="mb-2 block text-xs font-black text-slate-600">زمان انتشار (هجری شمسی)</label><input type="text" name="published_at_jalali" value="{{ old('published_at_jalali', $version?->published_at ? verta($version->published_at)->format('Y/m/d H:i') : '') }}" placeholder="۱۴۰۵/۰۴/۲۵ ۱۴:۳۰" readonly autocomplete="off" class="jalali-datetime-picker w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-center" dir="ltr"><p class="mt-2 text-xs font-semibold text-slate-400">تاریخ و ساعت از تقویم شمسی انتخاب می‌شود.</p></div>
                 <div class="grid gap-3 sm:grid-cols-3">
                     <label class="flex items-center gap-2 rounded-xl bg-slate-50 p-3 text-xs font-black"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $version?->is_active ?? true))> سیاست فعال</label>
                     <label class="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-xs font-black text-amber-800"><input type="checkbox" name="force_update" value="1" @checked(old('force_update', $version?->force_update))> آپدیت اجباری</label>
@@ -58,4 +63,29 @@
         @endforeach
     </div>
 </div>
+@endsection
+
+@section('scripts')
+<script src="{{ asset('assets/js/persian-date.vendor.min.js') }}"></script>
+<script src="{{ asset('assets/js/persian-datepicker.vendor.min.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    if (!window.jQuery || typeof window.jQuery.fn.pDatepicker !== 'function') return;
+    $('.jalali-datetime-picker').pDatepicker({
+        format: 'YYYY/MM/DD HH:mm',
+        initialValue: false,
+        autoClose: true,
+        responsive: true,
+        onlySelectOnDate: false,
+        calendarType: 'persian',
+        calendar: {
+            persian: { locale: 'fa', showHint: false, leapYearMode: 'algorithmic' },
+            gregorian: { showHint: false }
+        },
+        navigator: { enabled: true, scroll: { enabled: true } },
+        toolbox: { enabled: true, calendarSwitch: { enabled: false }, todayButton: { enabled: true }, submitButton: { enabled: true } },
+        timePicker: { enabled: true, second: { enabled: false }, meridian: { enabled: false } }
+    });
+});
+</script>
 @endsection

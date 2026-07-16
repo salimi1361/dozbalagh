@@ -112,6 +112,7 @@ class MobileAppVersionPolicyTest extends TestCase
                     512,
                     'application/vnd.android.package-archive',
                 ),
+                'published_at_jalali' => '1405/04/25 14:30',
                 'is_active' => '1',
             ],
         )->assertRedirect()->assertSessionHasNoErrors();
@@ -119,6 +120,7 @@ class MobileAppVersionPolicyTest extends TestCase
         $version = MobileAppVersion::where('platform', 'android')->firstOrFail();
         $this->assertStringContainsString('/storage/app-releases/', $version->download_url);
         $this->assertSame(64, strlen((string) $version->file_checksum));
+        $this->assertSame('1405/04/25 14:30', verta($version->published_at)->format('Y/m/d H:i'));
         $this->assertCount(1, Storage::disk('public')->allFiles('app-releases'));
     }
 }

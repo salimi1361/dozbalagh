@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Morilog\Jalali\Jalalian;
 
 class MobileAppVersionController extends Controller
 {
@@ -31,6 +32,14 @@ class MobileAppVersionController extends Controller
     public function update(Request $request, string $platform): RedirectResponse
     {
         abort_unless(in_array($platform, ['android', 'ios'], true), 404);
+        if ($request->filled('published_at_jalali')) {
+            $request->merge([
+                'published_at_jalali' => strtr((string) $request->input('published_at_jalali'), [
+                    '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+                    '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+                ]),
+            ]);
+        }
         $currentVersion = MobileAppVersion::query()->where('platform', $platform)->first();
         $validated = $request->validate([
             'version_name' => ['required', 'string', 'max:50'],
@@ -41,8 +50,26 @@ class MobileAppVersionController extends Controller
             'file_checksum' => ['nullable', 'string', 'max:128'],
             'message' => ['nullable', 'string', 'max:2000'],
             'release_notes' => ['nullable', 'string', 'max:5000'],
-            'published_at' => ['nullable', 'date'],
+            'published_at_jalali' => [
+                'nullable',
+                'string',
+                'regex:/^1[34-9]\d{2}\/(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01]) ([01]\d|2[0-3]):[0-5]\d$/',
+            ],
         ]);
+
+        $publishedAtJalali = $validated['published_at_jalali'] ?? null;
+        unset($validated['published_at_jalali']);
+        if ($publishedAtJalali) {
+            try {
+                $validated['published_at'] = Jalalian::fromFormat('Y/m/d H:i', $publishedAtJalali)->toCarbon();
+            } catch (\Throwable) {
+                throw ValidationException::withMessages([
+                    'published_at_jalali' => 'زمان انتشار شمسی معتبر نیست.',
+                ]);
+            }
+        } else {
+            $validated['published_at'] = null;
+        }
 
         $releaseFile = $request->file('release_file');
         if ($releaseFile) {
