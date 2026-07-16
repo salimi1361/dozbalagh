@@ -5,6 +5,11 @@
 @section('content')
 <div class="mx-auto max-w-6xl space-y-6" dir="rtl">
     @if(session('success'))<div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-bold text-emerald-700">{{ session('success') }}</div>@endif
+    @if($errors->any())
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">
+            <ul class="list-inside list-disc space-y-1">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
+        </div>
+    @endif
     <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <h1 class="text-xl font-black text-slate-900">سیاست انتشار و به‌روزرسانی اپلیکیشن</h1>
         <p class="mt-2 text-sm font-semibold leading-7 text-slate-500">مقایسه نسخه بر اساس شماره Build انجام می‌شود. حداقل Build مجاز، نسخه‌های قدیمی‌تر را مسدود می‌کند.</p>
@@ -13,7 +18,7 @@
     <div class="grid gap-6 xl:grid-cols-2">
         @foreach(['android' => 'Android', 'ios' => 'iPhone / iOS'] as $platform => $platformLabel)
             @php $version = $versions->get($platform); @endphp
-            <form method="POST" action="{{ route('admin.mobile-app.versions.update', $platform) }}" class="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <form method="POST" enctype="multipart/form-data" action="{{ route('admin.mobile-app.versions.update', $platform) }}" class="space-y-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 @csrf @method('PUT')
                 <h2 class="text-lg font-black text-slate-900">{{ $platformLabel }}</h2>
                 <div class="flex items-center justify-between rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-xs font-black text-violet-800">
@@ -25,7 +30,16 @@
                     <div><label class="mb-2 block text-xs font-black text-slate-600">آخرین Build</label><input type="number" name="latest_build" value="{{ old('latest_build', $version?->latest_build) }}" min="1" required class="w-full rounded-xl border border-slate-300 px-3 py-2.5" dir="ltr"></div>
                     <div><label class="mb-2 block text-xs font-black text-slate-600">حداقل Build مجاز</label><input type="number" name="minimum_build" value="{{ old('minimum_build', $version?->minimum_build) }}" min="1" required class="w-full rounded-xl border border-slate-300 px-3 py-2.5" dir="ltr"></div>
                 </div>
-                <div><label class="mb-2 block text-xs font-black text-slate-600">لینک دریافت</label><input type="url" name="download_url" value="{{ old('download_url', $version?->download_url) }}" required class="w-full rounded-xl border border-slate-300 px-3 py-2.5" dir="ltr"></div>
+                <div class="space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-700">آپلود مستقیم فایل {{ $platform === 'android' ? 'APK' : 'IPA' }}</label>
+                        <input type="file" name="release_file" accept="{{ $platform === 'android' ? '.apk,application/vnd.android.package-archive' : '.ipa' }}" class="block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm" dir="ltr">
+                        <p class="mt-2 text-xs font-semibold leading-6 text-slate-500">در صورت انتخاب فایل، لینک دریافت و SHA-256 به‌صورت خودکار ساخته می‌شود. حداکثر حجم ۲۵۰ مگابایت است.</p>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs font-black text-slate-400"><span class="h-px flex-1 bg-slate-200"></span><span>یا</span><span class="h-px flex-1 bg-slate-200"></span></div>
+                    <div><label class="mb-2 block text-xs font-black text-slate-600">لینک دریافت از منبع دیگر</label><input type="url" name="download_url" value="{{ old('download_url', $version?->download_url) }}" placeholder="https://..." class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5" dir="ltr"></div>
+                    @if($version?->download_url)<a href="{{ $version->download_url }}" target="_blank" rel="noopener" class="inline-flex text-xs font-black text-sky-700 hover:text-sky-900">مشاهده فایل فعلی ↗</a>@endif
+                </div>
                 <div><label class="mb-2 block text-xs font-black text-slate-600">SHA-256 فایل (اختیاری)</label><input name="file_checksum" value="{{ old('file_checksum', $version?->file_checksum) }}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-xs" dir="ltr"></div>
                 <div><label class="mb-2 block text-xs font-black text-slate-600">پیام به‌روزرسانی</label><textarea name="message" rows="2" class="w-full rounded-xl border border-slate-300 px-3 py-2.5">{{ old('message', $version?->message) }}</textarea></div>
                 <div><label class="mb-2 block text-xs font-black text-slate-600">تغییرات نسخه</label><textarea name="release_notes" rows="4" class="w-full rounded-xl border border-slate-300 px-3 py-2.5">{{ old('release_notes', $version?->release_notes) }}</textarea></div>

@@ -9,6 +9,8 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class MobileAppVersionPolicyTest extends TestCase
@@ -84,5 +86,39 @@ class MobileAppVersionPolicyTest extends TestCase
             SendMobileAppUpdatePush::class,
             fn (SendMobileAppUpdatePush $job) => $job->versionId === $version->id,
         );
+    }
+
+    public function test_admin_can_upload_android_release_and_checksum_is_generated(): void
+    {
+        Storage::fake('public');
+        $role = Role::firstOrCreate(['name' => 'admin'], ['title_fa' => 'مدیر']);
+        $admin = User::create([
+            'role_id' => $role->id,
+            'username' => 'release-upload-admin',
+            'password' => Hash::make('secret-password'),
+            'status' => 'active',
+            'is_manual' => true,
+        ]);
+
+        $this->actingAs($admin)->post(
+            route('admin.mobile-app.versions.update', 'android'),
+            [
+                '_method' => 'PUT',
+                'version_name' => '2.3.0',
+                'latest_build' => 23,
+                'minimum_build' => 20,
+                'release_file' => UploadedFile::fake()->create(
+                    'dozoleh-driver.apk',
+                    512,
+                    'application/vnd.android.package-archive',
+                ),
+                'is_active' => '1',
+            ],
+        )->assertRedirect()->assertSessionHasNoErrors();
+
+        $version = MobileAppVersion::where('platform', 'android')->firstOrFail();
+        $this->assertStringContainsString('/storage/app-releases/', $version->download_url);
+        $this->assertSame(64, strlen((string) $version->file_checksum));
+        $this->assertCount(1, Storage::disk('public')->allFiles('app-releases'));
     }
 }
