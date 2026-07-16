@@ -23,6 +23,8 @@ class MobileAppInstallationController extends Controller
             'app_build' => ['nullable', 'string', 'max:50'],
             'app_identifier' => ['nullable', 'string', 'max:255'],
             'locale' => ['nullable', 'string', 'max:20'],
+            'fcm_token' => ['nullable', 'string', 'min:20', 'max:4096'],
+            'notifications_enabled' => ['sometimes', 'boolean'],
         ]);
 
         $now = now();
@@ -55,6 +57,11 @@ class MobileAppInstallationController extends Controller
             $installation->installed_at = $now;
         }
 
+        if (array_key_exists('fcm_token', $data)
+            && $installation->fcm_token !== $data['fcm_token']) {
+            $data['fcm_token_updated_at'] = $data['fcm_token'] ? $now : null;
+        }
+
         $installation->fill($data + [
             'last_ip' => $request->ip(),
             'last_seen_at' => $now,
@@ -63,6 +70,7 @@ class MobileAppInstallationController extends Controller
         return response()->json([
             'status' => 'success',
             'installation_id' => $installation->id,
+            'notifications_enabled' => $installation->notifications_enabled,
         ]);
     }
 }

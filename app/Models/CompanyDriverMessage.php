@@ -2,11 +2,21 @@
 
 namespace App\Models;
 
+use App\Jobs\SendCompanyDriverMessagePush;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CompanyDriverMessage extends Model
 {
+    protected static function booted(): void
+    {
+        static::created(function (self $message): void {
+            if ($message->sender === 'company') {
+                SendCompanyDriverMessagePush::dispatch($message->getKey())->afterCommit();
+            }
+        });
+    }
+
     protected $fillable = [
         'company_id',
         'driver_id',

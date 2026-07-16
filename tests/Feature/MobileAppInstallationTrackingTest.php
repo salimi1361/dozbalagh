@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Driver;
+use App\Models\MobileAppInstallation;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -49,6 +50,7 @@ class MobileAppInstallationTrackingTest extends TestCase
             'app_build' => '1',
             'app_identifier' => 'ir.itcakh.dozoleh.mobile_driver',
             'locale' => 'fa-IR',
+            'fcm_token' => str_repeat('a', 120),
         ];
 
         $this->postJson('/api/v1/driver/app-installations', $payload)->assertOk();
@@ -61,6 +63,65 @@ class MobileAppInstallationTrackingTest extends TestCase
             'manufacturer' => 'Xiaomi',
             'model' => '23129RAA4G',
             'app_build' => '2',
+            'fcm_token' => str_repeat('a', 120),
         ]);
+
+        $this->postJson('/api/v1/driver/app-installations', [
+            ...$payload,
+            'fcm_token' => str_repeat('b', 120),
+            'notifications_enabled' => false,
+        ])->assertOk();
+
+        $installation = MobileAppInstallation::firstOrFail();
+        $this->assertSame(str_repeat('b', 120), $installation->fcm_token);
+        $this->assertNotNull($installation->fcm_token_updated_at);
+        $this->assertFalse($installation->notifications_enabled);
+    }
+
+    public function test_revoked_device_cannot_register_an_fcm_token(): void
+    {
+        [$driver] = $this->authenticatedDriver('revoked-device-test', '0012345679');
+        MobileAppInstallation::create([
+            'driver_id' => $driver->id,
+            'device_uuid' => 'revoked-device',
+            'platform' => 'android',
+            'installed_at' => now(),
+            'last_seen_at' => now(),
+            'revoked_at' => now(),
+        ]);
+
+        $this->postJson('/api/v1/driver/app-installations', [
+            'device_uuid' => 'revoked-device',
+            'platform' => 'android',
+            'fcm_token' => str_repeat('c', 120),
+        ])->assertStatus(409);
+
+        $this->assertDatabaseMissing('mobile_app_installations', ['fcm_token' => str_repeat('c', 120)]);
+    }
+
+    private function authenticatedDriver(string $username, string $nationalCode): array
+    {
+        $role = Role::firstOrCreate(['name' => 'driver'], ['title_fa' => 'Driver']);
+        $user = User::create([
+            'role_id' => $role->id,
+            'username' => $username,
+            'password' => Hash::make('secret-password'),
+            'status' => 'active',
+            'is_manual' => true,
+        ]);
+        $driver = Driver::create([
+            'user_id' => $user->id,
+            'national_code' => $nationalCode,
+            'passport_number' => 'P' . $nationalCode,
+            'first_name_fa' => 'Test',
+            'last_name_fa' => 'Driver',
+            'first_name_en' => 'Test',
+            'last_name_en' => 'Driver',
+            'mobile' => '09' . substr($nationalCode, 0, 9),
+        ]);
+
+        Sanctum::actingAs($driver);
+
+        return [$driver, $user];
     }
 }
