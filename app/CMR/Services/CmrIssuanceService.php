@@ -48,6 +48,7 @@ class CmrIssuanceService
                 'currency' => $settings->currency,
             ]);
             $hash = hash('sha256', json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            $verificationCode = hash('sha256', $document->uuid.'|'.$hash.'|'.Str::random(32));
 
             if ($fee > 0) {
                 $before = (float) $wallet->balance;
@@ -75,6 +76,7 @@ class CmrIssuanceService
                 'issuance_fee' => $fee,
                 'currency' => $settings->currency,
                 'integrity_hash' => $hash,
+                'verification_code' => $verificationCode,
             ]);
 
             CmrVersion::create([

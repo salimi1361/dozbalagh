@@ -1,0 +1,89 @@
+<?php
+
+namespace App\CMR\Http\Controllers\Admin;
+
+use App\CMR\Models\CmrAmendment;
+use App\CMR\Models\CmrAttachment;
+use App\CMR\Models\CmrDocument;
+use App\CMR\Models\CmrEvent;
+use App\CMR\Models\CmrSignature;
+use App\CMR\Models\CmrVersion;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+
+class CmrLifecycleController extends Controller
+{
+    public function amend(Request $request, CmrDocument $cmr)
+    {
+        $latin = 'regex:/^[\p{Latin}\p{N}\p{P}\p{Z}\r\n]+$/u';
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+            'delivery_place' => ['nullable', 'string', 'max:255', $latin],
+            'planned_delivery_at' => ['nullable', 'date'],
+            'sender_instructions' => ['nullable', 'string', $latin],
+            'carrier_reservations' => ['nullable', 'string', $latin],
+            'special_agreements' => ['nullable', 'string', $latin],
+        ]);
+
+        DB::transaction(function () use ($cmr, $data) {
+            $document = CmrDocument::query()->lockForUpdate()->findOrFail($cmr->id);
+            if (! in_array($document->status, ['issued', 'accepted', 'in_transit'], true)) {
+                throw new \RuntimeException('فقط سند جاری و صادرشده قابل اصلاح نسخه‌دار است.');
+            }
+
+            $reason = $data['reason'];
+            unset($data['reason']);
+            $changes = collect($data)->filter(fn ($value, $field) => $value !== null && (string) $document->{$field} !== (string) $value)->all();
+            if ($changes === []) {
+                throw new \RuntimeException('هیچ تغییری برای ثبت وارد نشده است.');
+            }
+
+            $previousHash = $document->integrity_hash;
+            $fromVersion = (int) $document->version;
+            $toVersion = $fromVersion + 1;
+            $document->fill($changes);
+            $snapshot = collect($document->attributesToArray())
+                ->except(['created_at', 'updated_at', 'deleted_at', 'integrity_hash'])
+                ->merge(['version' => $toVersion, 'goods' => $document->goods()->get()->toArray()])->all();
+            $newHash = hash('sha256', json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            $document->forceFill(['version' => $toVersion, 'integrity_hash' => $newHash])->save();
+
+            CmrVersion::create(['cmr_document_id' => $document->id, 'version' => $toVersion, 'snapshot' => $snapshot, 'integrity_hash' => $newHash, 'created_by' => auth()->id(), 'reason' => $reason]);
+            CmrAmendment::create(['cmr_document_id' => $document->id, 'from_version' => $fromVersion, 'to_version' => $toVersion, 'reason' => $reason, 'changes' => $changes, 'previous_hash' => $previousHash, 'new_hash' => $newHash, 'created_by' => auth()->id()]);
+            CmrEvent::create(['cmr_document_id' => $document->id, 'event_type' => 'amended', 'from_status' => $document->status, 'to_status' => $document->status, 'actor_user_id' => auth()->id(), 'actor_role' => 'admin', 'description' => $reason, 'metadata' => ['from_version' => $fromVersion, 'to_version' => $toVersion, 'changes' => array_keys($changes)], 'occurred_at' => now()]);
+        });
+
+        return back()->with('success', 'اصلاحیه ثبت شد و نسخه جدید سند ایجاد گردید.');
+    }
+
+    public function upload(Request $request, CmrDocument $cmr)
+    {
+        $data = $request->validate(['document_type' => ['required', 'string', 'max:100'], 'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png']]);
+        $file = $data['file'];
+        $hash = hash_file('sha256', $file->getRealPath());
+        $path = $file->storeAs('cmr/'.$cmr->uuid.'/attachments', Str::uuid().'.'.$file->getClientOriginalExtension(), 'local');
+        CmrAttachment::create(['cmr_document_id' => $cmr->id, 'document_type' => $data['document_type'], 'original_name' => $file->getClientOriginalName(), 'storage_path' => $path, 'mime_type' => $file->getMimeType() ?: 'application/octet-stream', 'size_bytes' => $file->getSize(), 'sha256' => $hash, 'uploaded_by_user_id' => auth()->id()]);
+        return back()->with('success', 'پیوست با اثر انگشت SHA-256 ذخیره شد.');
+    }
+
+    public function download(CmrDocument $cmr, CmrAttachment $attachment)
+    {
+        abort_unless((int) $attachment->cmr_document_id === (int) $cmr->id, 404);
+        abort_unless(Storage::disk('local')->exists($attachment->storage_path), 404);
+        return Storage::disk('local')->download($attachment->storage_path, $attachment->original_name);
+    }
+
+    public function sign(Request $request, CmrDocument $cmr)
+    {
+        $data = $request->validate(['signer_role' => ['required', 'in:sender,carrier'], 'signer_name' => ['required', 'string', 'max:255'], 'signer_identifier' => ['nullable', 'string', 'max:255'], 'reservation' => ['nullable', 'string', 'max:2000'], 'confirmed' => ['accepted']]);
+        abort_unless(in_array($cmr->status, ['issued', 'accepted', 'in_transit', 'delivered'], true), 422);
+        $signedAt = now();
+        $evidence = ['cmr_id' => $cmr->id, 'version' => $cmr->version, 'role' => $data['signer_role'], 'name' => $data['signer_name'], 'document_hash' => $cmr->integrity_hash, 'signed_at' => $signedAt->toIso8601String(), 'ip' => $request->ip()];
+        CmrSignature::updateOrCreate(['cmr_document_id' => $cmr->id, 'document_version' => $cmr->version, 'signer_role' => $data['signer_role']], ['signer_name' => $data['signer_name'], 'signer_identifier' => $data['signer_identifier'] ?? null, 'reservation' => $data['reservation'] ?? null, 'document_hash' => $cmr->integrity_hash, 'evidence_hash' => hash('sha256', json_encode($evidence, JSON_UNESCAPED_UNICODE)), 'user_id' => auth()->id(), 'ip_address' => $request->ip(), 'user_agent' => mb_substr((string) $request->userAgent(), 0, 2000), 'signed_at' => $signedAt]);
+        CmrEvent::create(['cmr_document_id' => $cmr->id, 'event_type' => 'signed', 'from_status' => $cmr->status, 'to_status' => $cmr->status, 'actor_user_id' => auth()->id(), 'actor_role' => $data['signer_role'], 'description' => 'Electronic acknowledgement recorded.', 'metadata' => ['version' => $cmr->version, 'role' => $data['signer_role']], 'occurred_at' => $signedAt]);
+        return back()->with('success', 'تأیید الکترونیکی برای نسخه جاری ثبت شد.');
+    }
+}

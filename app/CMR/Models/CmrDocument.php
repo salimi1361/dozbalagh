@@ -29,6 +29,7 @@ class CmrDocument extends Model
         'charges' => 'array',
         'cash_on_delivery' => 'decimal:2',
         'established_at_date' => 'date',
+        'finalized_at' => 'datetime',
     ];
 
     public function company(): BelongsTo { return $this->belongsTo(Company::class); }
@@ -39,4 +40,7 @@ class CmrDocument extends Model
     public function events(): HasMany { return $this->hasMany(CmrEvent::class)->latest('occurred_at'); }
     public function versions(): HasMany { return $this->hasMany(CmrVersion::class)->latest('version'); }
     public function walletEntries(): HasMany { return $this->hasMany(CmrWalletEntry::class); }
+    public function amendments(): HasMany { return $this->hasMany(CmrAmendment::class)->latest('to_version'); }
+    public function attachments(): HasMany { return $this->hasMany(CmrAttachment::class)->latest(); }
+    public function signatures(): HasMany { return $this->hasMany(CmrSignature::class)->latest('signed_at'); }
 }

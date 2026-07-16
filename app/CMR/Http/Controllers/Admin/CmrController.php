@@ -123,7 +123,7 @@ class CmrController extends Controller
 
     public function show(CmrDocument $cmr)
     {
-        $cmr->load(['company', 'driver', 'fleet', 'goods', 'events', 'walletEntries']);
+        $cmr->load(['company', 'driver', 'fleet', 'goods', 'events', 'walletEntries', 'versions', 'amendments', 'attachments', 'signatures']);
         return view('CMR.admin.show', compact('cmr'));
     }
 
