@@ -107,7 +107,9 @@
             </a>
 
             @if(auth()->user()?->hasRole('admin'))
-            @php($isCmrActive = request()->routeIs('admin.cmr.*'))
+            @php
+                $isCmrActive = request()->routeIs('admin.cmr.*');
+            @endphp
             <div class="relative">
                 <button type="button" onclick="toggleCmrMenu()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ $isCmrActive ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'hover:bg-slate-800 hover:text-white' }}">
                     <span class="flex items-center gap-3"><span class="text-lg">▣</span><span>مدیریت e-CMR</span></span>
