@@ -1,6 +1,7 @@
 @extends('layouts.admin')
 @section('header_title','اطلاعات پایه e-CMR')
 @section('content')<div class="space-y-5" dir="rtl">
+@include('CMR.admin.partials.module-header', ['title' => 'اطلاعات پایه e-CMR', 'subtitle' => 'مدیریت طرف‌های تجاری، مکان‌های پرتکرار و الگوهای کالا'])
 @if(session('success'))<div class="rounded-xl bg-emerald-50 p-4 text-emerald-700">{{ session('success') }}</div>@endif @if($errors->any())<div class="rounded-xl bg-rose-50 p-4 text-rose-700">{{ $errors->first() }}</div>@endif
 <form method="GET" class="rounded-2xl border bg-white p-5"><label class="font-black">شرکت<select name="company_id" onchange="this.form.submit()" class="mt-2 w-full rounded-xl border p-3">@foreach($companies as $item)<option value="{{ $item->id }}" @selected($company?->id===$item->id)>{{ $item->name_fa ?: $item->name_en }}</option>@endforeach</select></label></form>
 @if($company)<div class="grid gap-5 lg:grid-cols-3">

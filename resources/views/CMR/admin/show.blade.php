@@ -1,6 +1,7 @@
 @extends('layouts.admin')
 @section('header_title', 'جزئیات e-CMR')
 @section('content')
+@include('CMR.admin.partials.module-header', ['title' => 'پرونده الکترونیکی CMR', 'subtitle' => 'مشاهده سند، رویدادها، امضاها و شواهد حمل'])
 <div class="space-y-5" dir="rtl">
 @if(session('success'))<div class="rounded-xl bg-emerald-50 p-4 text-emerald-700">{{ session('success') }}</div>@endif
 @if($errors->any())<div class="rounded-xl bg-rose-50 p-4 text-rose-700">{{ $errors->first() }}</div>@endif
