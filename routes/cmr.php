@@ -36,6 +36,7 @@ Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin'
     Route::post('/{cmr}/amendments', [CmrLifecycleController::class, 'amend'])->name('amendments.store');
     Route::post('/{cmr}/attachments', [CmrLifecycleController::class, 'upload'])->name('attachments.store');
     Route::get('/{cmr}/attachments/{attachment}', [CmrLifecycleController::class, 'download'])->name('attachments.download');
+    Route::get('/{cmr}/handovers/{handover}/signature', [CmrLifecycleController::class, 'handoverSignature'])->name('handovers.signature');
     Route::post('/{cmr}/signatures', [CmrLifecycleController::class, 'sign'])->name('signatures.store');
     Route::post('/{cmr}/finalize', [CmrLifecycleController::class, 'finalize'])->name('finalize');
     Route::post('/{cmr}/duplicate', [CmrController::class, 'duplicate'])->name('duplicate');

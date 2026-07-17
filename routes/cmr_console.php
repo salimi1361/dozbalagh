@@ -12,7 +12,7 @@ Artisan::command('cmr:doctor', function () {
         'cmr_documents', 'cmr_goods', 'cmr_events', 'cmr_versions', 'cmr_amendments',
         'cmr_attachments', 'cmr_signatures', 'cmr_serials', 'cmr_serial_pools',
         'cmr_parties', 'cmr_locations', 'cmr_goods_templates', 'cmr_wallet_entries',
-        'driver_locations', 'driver_events',
+        'driver_locations', 'driver_events', 'cmr_handover_records',
     ];
     $failures = [];
 

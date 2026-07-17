@@ -13,6 +13,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use App\CMR\Models\CmrAttachment;
+use App\CMR\Models\CmrCompanySetting;
+use App\CMR\Models\CmrHandoverRecord;
 use Illuminate\View\View;
 
 class DriverCmrController extends Controller
@@ -35,7 +37,8 @@ class DriverCmrController extends Controller
     {
         abort_unless((int) $cmr->driver_id === (int) auth()->id(), 403);
         abort_if($cmr->status === 'draft', 404);
-        $cmr->load(['company:id,name_fa,name_en,address_en', 'fleet', 'goods', 'events', 'signatures', 'attachments']);
+        $cmr->load(['company:id,name_fa,name_en,address_en', 'fleet', 'goods', 'events', 'signatures', 'attachments', 'handovers.attachments']);
+        $policy=CmrCompanySetting::forCompany((int)$cmr->company_id);
 
         return response()->json(['data' => $this->summary($cmr) + [
             'consignor' => ['name' => $cmr->consignor_name, 'address' => $cmr->consignor_address, 'country_code' => $cmr->consignor_country_code],
@@ -57,7 +60,61 @@ class DriverCmrController extends Controller
             'events' => $cmr->events->map(fn($event)=>['type'=>$event->event_type,'description'=>$event->description,'occurred_at'=>$event->occurred_at?->toIso8601String()])->values(),
             'signatures' => $cmr->signatures->map(fn($signature)=>['role'=>$signature->signer_role,'name'=>$signature->signer_name,'signed_at'=>$signature->signed_at?->toIso8601String(),'version'=>$signature->document_version])->values(),
             'attachments' => $cmr->attachments->map(fn($attachment)=>['id'=>$attachment->id,'type'=>$attachment->document_type,'name'=>$attachment->original_name,'sha256'=>$attachment->sha256,'download_url'=>route('api.driver.cmr.attachments.download',[$cmr,$attachment])])->values(),
+            'handover_policy'=>$this->handoverPolicy($policy),
+            'handovers'=>$cmr->handovers->map(fn($record)=>['id'=>$record->id,'stage'=>$record->stage,'outcome'=>$record->outcome,'signer_name'=>$record->signer_name,'latitude'=>$record->latitude,'longitude'=>$record->longitude,'notes'=>$record->notes,'evidence_hash'=>$record->evidence_hash,'occurred_at'=>$record->occurred_at?->toIso8601String(),'attachments'=>$record->attachments->map(fn($file)=>['id'=>$file->id,'name'=>$file->original_name,'sha256'=>$file->sha256,'download_url'=>route('api.driver.cmr.attachments.download',[$cmr,$file])])->values()])->values(),
         ]]);
+    }
+
+    public function handoverRequirements(CmrDocument $cmr): JsonResponse
+    {
+        $this->assertOwner($cmr);
+        return response()->json(['data'=>$this->handoverPolicy(CmrCompanySetting::forCompany((int)$cmr->company_id))]);
+    }
+
+    public function storeHandover(Request $request, CmrDocument $cmr): JsonResponse
+    {
+        $this->assertOwner($cmr);
+        $data=$request->validate([
+            'client_uuid'=>['required','uuid'],'stage'=>['required','in:origin,destination'],
+            'outcome'=>['required','in:accepted,accepted_with_reservations,delivered,partial,damaged,refused'],
+            'signer_name'=>['nullable','string','max:255'],'signer_identifier'=>['nullable','string','max:255'],
+            'signature'=>['nullable','image','mimes:png,jpg,jpeg,webp','max:5120'],
+            'photos'=>['nullable','array','max:5'],'photos.*'=>['image','mimes:png,jpg,jpeg,webp','max:10240'],
+            'latitude'=>['nullable','numeric','between:-90,90'],'longitude'=>['nullable','numeric','between:-180,180'],
+            'accuracy'=>['nullable','numeric','min:0','max:10000'],'notes'=>['nullable','string','max:4000'],
+            'occurred_at'=>['nullable','date','after_or_equal:'.now()->subDays(7)->toIso8601String(),'before_or_equal:'.now()->addMinutes(10)->toIso8601String()],
+            'confirmed'=>['accepted'],
+        ]);
+        $existing=CmrHandoverRecord::where('cmr_document_id',$cmr->id)->where('stage',$data['stage'])->where('client_uuid',$data['client_uuid'])->first();
+        if($existing) return response()->json(['data'=>$existing,'duplicate'=>true]);
+        $policy=CmrCompanySetting::forCompany((int)$cmr->company_id); $stage=$data['stage'];
+        $enabled=(bool)$policy->{$stage.'_evidence_enabled'};
+        if(!$enabled) abort(409,'Evidence workflow is not enabled for this stage.');
+        if($policy->{$stage.'_require_signature'} && (!$request->hasFile('signature') || blank($data['signer_name']??null))) abort(422,'Signature and signer name are required.');
+        if($policy->{$stage.'_require_photo'} && !$request->hasFile('photos')) abort(422,'At least one evidence photo is required.');
+        if($policy->{$stage.'_require_gps'} && (!isset($data['latitude'],$data['longitude']))) abort(422,'GPS location is required.');
+        if(!$policy->allow_delivery_exceptions && !in_array($data['outcome'],[$stage==='origin'?'accepted':'delivered'],true)) abort(422,'Delivery exceptions are disabled by company policy.');
+
+        $record=DB::transaction(function() use($request,$cmr,$data,$stage){
+            $document=CmrDocument::lockForUpdate()->findOrFail($cmr->id);
+            abort_unless($stage==='origin' ? $document->status==='issued' : $document->status==='in_transit',409,'CMR status is not valid for this handover stage.');
+            $signaturePath=null;$signatureHash=null;
+            if($request->hasFile('signature')){$file=$request->file('signature');$signatureHash=hash_file('sha256',$file->getRealPath());$signaturePath=$file->storeAs('cmr/'.$document->uuid.'/handovers/signatures',Str::uuid().'.'.$file->getClientOriginalExtension(),'local');}
+            $occurredAt=isset($data['occurred_at'])?Carbon::parse($data['occurred_at'])->setTimezone(config('app.timezone')):now();
+            $evidence=collect($data)->except(['signature','photos'])->merge(['cmr_id'=>$document->id,'version'=>$document->version,'document_hash'=>$document->integrity_hash,'signature_sha256'=>$signatureHash,'driver_id'=>auth()->id(),'occurred_at'=>$occurredAt->toIso8601String()])->all();
+            $record=CmrHandoverRecord::create(['cmr_document_id'=>$document->id,'document_version'=>$document->version,'stage'=>$stage,'outcome'=>$data['outcome'],'signer_name'=>$data['signer_name']??null,'signer_identifier'=>$data['signer_identifier']??null,'signature_path'=>$signaturePath,'signature_sha256'=>$signatureHash,'latitude'=>$data['latitude']??null,'longitude'=>$data['longitude']??null,'accuracy'=>$data['accuracy']??null,'notes'=>$data['notes']??null,'client_uuid'=>$data['client_uuid'],'evidence_hash'=>hash('sha256',json_encode($evidence,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES)),'driver_id'=>auth()->id(),'ip_address'=>$request->ip(),'user_agent'=>mb_substr((string)$request->userAgent(),0,2000),'occurred_at'=>$occurredAt]);
+            foreach($request->file('photos',[]) as $photo){$hash=hash_file('sha256',$photo->getRealPath());$path=$photo->storeAs('cmr/'.$document->uuid.'/handovers/photos',Str::uuid().'.'.$photo->getClientOriginalExtension(),'local');CmrAttachment::create(['cmr_document_id'=>$document->id,'cmr_handover_record_id'=>$record->id,'document_type'=>'handover_'.$stage,'original_name'=>$photo->getClientOriginalName(),'storage_path'=>$path,'mime_type'=>$photo->getMimeType()?:'application/octet-stream','size_bytes'=>$photo->getSize(),'sha256'=>$hash,'uploaded_by_driver_id'=>auth()->id()]);}
+            $successful=$stage==='origin'?in_array($data['outcome'],['accepted','accepted_with_reservations'],true):in_array($data['outcome'],['delivered','partial','damaged'],true);
+            if($successful){
+                $driver=auth()->user();$driverName=trim(($driver->first_name_en??'').' '.($driver->last_name_en??''))?:'Driver #'.$driver->id;
+                if($stage==='origin'){$this->recordSignature($document,'driver',$driverName,$data['notes']??null,$request,(int)$driver->id,'origin_handover');if(filled($data['signer_name']??null))$this->recordSignature($document,'sender',$data['signer_name'],$data['notes']??null,$request,(int)$driver->id,'witnessed_on_driver_device');}
+                elseif(filled($data['signer_name']??null))$this->recordSignature($document,'consignee',$data['signer_name'],$data['notes']??null,$request,(int)$driver->id,'witnessed_on_driver_device');
+            }
+            $from=$document->status;if($successful)$document->update(['status'=>$stage==='origin'?'accepted':'delivered']);
+            $this->event($document,'handover_'.$stage,$from,$document->fresh()->status,'Handover evidence recorded: '.$data['outcome'],(int)auth()->id());
+            return $record->load('attachments');
+        });
+        return response()->json(['data'=>$record],201);
     }
 
     public function downloadAttachment(CmrDocument $cmr, CmrAttachment $attachment)
@@ -82,6 +139,7 @@ class DriverCmrController extends Controller
 
     public function accept(Request $request, CmrDocument $cmr): JsonResponse
     {
+        abort_if(CmrCompanySetting::forCompany((int)$cmr->company_id)->origin_evidence_enabled,409,'Use the origin handover evidence workflow.');
         $data = $request->validate(['reservation' => ['nullable', 'string', 'max:2000'], 'confirmed' => ['accepted']]);
         $this->assertOwner($cmr);
         $driver = auth()->user();
@@ -111,6 +169,7 @@ class DriverCmrController extends Controller
 
     public function deliver(Request $request, CmrDocument $cmr): JsonResponse
     {
+        abort_if(CmrCompanySetting::forCompany((int)$cmr->company_id)->destination_evidence_enabled,409,'Use the destination handover evidence workflow.');
         $latin = 'regex:/^[\p{Latin}\p{N}\p{P}\p{Z}\r\n]+$/u';
         $data = $request->validate(['consignee_signer_name' => ['required', 'string', 'max:255', $latin], 'reservation' => ['nullable', 'string', 'max:2000'], 'confirmed_by_consignee' => ['accepted']]);
         $this->assertOwner($cmr);
@@ -152,6 +211,11 @@ class DriverCmrController extends Controller
     private function assertOwner(CmrDocument $cmr): void
     {
         abort_unless((int) $cmr->driver_id === (int) auth()->id(), 403);
+    }
+
+    private function handoverPolicy(CmrCompanySetting $settings): array
+    {
+        return ['origin'=>['enabled'=>$settings->origin_evidence_enabled,'require_signature'=>$settings->origin_require_signature,'require_photo'=>$settings->origin_require_photo,'require_gps'=>$settings->origin_require_gps],'destination'=>['enabled'=>$settings->destination_evidence_enabled,'require_signature'=>$settings->destination_require_signature,'require_photo'=>$settings->destination_require_photo,'require_gps'=>$settings->destination_require_gps],'allow_exceptions'=>$settings->allow_delivery_exceptions];
     }
 
     private function recordSignature(CmrDocument $document, string $role, string $name, ?string $reservation, Request $request, int $driverId, string $type = 'electronic_acknowledgement'): void

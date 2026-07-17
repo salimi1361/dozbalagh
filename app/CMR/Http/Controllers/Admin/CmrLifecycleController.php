@@ -8,6 +8,8 @@ use App\CMR\Models\CmrDocument;
 use App\CMR\Models\CmrEvent;
 use App\CMR\Models\CmrSignature;
 use App\CMR\Models\CmrVersion;
+use App\CMR\Models\CmrCompanySetting;
+use App\CMR\Models\CmrHandoverRecord;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +20,7 @@ class CmrLifecycleController extends Controller
 {
     public function evidence(CmrDocument $cmr)
     {
-        $cmr->load(['company', 'goods', 'versions', 'amendments', 'attachments', 'signatures', 'events', 'walletEntries']);
+        $cmr->load(['company', 'goods', 'versions', 'amendments', 'attachments', 'signatures', 'events', 'walletEntries', 'handovers.attachments']);
         $versions = $cmr->versions->sortBy('version')->values();
         $amendments = $cmr->amendments->sortBy('to_version')->values();
         $chainValid = $versions->isNotEmpty()
@@ -41,6 +43,7 @@ class CmrLifecycleController extends Controller
             'versions' => $versions->toArray(),
             'amendments' => $amendments->toArray(),
             'signatures' => $cmr->signatures->toArray(),
+            'handovers' => $cmr->handovers->toArray(),
             'attachments' => $cmr->attachments->map->only(['document_type', 'original_name', 'mime_type', 'size_bytes', 'sha256', 'created_at'])->all(),
             'events' => $cmr->events->toArray(),
             'billing' => $cmr->walletEntries->toArray(),
@@ -116,6 +119,13 @@ class CmrLifecycleController extends Controller
         return Storage::disk('local')->download($attachment->storage_path, $attachment->original_name);
     }
 
+    public function handoverSignature(CmrDocument $cmr, CmrHandoverRecord $handover)
+    {
+        abort_unless((int)$handover->cmr_document_id===(int)$cmr->id && $handover->signature_path,404);
+        abort_unless(Storage::disk('local')->exists($handover->signature_path),404);
+        return Storage::disk('local')->download($handover->signature_path,'handover-'.$handover->stage.'-signature.'.pathinfo($handover->signature_path,PATHINFO_EXTENSION));
+    }
+
     public function sign(Request $request, CmrDocument $cmr)
     {
         $data = $request->validate(['signer_role' => ['required', 'in:sender,carrier'], 'signer_name' => ['required', 'string', 'max:255'], 'signer_identifier' => ['nullable', 'string', 'max:255'], 'reservation' => ['nullable', 'string', 'max:2000'], 'confirmed' => ['accepted']]);
@@ -137,7 +147,10 @@ class CmrLifecycleController extends Controller
             }
             $roles = CmrSignature::where('cmr_document_id', $document->id)
                 ->where('document_version', $document->version)->pluck('signer_role');
-            if (! $roles->contains('driver') || ! $roles->contains('consignee')) {
+            $policy=CmrCompanySetting::forCompany((int)$document->company_id);
+            $destinationEvidence=CmrHandoverRecord::where('cmr_document_id',$document->id)->where('stage','destination')->whereIn('outcome',['delivered','partial','damaged'])->exists();
+            $hasConsignee=$roles->contains('consignee') || (!$policy->destination_require_signature && $destinationEvidence);
+            if (! $roles->contains('driver') || ! $hasConsignee) {
                 throw new \RuntimeException('تأیید راننده و گیرنده برای نسخه جاری الزامی است.');
             }
 

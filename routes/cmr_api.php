@@ -11,6 +11,8 @@ Route::prefix('v1/driver/cmr')->middleware(['auth:sanctum', 'throttle:120,1'])->
     Route::post('/{cmr}/accept', [DriverCmrController::class, 'accept'])->name('accept');
     Route::post('/{cmr}/start', [DriverCmrController::class, 'start'])->name('start');
     Route::post('/{cmr}/deliver', [DriverCmrController::class, 'deliver'])->name('deliver');
+    Route::get('/{cmr}/handover/requirements', [DriverCmrController::class, 'handoverRequirements'])->name('handover.requirements');
+    Route::post('/{cmr}/handover', [DriverCmrController::class, 'storeHandover'])->name('handover.store');
     Route::post('/{cmr}/tracking/location/sync', [DriverCmrController::class, 'syncLocation'])->name('tracking.location');
     Route::post('/{cmr}/tracking/event/log', [DriverCmrController::class, 'trackingEvent'])->name('tracking.event');
     Route::get('/{cmr}/tracking', [DriverCmrController::class, 'track'])->name('tracking.show');

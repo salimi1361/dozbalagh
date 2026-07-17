@@ -56,9 +56,17 @@ class CmrCompanyConfigurationController extends Controller
             'assignment_policy' => ['required', 'in:same_company,any_registered,authorized_external'],
             'print_language' => ['required', 'in:en'],
             'require_latin_data' => ['nullable', 'boolean'],
+            'origin_evidence_enabled'=>['nullable','boolean'],'origin_require_signature'=>['nullable','boolean'],
+            'origin_require_photo'=>['nullable','boolean'],'origin_require_gps'=>['nullable','boolean'],
+            'destination_evidence_enabled'=>['nullable','boolean'],'destination_require_signature'=>['nullable','boolean'],
+            'destination_require_photo'=>['nullable','boolean'],'destination_require_gps'=>['nullable','boolean'],
+            'allow_delivery_exceptions'=>['nullable','boolean'],
         ]);
         $data['require_latin_data'] = true;
         $data['serial_mode'] = 'pool';
+        foreach (['origin_evidence_enabled','origin_require_signature','origin_require_photo','origin_require_gps','destination_evidence_enabled','destination_require_signature','destination_require_photo','destination_require_gps','allow_delivery_exceptions'] as $flag) {
+            $data[$flag]=$request->boolean($flag);
+        }
         CmrCompanySetting::forCompany($company->id)->update($data);
         return back()->with('success', 'سیاست CMR شرکت ذخیره شد.');
     }
