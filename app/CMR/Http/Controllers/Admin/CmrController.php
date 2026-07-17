@@ -22,10 +22,19 @@ use Illuminate\Support\Str;
 
 class CmrController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $documents = CmrDocument::with('company')->latest()->paginate(20);
-        return view('CMR.admin.index', compact('documents'));
+        $scope = $request->string('scope')->toString();
+        $query = CmrDocument::with('company')->latest();
+        if ($scope === 'active') {
+            $query->whereIn('status', ['issued', 'accepted', 'in_transit']);
+        } elseif ($scope === 'archive') {
+            $query->whereIn('status', ['delivered', 'finalized', 'cancelled']);
+        } elseif ($scope === 'drafts') {
+            $query->where('status', 'draft');
+        }
+        $documents = $query->paginate(20)->withQueryString();
+        return view('CMR.admin.index', compact('documents', 'scope'));
     }
 
     public function create()

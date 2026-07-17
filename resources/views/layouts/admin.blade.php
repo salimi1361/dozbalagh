@@ -107,10 +107,23 @@
             </a>
 
             @if(auth()->user()?->hasRole('admin'))
-            <a href="{{ route('admin.cmr.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.cmr.*') ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'hover:bg-slate-800 hover:text-white' }}">
-                <span class="text-lg">▣</span>
-                مدیریت e-CMR
-            </a>
+            @php($isCmrActive = request()->routeIs('admin.cmr.*'))
+            <div class="relative">
+                <button type="button" onclick="toggleCmrMenu()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ $isCmrActive ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' : 'hover:bg-slate-800 hover:text-white' }}">
+                    <span class="flex items-center gap-3"><span class="text-lg">▣</span><span>مدیریت e-CMR</span></span>
+                    <svg id="arrowCmr" class="h-4 w-4 transform transition-transform {{ $isCmrActive ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                </button>
+                <div id="subCmrMenu" class="{{ $isCmrActive ? '' : 'hidden' }} mt-1 mr-3 space-y-1 border-r-2 border-emerald-700 pr-2">
+                    <a href="{{ route('admin.cmr.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.index') && !request('scope') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">کارتابل اسناد</a>
+                    <a href="{{ route('admin.cmr.create') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.create') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">صدور e-CMR</a>
+                    <a href="{{ route('admin.cmr.index',['scope'=>'drafts']) }}" class="block rounded-lg px-4 py-2 text-xs font-bold text-slate-400 hover:text-white">پیش‌نویس‌ها</a>
+                    <a href="{{ route('admin.cmr.index',['scope'=>'active']) }}" class="block rounded-lg px-4 py-2 text-xs font-bold text-slate-400 hover:text-white">حمل‌های در جریان</a>
+                    <a href="{{ route('admin.cmr.index',['scope'=>'archive']) }}" class="block rounded-lg px-4 py-2 text-xs font-bold text-slate-400 hover:text-white">تحویل‌شده و بایگانی</a>
+                    <a href="{{ route('admin.cmr.master-data.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.master-data.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">اطلاعات پایه</a>
+                    <a href="{{ route('admin.cmr.company-settings.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.company-settings.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">شماره‌ها و قالب چاپ</a>
+                    <a href="{{ route('admin.cmr.settings') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.settings*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">تعرفه و مالی</a>
+                </div>
+            </div>
             @endif
             @endif
 
@@ -396,6 +409,13 @@
         
         function toggleDropdown() {
             document.getElementById('userDropdown').classList.toggle('hidden');
+        }
+
+        function toggleCmrMenu() {
+            const menu = document.getElementById('subCmrMenu');
+            const arrow = document.getElementById('arrowCmr');
+            menu.classList.toggle('hidden');
+            arrow.classList.toggle('rotate-180');
         }
         
         // 🔒 تابع باز و بسته شدن آکاردئونی منوی دوزبلاغ
