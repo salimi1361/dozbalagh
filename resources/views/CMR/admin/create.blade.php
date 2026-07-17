@@ -1,6 +1,20 @@
 @extends('layouts.admin')
 @section('header_title', $editing ? 'ویرایش پیش‌نویس e-CMR' : 'ایجاد پیش‌نویس e-CMR')
 @section('content')
+<style>
+ #cmr-form{font-size:13px;--cmr-green:#047857;--cmr-navy:#0f172a}
+ #cmr-form .cmr-step{animation:cmrFade .18s ease-out}
+ #cmr-form .cmr-step>div,#cmr-form .goods-row{box-shadow:0 1px 2px rgba(15,23,42,.03)}
+ #cmr-form label{line-height:1.35}
+ #cmr-form input:not([type=checkbox]):not([type=radio]),#cmr-form select{min-height:38px}
+ #cmr-form input,#cmr-form select,#cmr-form textarea{font-size:12px;transition:border-color .15s,box-shadow .15s}
+ #cmr-form input:focus,#cmr-form select:focus,#cmr-form textarea:focus{outline:none;border-color:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.1)}
+ #cmr-form label>span[dir=ltr]{font-size:10px;color:#94a3b8}
+ #cmr-form .step-tab{position:relative;min-width:108px;transition:.18s}
+ #cmr-form .step-tab.bg-emerald-600{box-shadow:0 5px 14px rgba(5,150,105,.2)}
+ @keyframes cmrFade{from{opacity:.55;transform:translateY(3px)}to{opacity:1;transform:none}}
+ @media(max-width:768px){#cmr-form .step-tab{min-width:auto;flex:1;padding-left:.6rem;padding-right:.6rem}}
+</style>
 @include('CMR.admin.partials.module-header', ['title' => $editing ? 'ویرایش پیش‌نویس e-CMR' : 'صدور e-CMR', 'subtitle' => 'ثبت مرحله‌ای اطلاعات استاندارد حمل بین‌المللی جاده‌ای'])
 <div class="mb-4 flex justify-end" dir="rtl"><a href="{{ route('admin.cmr.help') }}" target="_blank" class="rounded-xl border border-emerald-600 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800">؟ راهنمای فارسی صدور e‑CMR</a></div>
 <form method="POST" action="{{ $editing ? route('admin.cmr.update',$editing) : route('admin.cmr.store') }}" class="space-y-5" dir="rtl" id="cmr-form">@csrf @if($editing) @method('PUT') @endif
@@ -9,11 +23,11 @@
  <span>اطلاعات ذخیره‌شده‌ای از تکمیل قبلی این فرم وجود دارد.</span>
  <div class="flex gap-2"><button type="button" id="restore-recovery" class="rounded-lg bg-emerald-700 px-3 py-2 font-bold text-white">بازیابی اطلاعات</button><button type="button" id="discard-recovery" class="rounded-lg border border-amber-300 bg-white px-3 py-2 font-bold">حذف نسخه ذخیره‌شده</button></div>
 </div>
-<div class="rounded-2xl border bg-white p-4">
+<div class="rounded-2xl border border-slate-200 bg-white px-4 py-3">
  <div class="flex flex-wrap gap-2 text-sm font-bold" id="steps">
   @foreach(['۱. تخصیص','۲. طرفین و مسیر','۳. کالا','۴. اسناد و هزینه‌ها','۵. بازبینی'] as $i=>$label)<button type="button" data-go="{{ $i }}" class="step-tab rounded-xl px-4 py-2 {{ $i===0?'bg-emerald-600 text-white':'bg-slate-100' }}">{{ $label }}</button>@endforeach
  </div>
- <p class="mt-3 text-xs text-amber-700">راهنما فارسی است، اما تمام اطلاعاتی که روی CMR چاپ می‌شوند باید با حروف لاتین وارد شوند.</p>
+ <p class="mt-2 text-[11px] text-amber-700">راهنما فارسی است؛ اطلاعات چاپ‌شونده روی CMR را با حروف لاتین وارد کنید.</p>
 </div>
 
 <section class="cmr-step space-y-4" data-step="0">
@@ -30,11 +44,11 @@
 <section class="cmr-step hidden space-y-4" data-step="1">
  <div class="grid gap-3 xl:grid-cols-3">
  @foreach(['consignor'=>'مشخصات فرستنده','consignee'=>'مشخصات گیرنده','carrier'=>'مشخصات حمل‌کننده'] as $key=>$title)
- <div class="grid gap-2 rounded-2xl border bg-white p-4"><h3 class="font-black text-emerald-700">{{ $title }}</h3><select class="master-party rounded-xl border bg-emerald-50 p-2" data-type="{{ $key }}"><option value="">انتخاب از اطلاعات پایه</option>@foreach($masterParties->where('party_type',$key) as $party)<option data-company="{{ $party->company_id }}" data-name="{{ $party->legal_name }}" data-identifier="{{ $party->identifier }}" data-address="{{ $party->address }}" data-country="{{ $party->country_code }}">{{ $party->legal_name }}</option>@endforeach</select>
-  <label class="text-xs font-bold text-slate-700">نام قانونی <span class="font-normal text-slate-400" dir="ltr">(Legal name)</span><input class="mt-1 w-full rounded-xl border p-2 font-normal" dir="ltr" name="{{ $key }}_name" value="{{ old($key.'_name') }}" placeholder="Enter in Latin letters" required></label>
-  <label class="text-xs font-bold text-slate-700">شماره ثبت یا شناسه <span class="font-normal text-slate-400" dir="ltr">(Registration / identifier)</span><input class="mt-1 w-full rounded-xl border p-2 font-normal" dir="ltr" name="{{ $key }}_identifier" value="{{ old($key.'_identifier') }}" placeholder="Registration / identifier"></label>
-  <label class="text-xs font-bold text-slate-700">کد دوحرفی کشور <span class="font-normal text-slate-400" dir="ltr">(Country code)</span><input class="mt-1 w-full rounded-xl border p-2 font-normal" dir="ltr" name="{{ $key }}_country_code" value="{{ old($key.'_country_code') }}" maxlength="2" placeholder="e.g. IR"></label>
-  <label class="text-xs font-bold text-slate-700">نشانی کامل <span class="font-normal text-slate-400" dir="ltr">(Full address)</span><textarea rows="2" class="mt-1 w-full rounded-xl border p-2 font-normal" dir="ltr" name="{{ $key }}_address" placeholder="Full address in Latin letters">{{ old($key.'_address') }}</textarea></label><label class="text-xs"><input type="checkbox" name="save_party[{{ $key }}]" value="1"> ذخیره برای استفاده بعدی</label>
+ <div class="grid grid-cols-3 gap-2 rounded-2xl border bg-white p-3"><h3 class="col-span-3 flex items-center gap-2 font-black text-emerald-700"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>{{ $title }}</h3><select class="master-party col-span-3 rounded-xl border bg-emerald-50 p-2" data-type="{{ $key }}"><option value="">انتخاب از اطلاعات پایه</option>@foreach($masterParties->where('party_type',$key) as $party)<option data-company="{{ $party->company_id }}" data-name="{{ $party->legal_name }}" data-identifier="{{ $party->identifier }}" data-address="{{ $party->address }}" data-country="{{ $party->country_code }}">{{ $party->legal_name }}</option>@endforeach</select>
+  <label class="col-span-3 text-xs font-bold text-slate-700">نام قانونی <span class="font-normal text-slate-400" dir="ltr">Legal name</span><input class="mt-1 w-full rounded-lg border px-2 py-1.5 font-normal" dir="ltr" name="{{ $key }}_name" value="{{ old($key.'_name') }}" placeholder="Enter in Latin letters" required></label>
+  <label class="col-span-2 text-xs font-bold text-slate-700">شماره ثبت یا شناسه <span class="font-normal text-slate-400" dir="ltr">Registration / ID</span><input class="mt-1 w-full rounded-lg border px-2 py-1.5 font-normal" dir="ltr" name="{{ $key }}_identifier" value="{{ old($key.'_identifier') }}" placeholder="Registration / identifier"></label>
+  <label class="text-xs font-bold text-slate-700">کد کشور <span class="font-normal text-slate-400" dir="ltr">Country</span><input class="mt-1 w-full rounded-lg border px-2 py-1.5 font-normal" dir="ltr" name="{{ $key }}_country_code" value="{{ old($key.'_country_code') }}" maxlength="2" placeholder="IR"></label>
+  <label class="col-span-3 text-xs font-bold text-slate-700">نشانی کامل <span class="font-normal text-slate-400" dir="ltr">Full address</span><textarea rows="2" class="mt-1 w-full rounded-lg border px-2 py-1.5 font-normal" dir="ltr" name="{{ $key }}_address" placeholder="Full address in Latin letters">{{ old($key.'_address') }}</textarea></label><label class="col-span-3 text-[11px] text-slate-600"><input type="checkbox" name="save_party[{{ $key }}]" value="1"> ذخیره برای استفاده بعدی</label>
  </div>@endforeach
  </div>
  <div class="grid gap-3 rounded-2xl border bg-white p-4 md:grid-cols-4">
@@ -46,17 +60,17 @@
 </section>
 
 <section class="cmr-step hidden space-y-4" data-step="2">
- <div id="goods-list" class="space-y-4"><div class="goods-row grid gap-3 rounded-2xl border bg-white p-5 md:grid-cols-4">
-  <div class="flex items-center justify-between md:col-span-4"><h3 class="font-black text-emerald-700">مشخصات محموله ۱</h3><button type="button" class="remove-good hidden rounded-lg border border-rose-300 px-3 py-1 text-sm font-bold text-rose-700">حذف ردیف</button></div><select class="master-good rounded-xl border bg-emerald-50 p-2 md:col-span-4"><option value="">انتخاب کالا از اطلاعات پایه</option>@foreach($masterGoods as $template)<option data-company="{{ $template->company_id }}" data-description="{{ $template->description }}" data-package="{{ $template->package_type }}" data-code="{{ $template->commodity_code }}" data-un="{{ $template->un_number }}" data-adr="{{ $template->adr_class }}">{{ $template->name }}</option>@endforeach</select>
-  <label class="text-xs font-bold text-slate-700 md:col-span-2">ماهیت یا شرح کالا <span class="font-normal text-slate-400" dir="ltr">(Nature of goods)</span><input dir="ltr" class="mt-1 w-full rounded-xl border p-2 font-normal" name="goods[0][description]" placeholder="Nature of goods *" required></label>
-  <label class="text-xs font-bold text-slate-700">علائم و شماره‌ها <span class="font-normal text-slate-400" dir="ltr">(Marks and numbers)</span><input dir="ltr" class="mt-1 w-full rounded-xl border p-2 font-normal" name="goods[0][marks_and_numbers]" placeholder="Marks and numbers"></label>
-  <label class="text-xs font-bold text-slate-700">نوع بسته‌بندی <span class="font-normal text-slate-400" dir="ltr">(Method of packing)</span><input dir="ltr" class="mt-1 w-full rounded-xl border p-2 font-normal" name="goods[0][package_type]" placeholder="Method of packing"></label>
-  <label class="text-xs font-bold text-slate-700">تعداد بسته‌ها <span class="font-normal text-slate-400" dir="ltr">(Packages)</span><input dir="ltr" class="mt-1 w-full rounded-xl border p-2 font-normal" type="number" step="0.001" min="0" name="goods[0][package_count]" placeholder="Packages"></label>
-  <label class="text-xs font-bold text-slate-700">وزن ناخالص، کیلوگرم <span class="font-normal text-slate-400" dir="ltr">(Gross weight kg)</span><input dir="ltr" class="mt-1 w-full rounded-xl border p-2 font-normal" type="number" step="0.001" min="0" name="goods[0][gross_weight_kg]" placeholder="Gross weight kg"></label>
-  <label class="text-xs font-bold text-slate-700">حجم، مترمکعب <span class="font-normal text-slate-400" dir="ltr">(Volume m³)</span><input dir="ltr" class="mt-1 w-full rounded-xl border p-2 font-normal" type="number" step="0.001" min="0" name="goods[0][volume_m3]" placeholder="Volume m³"></label>
-  <label class="text-xs font-bold text-slate-700">کد کالا <span class="font-normal text-slate-400" dir="ltr">(Commodity code)</span><input dir="ltr" class="mt-1 w-full rounded-xl border p-2 font-normal" name="goods[0][commodity_code]" placeholder="Commodity code"></label>
-  <label class="text-xs font-bold text-slate-700">شماره سازمان ملل کالای خطرناک <span class="font-normal text-slate-400" dir="ltr">(UN number / ADR)</span><input dir="ltr" class="mt-1 w-full rounded-xl border p-2 font-normal" name="goods[0][un_number]" placeholder="UN number (ADR)"></label>
-  <label class="text-xs font-bold text-slate-700">کلاس خطر ADR <span class="font-normal text-slate-400" dir="ltr">(ADR class)</span><input dir="ltr" class="mt-1 w-full rounded-xl border p-2 font-normal" name="goods[0][adr_class]" placeholder="ADR class"></label>
+ <div id="goods-list" class="space-y-3"><div class="goods-row grid grid-cols-12 gap-2 rounded-2xl border bg-white p-4">
+  <div class="col-span-12 flex items-center justify-between"><h3 class="flex items-center gap-2 font-black text-emerald-700"><span class="h-2 w-2 rounded-full bg-emerald-500"></span>مشخصات محموله ۱</h3><button type="button" class="remove-good hidden rounded-lg border border-rose-300 px-3 py-1 text-xs font-bold text-rose-700">حذف ردیف</button></div><select class="master-good col-span-12 rounded-xl border bg-emerald-50 p-2"><option value="">انتخاب کالا از اطلاعات پایه</option>@foreach($masterGoods as $template)<option data-company="{{ $template->company_id }}" data-description="{{ $template->description }}" data-package="{{ $template->package_type }}" data-code="{{ $template->commodity_code }}" data-un="{{ $template->un_number }}" data-adr="{{ $template->adr_class }}">{{ $template->name }}</option>@endforeach</select>
+  <label class="col-span-12 text-xs font-bold text-slate-700 md:col-span-6">شرح کالا <span class="font-normal" dir="ltr">Nature of goods</span><input dir="ltr" class="mt-1 w-full rounded-lg border px-2 py-1.5 font-normal" name="goods[0][description]" placeholder="Nature of goods *" required></label>
+  <label class="col-span-6 text-xs font-bold text-slate-700 md:col-span-3">علائم و شماره‌ها <span class="font-normal" dir="ltr">Marks / No.</span><input dir="ltr" class="mt-1 w-full rounded-lg border px-2 py-1.5 font-normal" name="goods[0][marks_and_numbers]" placeholder="Marks and numbers"></label>
+  <label class="col-span-6 text-xs font-bold text-slate-700 md:col-span-3">نوع بسته‌بندی <span class="font-normal" dir="ltr">Packing</span><input dir="ltr" class="mt-1 w-full rounded-lg border px-2 py-1.5 font-normal" name="goods[0][package_type]" placeholder="Method of packing"></label>
+  <label class="col-span-6 text-xs font-bold text-slate-700 md:col-span-3">تعداد بسته <span class="font-normal" dir="ltr">Packages</span><input dir="ltr" class="mt-1 w-full rounded-lg border px-2 py-1.5 font-normal" type="number" step="0.001" min="0" name="goods[0][package_count]" placeholder="Packages"></label>
+  <label class="col-span-6 text-xs font-bold text-slate-700 md:col-span-3">وزن ناخالص (kg) <span class="font-normal" dir="ltr">Gross weight</span><input dir="ltr" class="mt-1 w-full rounded-lg border px-2 py-1.5 font-normal" type="number" step="0.001" min="0" name="goods[0][gross_weight_kg]" placeholder="Gross weight kg"></label>
+  <label class="col-span-6 text-xs font-bold text-slate-700 md:col-span-3">حجم (m³) <span class="font-normal" dir="ltr">Volume</span><input dir="ltr" class="mt-1 w-full rounded-lg border px-2 py-1.5 font-normal" type="number" step="0.001" min="0" name="goods[0][volume_m3]" placeholder="Volume m³"></label>
+  <label class="col-span-6 text-xs font-bold text-slate-700 md:col-span-3">کد کالا <span class="font-normal" dir="ltr">Commodity code</span><input dir="ltr" class="mt-1 w-full rounded-lg border px-2 py-1.5 font-normal" name="goods[0][commodity_code]" placeholder="Commodity code"></label>
+  <label class="col-span-6 text-xs font-bold text-slate-700 md:col-span-6">شماره کالای خطرناک <span class="font-normal" dir="ltr">UN number / ADR</span><input dir="ltr" class="mt-1 w-full rounded-lg border px-2 py-1.5 font-normal" name="goods[0][un_number]" placeholder="UN number (ADR)"></label>
+  <label class="col-span-6 text-xs font-bold text-slate-700 md:col-span-6">کلاس خطر <span class="font-normal" dir="ltr">ADR class</span><input dir="ltr" class="mt-1 w-full rounded-lg border px-2 py-1.5 font-normal" name="goods[0][adr_class]" placeholder="ADR class"></label>
  </div></div>
  <button type="button" id="add-good" class="rounded-xl border border-sky-600 px-4 py-2 font-bold text-sky-700">افزودن ردیف کالا</button><label class="mr-3 text-sm"><input type="checkbox" name="save_goods" value="1"> کالاهای جدید در اطلاعات پایه ذخیره شوند</label>
 </section>
