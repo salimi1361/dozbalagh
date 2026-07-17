@@ -12,6 +12,7 @@ use App\CMR\Models\CmrGoodsTemplate;
 use App\CMR\Models\CmrSetting;
 use App\CMR\Models\CmrTariffHistory;
 use App\CMR\Services\CmrIssuanceService;
+use App\CMR\Services\CmrDriverNotificationService;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use App\Models\Driver;
@@ -202,7 +203,7 @@ class CmrController extends Controller
 
     public function show(CmrDocument $cmr)
     {
-        $cmr->load(['company', 'driver', 'fleet', 'goods', 'events', 'walletEntries', 'versions', 'amendments', 'attachments', 'signatures', 'handovers.attachments']);
+        $cmr->load(['company', 'driver', 'fleet', 'goods', 'events', 'walletEntries', 'versions', 'amendments', 'attachments', 'signatures', 'handovers.attachments', 'notifications']);
         return view('CMR.admin.show', compact('cmr'));
     }
 
@@ -259,6 +260,13 @@ class CmrController extends Controller
             report($exception);
             return back()->withErrors(['issue' => $exception->getMessage()]);
         }
+    }
+
+    public function resendDriverNotification(CmrDocument $cmr, CmrDriverNotificationService $service)
+    {
+        abort_unless($cmr->issued_at && $cmr->driver_id,422);
+        $service->sendIssued((int)$cmr->id);
+        return back()->with('success','درخواست ارسال پیامک راننده بررسی شد؛ وضعیت آن در پرونده سند قابل مشاهده است.');
     }
 
     public function cancel(Request $request, CmrDocument $cmr)

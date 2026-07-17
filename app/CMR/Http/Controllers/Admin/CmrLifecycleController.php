@@ -20,7 +20,7 @@ class CmrLifecycleController extends Controller
 {
     public function evidence(CmrDocument $cmr)
     {
-        $cmr->load(['company', 'goods', 'versions', 'amendments', 'attachments', 'signatures', 'events', 'walletEntries', 'handovers.attachments']);
+        $cmr->load(['company', 'goods', 'versions', 'amendments', 'attachments', 'signatures', 'events', 'walletEntries', 'handovers.attachments', 'notifications']);
         $versions = $cmr->versions->sortBy('version')->values();
         $amendments = $cmr->amendments->sortBy('to_version')->values();
         $chainValid = $versions->isNotEmpty()
@@ -47,6 +47,7 @@ class CmrLifecycleController extends Controller
             'attachments' => $cmr->attachments->map->only(['document_type', 'original_name', 'mime_type', 'size_bytes', 'sha256', 'created_at'])->all(),
             'events' => $cmr->events->toArray(),
             'billing' => $cmr->walletEntries->toArray(),
+            'notifications' => $cmr->notifications->toArray(),
         ];
 
         $json = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

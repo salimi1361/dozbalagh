@@ -45,4 +45,5 @@ class CmrDocument extends Model
     public function signatures(): HasMany { return $this->hasMany(CmrSignature::class)->latest('signed_at'); }
     public function printTemplate(): BelongsTo { return $this->belongsTo(CmrPrintTemplate::class, 'print_template_id'); }
     public function handovers(): HasMany { return $this->hasMany(CmrHandoverRecord::class)->latest('occurred_at'); }
+    public function notifications(): HasMany { return $this->hasMany(CmrNotification::class)->latest(); }
 }

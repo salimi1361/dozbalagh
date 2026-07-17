@@ -99,6 +99,8 @@ class CmrIssuanceService
                 'occurred_at' => now(),
             ]);
 
+            DB::afterCommit(fn () => app(CmrDriverNotificationService::class)->sendIssued((int)$document->id));
+
             return $document->fresh(['company', 'driver', 'fleet', 'goods']);
         });
     }

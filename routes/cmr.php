@@ -47,5 +47,6 @@ Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin'
     Route::post('/{cmr}/duplicate', [CmrController::class, 'duplicate'])->name('duplicate');
     Route::get('/{cmr}', [CmrController::class, 'show'])->name('show');
     Route::post('/{cmr}/issue', [CmrController::class, 'issue'])->name('issue');
+    Route::post('/{cmr}/notifications/driver/resend', [CmrController::class, 'resendDriverNotification'])->name('notifications.driver.resend');
     Route::post('/{cmr}/cancel', [CmrController::class, 'cancel'])->name('cancel');
 });
