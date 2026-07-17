@@ -16,6 +16,7 @@ Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin'
     Route::post('/', [CmrController::class, 'store'])->name('store');
     Route::get('/settings', [CmrController::class, 'settings'])->name('settings');
     Route::put('/settings', [CmrController::class, 'updateSettings'])->name('settings.update');
+    Route::put('/settings/history/{tariff}', [CmrController::class, 'updateTariffHistory'])->name('settings.history.update');
     Route::get('/company-settings', [CmrCompanyConfigurationController::class, 'index'])->name('company-settings.index');
     Route::get('/master-data', [CmrMasterDataController::class, 'index'])->name('master-data.index');
     Route::post('/master-data/{company}/parties', [CmrMasterDataController::class, 'storeParty'])->name('master-data.parties.store');

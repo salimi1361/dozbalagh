@@ -20,6 +20,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Http\JsonResponse;
+use Morilog\Jalali\Jalalian;
 
 class CmrController extends Controller
 {
@@ -308,9 +309,9 @@ class CmrController extends Controller
     {
         $data = $request->validate([
             'issuance_fee' => ['required', 'numeric', 'min:0'],
-            'currency' => ['required', 'string', 'size:3'],
             'billing_enabled' => ['nullable', 'boolean'],
         ]);
+        $data['currency'] = 'IRR';
         $data['billing_enabled'] = $request->boolean('billing_enabled');
         DB::transaction(function () use ($data) {
             CmrSetting::current()->update($data);
@@ -320,5 +321,13 @@ class CmrController extends Controller
             ]);
         });
         return back()->with('success', 'تنظیمات مالی CMR ذخیره شد.');
+    }
+
+    public function updateTariffHistory(Request $request, CmrTariffHistory $tariff)
+    {
+        $data=$request->validate(['issuance_fee'=>['required','numeric','min:0'],'billing_enabled'=>['nullable','boolean'],'effective_from_jalali'=>['required','string','max:30'],'correction_reason'=>['required','string','max:1000']]);
+        try{$effectiveAt=Jalalian::fromFormat('Y/m/d H:i',$data['effective_from_jalali'])->toCarbon();}catch(\Throwable){return back()->withErrors(['effective_from_jalali'=>'تاریخ شمسی معتبر نیست. نمونه: 1405/04/27 12:30']);}
+        $tariff->update(['issuance_fee'=>$data['issuance_fee'],'currency'=>'IRR','billing_enabled'=>$request->boolean('billing_enabled'),'effective_from'=>$effectiveAt,'correction_reason'=>$data['correction_reason'],'corrected_by'=>auth()->id(),'corrected_at'=>now()]);
+        return back()->with('success','ردیف تاریخچه با ثبت دلیل ویرایش شد؛ تعرفه جاری تغییری نکرد.');
     }
 }

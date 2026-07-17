@@ -12,5 +12,6 @@ class CmrTariffHistory extends Model
         'issuance_fee' => 'decimal:2',
         'billing_enabled' => 'boolean',
         'effective_from' => 'datetime',
+        'corrected_at' => 'datetime',
     ];
 }
