@@ -330,4 +330,12 @@ class CmrController extends Controller
         $tariff->update(['issuance_fee'=>$data['issuance_fee'],'currency'=>'IRR','billing_enabled'=>$request->boolean('billing_enabled'),'effective_from'=>$effectiveAt,'correction_reason'=>$data['correction_reason'],'corrected_by'=>auth()->id(),'corrected_at'=>now()]);
         return back()->with('success','ردیف تاریخچه با ثبت دلیل ویرایش شد؛ تعرفه جاری تغییری نکرد.');
     }
+
+    public function destroyTariffHistory(Request $request, CmrTariffHistory $tariff)
+    {
+        $data=$request->validate(['deletion_reason'=>['required','string','max:1000']]);
+        $tariff->update(['deleted_by'=>auth()->id(),'deletion_reason'=>$data['deletion_reason']]);
+        $tariff->delete();
+        return back()->with('success','ردیف انتخاب‌شده از نمایش تاریخچه حذف شد و سابقه ممیزی آن محفوظ ماند.');
+    }
 }
