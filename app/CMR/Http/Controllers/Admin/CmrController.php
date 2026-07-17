@@ -45,6 +45,11 @@ class CmrController extends Controller
         return $this->formView();
     }
 
+    public function help()
+    {
+        return view('CMR.admin.help');
+    }
+
     public function edit(CmrDocument $cmr)
     {
         abort_unless($cmr->status === 'draft', 409, 'Only a draft can be edited.');

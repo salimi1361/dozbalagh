@@ -118,6 +118,7 @@
                 <div id="subCmrMenu" class="{{ $isCmrActive ? '' : 'hidden' }} mt-1 mr-3 space-y-1 border-r-2 border-emerald-700 pr-2">
                     <a href="{{ route('admin.cmr.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.index') && !request('scope') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">کارتابل اسناد</a>
                     <a href="{{ route('admin.cmr.create') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.create') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">صدور e-CMR</a>
+                    <a href="{{ route('admin.cmr.help') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.help') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">راهنمای فارسی صدور</a>
                     <a href="{{ route('admin.cmr.index',['scope'=>'drafts']) }}" class="block rounded-lg px-4 py-2 text-xs font-bold text-slate-400 hover:text-white">پیش‌نویس‌ها</a>
                     <a href="{{ route('admin.cmr.index',['scope'=>'active']) }}" class="block rounded-lg px-4 py-2 text-xs font-bold text-slate-400 hover:text-white">حمل‌های در جریان</a>
                     <a href="{{ route('admin.cmr.index',['scope'=>'archive']) }}" class="block rounded-lg px-4 py-2 text-xs font-bold text-slate-400 hover:text-white">تحویل‌شده و بایگانی</a>

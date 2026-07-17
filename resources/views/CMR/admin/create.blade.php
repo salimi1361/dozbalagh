@@ -2,6 +2,7 @@
 @section('header_title', $editing ? 'ویرایش پیش‌نویس e-CMR' : 'ایجاد پیش‌نویس e-CMR')
 @section('content')
 @include('CMR.admin.partials.module-header', ['title' => $editing ? 'ویرایش پیش‌نویس e-CMR' : 'صدور e-CMR', 'subtitle' => 'ثبت مرحله‌ای اطلاعات استاندارد حمل بین‌المللی جاده‌ای'])
+<div class="mb-4 flex justify-end" dir="rtl"><a href="{{ route('admin.cmr.help') }}" target="_blank" class="rounded-xl border border-emerald-600 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800">؟ راهنمای فارسی صدور e‑CMR</a></div>
 <form method="POST" action="{{ $editing ? route('admin.cmr.update',$editing) : route('admin.cmr.store') }}" class="space-y-5" dir="rtl" id="cmr-form">@csrf @if($editing) @method('PUT') @endif
 @if($errors->any())<div class="rounded-xl bg-rose-50 p-4 text-rose-700">{{ $errors->first() }}</div>@endif
 <div id="recovery-banner" class="hidden items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">

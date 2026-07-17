@@ -13,6 +13,7 @@ Route::get('/cmr/verify/{code}', [CmrVerificationController::class, 'show'])->na
 Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/', [CmrController::class, 'index'])->name('index');
     Route::get('/create', [CmrController::class, 'create'])->name('create');
+    Route::get('/help', [CmrController::class, 'help'])->name('help');
     Route::get('/{cmr}/edit', [CmrController::class, 'edit'])->name('edit');
     Route::post('/', [CmrController::class, 'store'])->name('store');
     Route::get('/settings', [CmrController::class, 'settings'])->name('settings');
