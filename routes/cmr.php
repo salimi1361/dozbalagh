@@ -39,6 +39,7 @@ Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin'
     Route::get('/{cmr}/tracking-data', [CmrController::class, 'trackingData'])->name('tracking.data');
     Route::get('/{cmr}/evidence', [CmrLifecycleController::class, 'evidence'])->name('evidence');
     Route::put('/{cmr}', [CmrController::class, 'update'])->name('update');
+    Route::delete('/{cmr}', [CmrController::class, 'destroy'])->name('destroy');
     Route::post('/{cmr}/amendments', [CmrLifecycleController::class, 'amend'])->name('amendments.store');
     Route::post('/{cmr}/attachments', [CmrLifecycleController::class, 'upload'])->name('attachments.store');
     Route::get('/{cmr}/attachments/{attachment}', [CmrLifecycleController::class, 'download'])->name('attachments.download');

@@ -457,6 +457,9 @@
         });
     </script>
     
+    @if(request()->routeIs('admin.cmr.*'))
+        @include('CMR.admin.partials.feedback')
+    @endif
     @yield('scripts')
 </body>
 </html>

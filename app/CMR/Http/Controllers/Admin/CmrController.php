@@ -250,6 +250,16 @@ class CmrController extends Controller
         return redirect()->route('admin.cmr.show',$document)->with('success','یک پیش‌نویس مستقل از سند قبلی ساخته شد؛ شماره رسمی هنگام صدور تخصیص می‌یابد.');
     }
 
+    public function destroy(CmrDocument $cmr)
+    {
+        abort_unless($cmr->status === 'draft', 409, 'فقط پیش‌نویس حذف‌شدنی است؛ سند صادرشده باید در سوابق باقی بماند.');
+
+        DB::transaction(fn () => $cmr->delete());
+
+        return redirect()->route('admin.cmr.index', ['scope' => 'drafts'])
+            ->with('success', 'پیش‌نویس با موفقیت حذف شد.');
+    }
+
     public function trackingData(CmrDocument $cmr): JsonResponse
     {
         $points = DB::table('driver_locations')->where('cmr_document_id',$cmr->id)->orderBy('recorded_at')->limit(5000)->get(['latitude','longitude','accuracy','speed','heading','recorded_at']);
