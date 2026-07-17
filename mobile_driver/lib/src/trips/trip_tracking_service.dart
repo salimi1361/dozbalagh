@@ -23,5 +23,13 @@ class TripTrackingService {
     });
   }
 
+  Future<void> startCmr({required int cmrId, required String token}) async {
+    await _channel.invokeMethod<bool>('start', {
+      'item_id': cmrId,
+      'token': token,
+      'api_base': '${AppConfig.driverApi}/cmr/$cmrId/tracking',
+    });
+  }
+
   Future<void> stop() => _channel.invokeMethod<bool>('stop');
 }

@@ -19,6 +19,7 @@ use App\Models\Fleet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Http\JsonResponse;
 
 class CmrController extends Controller
 {
@@ -237,6 +238,12 @@ class CmrController extends Controller
             return $copy;
         });
         return redirect()->route('admin.cmr.show',$document)->with('success','یک پیش‌نویس مستقل از سند قبلی ساخته شد؛ شماره رسمی هنگام صدور تخصیص می‌یابد.');
+    }
+
+    public function trackingData(CmrDocument $cmr): JsonResponse
+    {
+        $points = DB::table('driver_locations')->where('cmr_document_id',$cmr->id)->orderBy('recorded_at')->limit(5000)->get(['latitude','longitude','accuracy','speed','heading','recorded_at']);
+        return response()->json(['data'=>['cmr_id'=>$cmr->id,'number'=>$cmr->company_serial?:$cmr->number,'status'=>$cmr->status,'driver_id'=>$cmr->driver_id,'latest'=>$points->last(),'points'=>$points]]);
     }
 
     public function issue(CmrDocument $cmr, CmrIssuanceService $service)

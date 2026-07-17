@@ -9,6 +9,10 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
+use App\CMR\Models\CmrAttachment;
 use Illuminate\View\View;
 
 class DriverCmrController extends Controller
@@ -31,7 +35,7 @@ class DriverCmrController extends Controller
     {
         abort_unless((int) $cmr->driver_id === (int) auth()->id(), 403);
         abort_if($cmr->status === 'draft', 404);
-        $cmr->load(['company:id,name_fa,name_en,address_en', 'fleet', 'goods']);
+        $cmr->load(['company:id,name_fa,name_en,address_en', 'fleet', 'goods', 'events', 'signatures', 'attachments']);
 
         return response()->json(['data' => $this->summary($cmr) + [
             'consignor' => ['name' => $cmr->consignor_name, 'address' => $cmr->consignor_address, 'country_code' => $cmr->consignor_country_code],
@@ -50,7 +54,18 @@ class DriverCmrController extends Controller
             ])->values(),
             'integrity_hash' => $cmr->integrity_hash,
             'version' => $cmr->version,
+            'events' => $cmr->events->map(fn($event)=>['type'=>$event->event_type,'description'=>$event->description,'occurred_at'=>$event->occurred_at?->toIso8601String()])->values(),
+            'signatures' => $cmr->signatures->map(fn($signature)=>['role'=>$signature->signer_role,'name'=>$signature->signer_name,'signed_at'=>$signature->signed_at?->toIso8601String(),'version'=>$signature->document_version])->values(),
+            'attachments' => $cmr->attachments->map(fn($attachment)=>['id'=>$attachment->id,'type'=>$attachment->document_type,'name'=>$attachment->original_name,'sha256'=>$attachment->sha256,'download_url'=>route('api.driver.cmr.attachments.download',[$cmr,$attachment])])->values(),
         ]]);
+    }
+
+    public function downloadAttachment(CmrDocument $cmr, CmrAttachment $attachment)
+    {
+        $this->assertOwner($cmr);
+        abort_unless((int)$attachment->cmr_document_id===(int)$cmr->id,404);
+        abort_unless(Storage::disk('local')->exists($attachment->storage_path),404);
+        return Storage::disk('local')->download($attachment->storage_path,$attachment->original_name);
     }
 
     public function print(CmrDocument $cmr): View
@@ -104,6 +119,30 @@ class DriverCmrController extends Controller
             $this->event($document, 'delivered', 'in_transit', 'delivered', 'Goods received and box 24 acknowledgement recorded.', (int) auth()->id());
         });
         return response()->json(['message' => 'Delivery recorded.', 'status' => 'delivered']);
+    }
+
+    public function syncLocation(Request $request, CmrDocument $cmr): JsonResponse
+    {
+        $this->assertOwner($cmr);
+        abort_unless(in_array($cmr->status, ['accepted','in_transit'], true), 409, 'CMR tracking is not active.');
+        $data=$request->validate(['client_uuid'=>['nullable','uuid'],'latitude'=>['required','numeric','between:-90,90'],'longitude'=>['required','numeric','between:-180,180'],'accuracy'=>['nullable','numeric','min:0','max:10000'],'altitude'=>['nullable','numeric','min:-1000','max:20000'],'speed'=>['nullable','numeric','min:0','max:150'],'heading'=>['nullable','numeric','min:0','max:360'],'recorded_at'=>['nullable','date']]);
+        auth()->user()->locations()->updateOrCreate(['client_uuid'=>$data['client_uuid']??(string)Str::uuid()], ['dozbalagh_item_id'=>null,'cmr_document_id'=>$cmr->id,'latitude'=>$data['latitude'],'longitude'=>$data['longitude'],'accuracy'=>$data['accuracy']??null,'altitude'=>$data['altitude']??null,'speed'=>$data['speed']??null,'heading'=>$data['heading']??null,'recorded_at'=>isset($data['recorded_at'])?Carbon::parse($data['recorded_at'])->setTimezone(config('app.timezone')):now()]);
+        return response()->json(['status'=>'success','accepted'=>1]);
+    }
+
+    public function trackingEvent(Request $request, CmrDocument $cmr): JsonResponse
+    {
+        $this->assertOwner($cmr);
+        $data=$request->validate(['event_type'=>['required','in:tracking_started,tracking_stopped'],'latitude'=>['nullable','numeric'],'longitude'=>['nullable','numeric']]);
+        DB::table('driver_events')->insert(['driver_id'=>auth()->id(),'dozbalagh_item_id'=>null,'cmr_document_id'=>$cmr->id,'event_type'=>$data['event_type'],'latitude'=>$data['latitude']??null,'longitude'=>$data['longitude']??null,'created_at'=>now(),'updated_at'=>now()]);
+        return response()->json(['status'=>'success']);
+    }
+
+    public function track(CmrDocument $cmr): JsonResponse
+    {
+        $this->assertOwner($cmr);
+        $points=DB::table('driver_locations')->where('cmr_document_id',$cmr->id)->orderByDesc('recorded_at')->limit(500)->get()->reverse()->values();
+        return response()->json(['data'=>['cmr_id'=>$cmr->id,'status'=>$cmr->status,'points'=>$points,'latest'=>$points->last()]]);
     }
 
     private function assertOwner(CmrDocument $cmr): void

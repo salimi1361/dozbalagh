@@ -11,6 +11,7 @@ class DriverLocation extends Model
         'client_uuid',
         'driver_id',
         'dozbalagh_item_id',
+        'cmr_document_id',
         'latitude',
         'longitude',
         'accuracy',
@@ -38,5 +39,10 @@ class DriverLocation extends Model
     public function dozbalaghItem(): BelongsTo
     {
         return $this->belongsTo(DozbalaghItem::class);
+    }
+
+    public function cmrDocument(): BelongsTo
+    {
+        return $this->belongsTo(\App\CMR\Models\CmrDocument::class);
     }
 }

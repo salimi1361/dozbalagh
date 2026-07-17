@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../trips/permit_preview_service.dart';
+import '../trips/trip_tracking_service.dart';
 import 'cmr_repository.dart';
 
 class CmrScreen extends StatefulWidget {
@@ -16,6 +17,7 @@ class CmrScreen extends StatefulWidget {
 class _CmrScreenState extends State<CmrScreen> {
   final _repository = CmrRepository();
   final _preview = const PermitPreviewService();
+  final _tracking = const TripTrackingService();
   List<DriverCmr> _documents = const [];
   bool _loading = true;
   String? _error;
@@ -86,6 +88,8 @@ class _CmrScreenState extends State<CmrScreen> {
         : action == 'deliver'
           ? {'confirmed_by_consignee': true, 'consignee_signer_name': consignee.text.trim(), 'reservation': reservation.text.trim()}
           : const {});
+      if (action == 'start') await _tracking.startCmr(cmrId: document.id, token: widget.token);
+      if (action == 'deliver') await _tracking.stop();
       await _load(silent: true);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('عملیات CMR با موفقیت ثبت شد.')));
     } on CmrException catch (error) {
