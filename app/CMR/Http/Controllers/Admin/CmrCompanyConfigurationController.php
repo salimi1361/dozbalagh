@@ -28,6 +28,10 @@ class CmrCompanyConfigurationController extends Controller
             'templates' => $company ? CmrPrintTemplate::where('company_id', $company->id)->latest()->get() : collect(),
             'availableSerials' => $company ? CmrSerial::where('company_id', $company->id)->where('status', 'available')->latest()->limit(100)->get() : collect(),
             'availableSerialCount' => $company ? CmrSerial::where('company_id', $company->id)->where('status', 'available')->count() : 0,
+            'availablePoolCount' => $company ? (int) CmrSerialPool::where('company_id', $company->id)
+                ->where('is_active', true)
+                ->selectRaw('COALESCE(SUM(GREATEST(range_end - next_number + 1, 0)), 0) AS remaining')
+                ->value('remaining') : 0,
         ]);
     }
 
@@ -65,9 +69,29 @@ class CmrCompanyConfigurationController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'prefix' => ['nullable', 'string', 'max:30'],
+            'suffix' => ['nullable', 'string', 'max:30'],
+            'number_padding' => ['nullable', 'integer', 'min:1', 'max:20'],
             'range_start' => ['required', 'integer', 'min:1'],
             'range_end' => ['required', 'integer', 'gte:range_start'],
         ]);
+
+        $data['number_padding'] = (int) ($data['number_padding'] ?? 1);
+
+        $overlaps = CmrSerialPool::query()
+            ->where('company_id', $company->id)
+            ->where('prefix', $data['prefix'] ?? null)
+            ->where('suffix', $data['suffix'] ?? null)
+            ->where('is_active', true)
+            ->where('range_start', '<=', $data['range_end'])
+            ->where('range_end', '>=', $data['range_start'])
+            ->exists();
+
+        if ($overlaps) {
+            return back()->withInput()->withErrors([
+                'range_start' => 'این بازه با یکی از بازه‌های فعال همین شرکت هم‌پوشانی دارد.',
+            ]);
+        }
+
         CmrSerialPool::create($data + [
             'company_id' => $company->id,
             'next_number' => $data['range_start'],

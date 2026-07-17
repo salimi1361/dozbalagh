@@ -36,7 +36,8 @@ class CmrSerialService
             throw new RuntimeException('بازه شماره سریال فعال یا شماره آزاد برای شرکت وجود ندارد.');
         }
 
-        $serial = (string) ($pool->prefix ?? '').$pool->next_number;
+        $number = str_pad((string) $pool->next_number, (int) ($pool->number_padding ?? 1), '0', STR_PAD_LEFT);
+        $serial = (string) ($pool->prefix ?? '').$number.(string) ($pool->suffix ?? '');
         $this->assertUnique($document, $serial);
         $record = CmrSerial::create([
             'company_id' => $document->company_id,
