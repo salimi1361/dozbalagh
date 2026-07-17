@@ -27,6 +27,7 @@ Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin'
     Route::post('/company-settings/{company}/print-templates', [CmrCompanyConfigurationController::class, 'storeTemplate'])->name('company-settings.print-templates.store');
     Route::get('/{cmr}/print', [CmrController::class, 'print'])->name('print');
     Route::get('/{cmr}/tracking-data', [CmrController::class, 'trackingData'])->name('tracking.data');
+    Route::get('/{cmr}/evidence', [CmrLifecycleController::class, 'evidence'])->name('evidence');
     Route::put('/{cmr}', [CmrController::class, 'update'])->name('update');
     Route::post('/{cmr}/amendments', [CmrLifecycleController::class, 'amend'])->name('amendments.store');
     Route::post('/{cmr}/attachments', [CmrLifecycleController::class, 'upload'])->name('attachments.store');

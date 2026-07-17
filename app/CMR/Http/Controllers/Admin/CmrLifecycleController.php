@@ -16,6 +16,46 @@ use Illuminate\Support\Str;
 
 class CmrLifecycleController extends Controller
 {
+    public function evidence(CmrDocument $cmr)
+    {
+        $cmr->load(['company', 'goods', 'versions', 'amendments', 'attachments', 'signatures', 'events', 'walletEntries']);
+        $versions = $cmr->versions->sortBy('version')->values();
+        $amendments = $cmr->amendments->sortBy('to_version')->values();
+        $chainValid = $versions->isNotEmpty()
+            && $versions->every(fn ($version) => filled($version->integrity_hash))
+            && $amendments->every(function ($amendment) use ($versions) {
+                $before = $versions->firstWhere('version', $amendment->from_version);
+                $after = $versions->firstWhere('version', $amendment->to_version);
+                return $before && $after
+                    && hash_equals((string) $before->integrity_hash, (string) $amendment->previous_hash)
+                    && hash_equals((string) $after->integrity_hash, (string) $amendment->new_hash);
+            });
+
+        $manifest = [
+            'format' => 'dozbalagh-e-cmr-evidence-v1',
+            'generated_at' => now()->toIso8601String(),
+            'verification_url' => $cmr->verification_code ? route('cmr.verify', $cmr->verification_code) : null,
+            'chain_valid' => $chainValid,
+            'document' => $cmr->attributesToArray(),
+            'goods' => $cmr->goods->toArray(),
+            'versions' => $versions->toArray(),
+            'amendments' => $amendments->toArray(),
+            'signatures' => $cmr->signatures->toArray(),
+            'attachments' => $cmr->attachments->map->only(['document_type', 'original_name', 'mime_type', 'size_bytes', 'sha256', 'created_at'])->all(),
+            'events' => $cmr->events->toArray(),
+            'billing' => $cmr->walletEntries->toArray(),
+        ];
+
+        $json = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $filename = 'e-CMR-'.($cmr->company_serial ?: $cmr->number ?: $cmr->id).'-evidence.json';
+
+        return response($json, 200, [
+            'Content-Type' => 'application/json; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="'.str_replace('"', '', $filename).'"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
     public function amend(Request $request, CmrDocument $cmr)
     {
         $latin = 'regex:/^[\p{Latin}\p{N}\p{P}\p{Z}\r\n]+$/u';

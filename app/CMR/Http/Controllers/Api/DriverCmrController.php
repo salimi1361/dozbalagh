@@ -125,7 +125,7 @@ class DriverCmrController extends Controller
     {
         $this->assertOwner($cmr);
         abort_unless(in_array($cmr->status, ['accepted','in_transit'], true), 409, 'CMR tracking is not active.');
-        $data=$request->validate(['client_uuid'=>['nullable','uuid'],'latitude'=>['required','numeric','between:-90,90'],'longitude'=>['required','numeric','between:-180,180'],'accuracy'=>['nullable','numeric','min:0','max:10000'],'altitude'=>['nullable','numeric','min:-1000','max:20000'],'speed'=>['nullable','numeric','min:0','max:150'],'heading'=>['nullable','numeric','min:0','max:360'],'recorded_at'=>['nullable','date']]);
+        $data=$request->validate(['client_uuid'=>['nullable','uuid'],'latitude'=>['required','numeric','between:-90,90'],'longitude'=>['required','numeric','between:-180,180'],'accuracy'=>['nullable','numeric','min:0','max:10000'],'altitude'=>['nullable','numeric','min:-1000','max:20000'],'speed'=>['nullable','numeric','min:0','max:150'],'heading'=>['nullable','numeric','min:0','max:360'],'recorded_at'=>['nullable','date','after_or_equal:'.now()->subDays(7)->toIso8601String(),'before_or_equal:'.now()->addMinutes(10)->toIso8601String()]]);
         auth()->user()->locations()->updateOrCreate(['client_uuid'=>$data['client_uuid']??(string)Str::uuid()], ['dozbalagh_item_id'=>null,'cmr_document_id'=>$cmr->id,'latitude'=>$data['latitude'],'longitude'=>$data['longitude'],'accuracy'=>$data['accuracy']??null,'altitude'=>$data['altitude']??null,'speed'=>$data['speed']??null,'heading'=>$data['heading']??null,'recorded_at'=>isset($data['recorded_at'])?Carbon::parse($data['recorded_at'])->setTimezone(config('app.timezone')):now()]);
         return response()->json(['status'=>'success','accepted'=>1]);
     }
@@ -133,6 +133,7 @@ class DriverCmrController extends Controller
     public function trackingEvent(Request $request, CmrDocument $cmr): JsonResponse
     {
         $this->assertOwner($cmr);
+        abort_unless(in_array($cmr->status, ['accepted','in_transit'], true), 409, 'CMR tracking is not active.');
         $data=$request->validate(['event_type'=>['required','in:tracking_started,tracking_stopped'],'latitude'=>['nullable','numeric'],'longitude'=>['nullable','numeric']]);
         DB::table('driver_events')->insert(['driver_id'=>auth()->id(),'dozbalagh_item_id'=>null,'cmr_document_id'=>$cmr->id,'event_type'=>$data['event_type'],'latitude'=>$data['latitude']??null,'longitude'=>$data['longitude']??null,'created_at'=>now(),'updated_at'=>now()]);
         return response()->json(['status'=>'success']);
@@ -141,7 +142,7 @@ class DriverCmrController extends Controller
     public function track(CmrDocument $cmr): JsonResponse
     {
         $this->assertOwner($cmr);
-        $points=DB::table('driver_locations')->where('cmr_document_id',$cmr->id)->orderByDesc('recorded_at')->limit(500)->get()->reverse()->values();
+        $points=DB::table('driver_locations')->where('cmr_document_id',$cmr->id)->orderByDesc('recorded_at')->limit(500)->get(['latitude','longitude','accuracy','altitude','speed','heading','recorded_at'])->reverse()->values();
         return response()->json(['data'=>['cmr_id'=>$cmr->id,'status'=>$cmr->status,'points'=>$points,'latest'=>$points->last()]]);
     }
 
