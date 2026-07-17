@@ -5,6 +5,7 @@ use App\CMR\Http\Controllers\Admin\CmrCompanyConfigurationController;
 use App\CMR\Http\Controllers\Admin\CmrLifecycleController;
 use App\CMR\Http\Controllers\Admin\CmrMasterDataController;
 use App\CMR\Http\Controllers\CmrVerificationController;
+use App\CMR\Http\Controllers\Admin\CmrReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/cmr/verify/{code}', [CmrVerificationController::class, 'show'])->name('cmr.verify');
@@ -15,6 +16,8 @@ Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin'
     Route::get('/{cmr}/edit', [CmrController::class, 'edit'])->name('edit');
     Route::post('/', [CmrController::class, 'store'])->name('store');
     Route::get('/settings', [CmrController::class, 'settings'])->name('settings');
+    Route::get('/reports', [CmrReportController::class, 'index'])->name('reports.index');
+    Route::get('/reports/export', [CmrReportController::class, 'export'])->name('reports.export');
     Route::put('/settings', [CmrController::class, 'updateSettings'])->name('settings.update');
     Route::put('/settings/history/{tariff}', [CmrController::class, 'updateTariffHistory'])->name('settings.history.update');
     Route::delete('/settings/history/{tariff}', [CmrController::class, 'destroyTariffHistory'])->name('settings.history.destroy');
