@@ -72,7 +72,10 @@ class DriverCmrController extends Controller
     {
         abort_unless((int) $cmr->driver_id === (int) auth()->id(), 403);
         abort_if($cmr->status === 'draft', 404);
-        $cmr->load(['company', 'driver', 'fleet', 'goods', 'signatures']);
+        $cmr->load(['company', 'driver', 'fleet', 'goods', 'signatures', 'printTemplate']);
+        if ($cmr->printTemplate?->print_mode === 'preprinted' && $cmr->printTemplate?->background_path) {
+            return view('CMR.print.dynamic', compact('cmr'));
+        }
 
         return view('CMR.print.standard', compact('cmr'));
     }

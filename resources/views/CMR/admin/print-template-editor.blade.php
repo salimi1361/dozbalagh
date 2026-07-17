@@ -1,0 +1,32 @@
+@extends('layouts.admin')
+@section('header_title','طراح قالب چاپ e-CMR')
+@section('content')
+@include('CMR.admin.partials.module-header',['title'=>'طراح قالب چاپ e-CMR','subtitle'=>'جانمایی فیلدها روی فرم خام اختصاصی '.$company->name_fa])
+<div dir="rtl" x-data="cmrPrintDesigner()">
+ @if($errors->any())<div class="mb-4 rounded-xl bg-rose-50 p-4 text-rose-700">{{ $errors->first() }}</div>@endif
+ <form method="POST" enctype="multipart/form-data" action="{{ $template ? route('admin.cmr.company-settings.print-templates.update',[$company,$template]) : route('admin.cmr.company-settings.print-templates.designer.store',$company) }}">
+  @csrf @if($template)@method('PUT')@endif
+  <input type="hidden" name="fields_json" :value="JSON.stringify(fields)">
+  <div class="grid gap-5 xl:grid-cols-[330px_1fr]">
+   <aside class="space-y-4 rounded-2xl border bg-white p-4 shadow-sm">
+    <div class="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-900">شرکت: {{ $company->name_fa ?: $company->name_en }}</div>
+    <label class="block text-sm font-bold">نام قالب<input name="name" required value="{{ old('name',$template->name??'') }}" class="mt-1 w-full rounded-lg border p-2"></label>
+    <label class="block text-sm font-bold">روش چاپ<select name="print_mode" class="mt-1 w-full rounded-lg border p-2"><option value="preprinted" @selected(($template->print_mode??'')==='preprinted')>چاپ روی فرم خام بارگذاری‌شده</option><option value="full" @selected(($template->print_mode??'full')==='full')>چاپ کامل استاندارد</option></select></label>
+    <label class="block text-sm font-bold">سربرگ<select name="header_mode" class="mt-1 w-full rounded-lg border p-2"><option value="company_profile">مشخصات پروفایل شرکت</option><option value="custom" @selected(($template->header_mode??'')==='custom')>سربرگ چاپ‌شده روی فرم</option><option value="none" @selected(($template->header_mode??'')==='none')>بدون سربرگ</option></select></label>
+    <label class="block text-sm font-bold">تصویر فرم خام CMR<input type="file" name="background" accept="image/png,image/jpeg,image/webp" @change="previewBackground" class="mt-2 block w-full text-xs"><small class="text-slate-500">PNG/JPG/WebP، حداکثر ۱۵ مگابایت، نمای کامل A4</small></label>
+    <div class="border-t pt-4"><label class="text-sm font-bold">افزودن فیلد<select x-model="newKey" class="mt-1 w-full rounded-lg border p-2"><option value="">انتخاب فیلد</option>@foreach($catalog as $key=>$label)<option value="{{ $key }}">{{ $label }}</option>@endforeach</select></label><button type="button" @click="addField" class="mt-2 w-full rounded-lg bg-emerald-600 p-2 font-bold text-white">افزودن روی برگه</button></div>
+    <template x-if="selected"><div class="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs"><strong x-text="labels[selected.field_key]"></strong><div class="grid grid-cols-2 gap-2"><label>X (mm)<input x-model.number="selected.x_mm" type="number" step=".1" class="w-full rounded border p-1"></label><label>Y (mm)<input x-model.number="selected.y_mm" type="number" step=".1" class="w-full rounded border p-1"></label><label>عرض<input x-model.number="selected.width_mm" type="number" step=".1" class="w-full rounded border p-1"></label><label>ارتفاع<input x-model.number="selected.height_mm" type="number" step=".1" class="w-full rounded border p-1"></label><label>اندازه فونت<input x-model.number="selected.font_size_pt" type="number" step=".5" class="w-full rounded border p-1"></label><label>چیدمان<select x-model="selected.text_align" class="w-full rounded border p-1"><option value="left">چپ</option><option value="center">وسط</option><option value="right">راست</option></select></label></div><label class="flex gap-2"><input type="checkbox" x-model="selected.is_bold"> متن ضخیم</label><button type="button" @click="removeSelected" class="font-bold text-rose-600">حذف فیلد</button></div></template>
+    <label class="flex gap-2 text-sm font-bold"><input type="checkbox" name="is_default" value="1" @checked($template->is_default??false)> قالب پیش‌فرض این شرکت</label>
+    <button class="w-full rounded-xl bg-slate-900 p-3 font-black text-white">ذخیره قالب چاپ</button>
+    <a href="{{ route('admin.cmr.company-settings.index',['company_id'=>$company->id]) }}" class="block text-center text-sm font-bold text-slate-500">بازگشت</a>
+   </aside>
+   <section class="overflow-auto rounded-2xl bg-slate-800 p-6"><div class="relative mx-auto bg-white shadow-2xl" style="width:630px;height:891px;background-size:100% 100%;background-repeat:no-repeat" :style="backgroundUrl ? `background-image:url(${backgroundUrl})` : ''" @mousemove="dragMove" @mouseup="drag=null" @mouseleave="drag=null">
+    <template x-for="(field,index) in fields" :key="index"><div class="absolute cursor-move overflow-hidden border border-emerald-600 bg-emerald-100/70 px-1 text-[10px] text-emerald-950" :class="selected===field?'ring-2 ring-emerald-500':''" :style="boxStyle(field)" @mousedown.prevent="selected=field;startDrag($event,field)" x-text="labels[field.field_key]"></div></template>
+   </div><p class="mt-3 text-center text-xs text-slate-300">پیش‌نمایش A4 — فیلدها را با ماوس جابه‌جا کنید.</p></section>
+  </div>
+ </form>
+</div>
+<script>
+function cmrPrintDesigner(){return {scale:3,labels:@json($catalog),fields:@json(old('fields_json')?json_decode(old('fields_json'),true):($template->field_layout??[])),newKey:'',selected:null,drag:null,backgroundUrl:@json($template?->background_path?asset('storage/'.$template->background_path):null),addField(){if(!this.newKey)return;let field={field_key:this.newKey,x_mm:10,y_mm:10,width_mm:55,height_mm:8,font_size_pt:10,is_bold:false,text_align:'left',is_visible:true};this.fields.push(field);this.selected=field},removeSelected(){this.fields=this.fields.filter(f=>f!==this.selected);this.selected=null},boxStyle(f){return `left:${f.x_mm*this.scale}px;top:${f.y_mm*this.scale}px;width:${f.width_mm*this.scale}px;height:${f.height_mm*this.scale}px;font-size:${Math.max(8,f.font_size_pt)}px;font-weight:${f.is_bold?'700':'400'};text-align:${f.text_align}`},startDrag(e,f){this.drag={f,sx:e.clientX,sy:e.clientY,x:+f.x_mm,y:+f.y_mm}},dragMove(e){if(!this.drag)return;this.drag.f.x_mm=Math.max(0,+(this.drag.x+(e.clientX-this.drag.sx)/this.scale).toFixed(1));this.drag.f.y_mm=Math.max(0,+(this.drag.y+(e.clientY-this.drag.sy)/this.scale).toFixed(1))},previewBackground(e){let file=e.target.files[0];if(file)this.backgroundUrl=URL.createObjectURL(file)}}}
+</script>
+@endsection

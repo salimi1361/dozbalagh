@@ -43,4 +43,5 @@ class CmrDocument extends Model
     public function amendments(): HasMany { return $this->hasMany(CmrAmendment::class)->latest('to_version'); }
     public function attachments(): HasMany { return $this->hasMany(CmrAttachment::class)->latest(); }
     public function signatures(): HasMany { return $this->hasMany(CmrSignature::class)->latest('signed_at'); }
+    public function printTemplate(): BelongsTo { return $this->belongsTo(CmrPrintTemplate::class, 'print_template_id'); }
 }

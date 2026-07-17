@@ -207,7 +207,10 @@ class CmrController extends Controller
 
     public function print(CmrDocument $cmr)
     {
-        $cmr->load(['company', 'driver', 'fleet', 'goods', 'signatures']);
+        $cmr->load(['company', 'driver', 'fleet', 'goods', 'signatures', 'printTemplate']);
+        if ($cmr->printTemplate?->print_mode === 'preprinted' && $cmr->printTemplate?->background_path) {
+            return view('CMR.print.dynamic', compact('cmr'));
+        }
         return view('CMR.print.standard', compact('cmr'));
     }
 

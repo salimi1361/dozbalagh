@@ -10,9 +10,24 @@ use App\Http\Controllers\Controller;
 use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class CmrCompanyConfigurationController extends Controller
 {
+    public static function printFieldCatalog(): array
+    {
+        return [
+            'company_serial'=>'شماره رسمی CMR','consignor_name'=>'نام فرستنده','consignor_address'=>'نشانی فرستنده',
+            'consignee_name'=>'نام گیرنده','consignee_address'=>'نشانی گیرنده','delivery_place'=>'محل تحویل نهایی',
+            'taking_over_place'=>'محل تحویل کالا به حمل‌کننده','taking_over_at'=>'تاریخ تحویل کالا','attached_documents'=>'اسناد همراه',
+            'goods_table'=>'جدول مشخصات کالا','sender_instructions'=>'دستورهای فرستنده','carrier_name'=>'نام حمل‌کننده',
+            'carrier_address'=>'نشانی حمل‌کننده','driver_name'=>'نام لاتین راننده','vehicle_plate'=>'پلاک ناوگان',
+            'carrier_reservations'=>'ملاحظات حمل‌کننده','special_agreements'=>'توافق‌های ویژه','charges'=>'هزینه‌ها',
+            'established_at'=>'محل و تاریخ تنظیم','sender_signature'=>'امضای فرستنده','carrier_signature'=>'امضای حمل‌کننده',
+            'consignee_signature'=>'امضای گیرنده','verification_code'=>'کد اعتبارسنجی',
+        ];
+    }
+
     public function index(Request $request)
     {
         $companies = Company::query()->orderBy('name_fa')->get();
@@ -128,5 +143,46 @@ class CmrCompanyConfigurationController extends Controller
             ]);
         });
         return back()->with('success', 'قالب چاپ CMR شرکت ثبت شد.');
+    }
+
+    public function createTemplate(Company $company)
+    {
+        return view('CMR.admin.print-template-editor', ['company'=>$company, 'template'=>null, 'catalog'=>self::printFieldCatalog()]);
+    }
+
+    public function editTemplate(Company $company, CmrPrintTemplate $template)
+    {
+        abort_unless((int)$template->company_id === (int)$company->id, 404);
+        return view('CMR.admin.print-template-editor', compact('company','template') + ['catalog'=>self::printFieldCatalog()]);
+    }
+
+    public function saveTemplate(Request $request, Company $company, ?CmrPrintTemplate $template = null)
+    {
+        if ($template) abort_unless((int)$template->company_id === (int)$company->id, 404);
+        $data=$request->validate([
+            'name'=>['required','string','max:255'],'print_mode'=>['required',Rule::in(['full','preprinted'])],
+            'header_mode'=>['required',Rule::in(['company_profile','custom','none'])],
+            'background'=>['nullable','image','mimes:jpg,jpeg,png,webp','max:15360'],
+            'fields_json'=>['required','json'],'is_default'=>['nullable','boolean'],
+        ]);
+        $fields=json_decode($data['fields_json'],true,512,JSON_THROW_ON_ERROR);
+        $catalog=self::printFieldCatalog();
+        $fields=collect($fields)->filter(fn($field)=>isset($catalog[$field['field_key']??'']))->map(fn($field)=>[
+            'field_key'=>$field['field_key'],'x_mm'=>(float)($field['x_mm']??10),'y_mm'=>(float)($field['y_mm']??10),
+            'width_mm'=>(float)($field['width_mm']??50),'height_mm'=>(float)($field['height_mm']??8),
+            'font_size_pt'=>(float)($field['font_size_pt']??10),'is_bold'=>(bool)($field['is_bold']??false),
+            'text_align'=>$field['text_align']??'left','is_visible'=>(bool)($field['is_visible']??true),
+        ])->values()->all();
+        DB::transaction(function() use($request,$company,$template,$data,$fields){
+            $template ??= new CmrPrintTemplate();
+            if($request->hasFile('background')) $data['background_path']=$request->file('background')->store('cmr/print-templates','public');
+            $isDefault=$request->boolean('is_default');
+            if($isDefault) CmrPrintTemplate::where('company_id',$company->id)->update(['is_default'=>false]);
+            $template->fill(collect($data)->except(['background','fields_json'])->merge([
+                'company_id'=>$company->id,'paper_size'=>'A4','orientation'=>'portrait','field_layout'=>$fields,
+                'is_default'=>$isDefault,'is_active'=>true,'created_by'=>$template->created_by?:auth()->id(),
+            ])->all())->save();
+        });
+        return redirect()->route('admin.cmr.company-settings.index',['company_id'=>$company->id])->with('success','قالب چاپ اختصاصی شرکت ذخیره شد.');
     }
 }

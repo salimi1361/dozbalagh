@@ -25,6 +25,10 @@ Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin'
     Route::post('/company-settings/{company}/serial-pools', [CmrCompanyConfigurationController::class, 'storeSerialPool'])->name('company-settings.serial-pools.store');
     Route::post('/company-settings/{company}/serial-list', [CmrCompanyConfigurationController::class, 'storeSerialList'])->name('company-settings.serial-list.store');
     Route::post('/company-settings/{company}/print-templates', [CmrCompanyConfigurationController::class, 'storeTemplate'])->name('company-settings.print-templates.store');
+    Route::get('/company-settings/{company}/print-templates/create', [CmrCompanyConfigurationController::class, 'createTemplate'])->name('company-settings.print-templates.create');
+    Route::get('/company-settings/{company}/print-templates/{template}/edit', [CmrCompanyConfigurationController::class, 'editTemplate'])->name('company-settings.print-templates.edit');
+    Route::post('/company-settings/{company}/print-templates/designer', [CmrCompanyConfigurationController::class, 'saveTemplate'])->name('company-settings.print-templates.designer.store');
+    Route::put('/company-settings/{company}/print-templates/{template}', [CmrCompanyConfigurationController::class, 'saveTemplate'])->name('company-settings.print-templates.update');
     Route::get('/{cmr}/print', [CmrController::class, 'print'])->name('print');
     Route::get('/{cmr}/tracking-data', [CmrController::class, 'trackingData'])->name('tracking.data');
     Route::get('/{cmr}/evidence', [CmrLifecycleController::class, 'evidence'])->name('evidence');
