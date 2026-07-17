@@ -1,7 +1,7 @@
 @extends('layouts.admin')
-@section('header_title', 'ایجاد پیش‌نویس e-CMR')
+@section('header_title', $editing ? 'ویرایش پیش‌نویس e-CMR' : 'ایجاد پیش‌نویس e-CMR')
 @section('content')
-<form method="POST" action="{{ route('admin.cmr.store') }}" class="space-y-5" dir="rtl" id="cmr-form">@csrf
+<form method="POST" action="{{ $editing ? route('admin.cmr.update',$editing) : route('admin.cmr.store') }}" class="space-y-5" dir="rtl" id="cmr-form">@csrf @if($editing) @method('PUT') @endif
 @if($errors->any())<div class="rounded-xl bg-rose-50 p-4 text-rose-700">{{ $errors->first() }}</div>@endif
 <div class="rounded-2xl border bg-white p-4">
  <div class="flex flex-wrap gap-2 text-sm font-bold" id="steps">
@@ -70,7 +70,7 @@
 <section class="cmr-step hidden" data-step="4"><div class="rounded-2xl border bg-white p-6">
  <h3 class="text-lg font-black">بازبینی قبل از ایجاد پیش‌نویس</h3><p class="mt-2 text-sm text-slate-600">پس از ذخیره، نسخه استاندارد ۲۴ خانه‌ای را پیش‌نمایش می‌کنید. تا زمانی که «صدور رسمی» را نزنید هزینه‌ای از کیف پول کسر نمی‌شود.</p>
  <ul class="mt-4 list-disc space-y-2 pr-5 text-sm"><li>نام‌ها و نشانی‌ها لاتین باشند.</li><li>راننده و ناوگان با سیاست شرکت کنترل می‌شوند.</li><li>شماره سریال در حالت خودکار هنگام صدور تخصیص می‌یابد.</li><li>پس از صدور، تغییر مستقیم مجاز نیست و اصلاح باید نسخه‌دار باشد.</li></ul>
- <button class="mt-6 rounded-xl bg-emerald-600 px-6 py-3 font-black text-white">ذخیره پیش‌نویس و مشاهده پیش‌نمایش</button>
+ <button class="mt-6 rounded-xl bg-emerald-600 px-6 py-3 font-black text-white">{{ $editing ? 'ذخیره تغییرات پیش‌نویس' : 'ذخیره پیش‌نویس و مشاهده پیش‌نمایش' }}</button>
 </div></section>
 
 <div class="flex justify-between"><button type="button" id="prev" class="hidden rounded-xl border px-5 py-2 font-bold">مرحله قبل</button><button type="button" id="next" class="mr-auto rounded-xl bg-sky-600 px-5 py-2 font-bold text-white">مرحله بعد</button></div>
@@ -89,6 +89,8 @@ company.addEventListener('change',filterMasterData);filterMasterData();
 document.querySelectorAll('.master-party').forEach(select=>select.addEventListener('change',()=>{const option=select.selectedOptions[0],type=select.dataset.type;if(!option?.dataset.name)return;document.querySelector(`[name="${type}_name"]`).value=option.dataset.name||'';document.querySelector(`[name="${type}_identifier"]`).value=option.dataset.identifier||'';document.querySelector(`[name="${type}_address"]`).value=option.dataset.address||'';document.querySelector(`[name="${type}_country_code"]`).value=option.dataset.country||''}));
 document.querySelectorAll('.master-location').forEach(select=>select.addEventListener('change',()=>{const option=select.selectedOptions[0],field=select.dataset.type==='taking_over'?'taking_over_place':'delivery_place';if(option?.dataset.name)document.querySelector(`[name="${field}"]`).value=option.dataset.name}));
 goodsList.addEventListener('change',event=>{const select=event.target.closest('.master-good');if(!select)return;const option=select.selectedOptions[0],row=select.closest('.goods-row');if(!option?.dataset.description)return;row.querySelector('[name$="[description]"]').value=option.dataset.description||'';row.querySelector('[name$="[package_type]"]').value=option.dataset.package||'';row.querySelector('[name$="[commodity_code]"]').value=option.dataset.code||'';row.querySelector('[name$="[un_number]"]').value=option.dataset.un||'';row.querySelector('[name$="[adr_class]"]').value=option.dataset.adr||''});
+const editing=@json($editing);
+if(editing){Object.entries(editing).forEach(([key,value])=>{if(['goods','attached_documents'].includes(key)||value===null)return;const field=document.querySelector(`[name="${key}"]`);if(field)field.value=typeof value==='string'?value:value});const docs=document.querySelector('[name="attached_documents_text"]');if(docs)docs.value=(editing.attached_documents||[]).join('\n');(editing.goods||[]).forEach((good,index)=>{if(index>0)document.getElementById('add-good').click();const row=goodsList.children[index];Object.entries(good).forEach(([key,value])=>{const field=row?.querySelector(`[name$="[${key}]"]`);if(field&&value!==null)field.value=value})});filterMasterData()}
 })();
 </script>
 @endsection

@@ -12,6 +12,7 @@ Route::get('/cmr/verify/{code}', [CmrVerificationController::class, 'show'])->na
 Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/', [CmrController::class, 'index'])->name('index');
     Route::get('/create', [CmrController::class, 'create'])->name('create');
+    Route::get('/{cmr}/edit', [CmrController::class, 'edit'])->name('edit');
     Route::post('/', [CmrController::class, 'store'])->name('store');
     Route::get('/settings', [CmrController::class, 'settings'])->name('settings');
     Route::put('/settings', [CmrController::class, 'updateSettings'])->name('settings.update');
@@ -25,11 +26,13 @@ Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin'
     Route::post('/company-settings/{company}/serial-list', [CmrCompanyConfigurationController::class, 'storeSerialList'])->name('company-settings.serial-list.store');
     Route::post('/company-settings/{company}/print-templates', [CmrCompanyConfigurationController::class, 'storeTemplate'])->name('company-settings.print-templates.store');
     Route::get('/{cmr}/print', [CmrController::class, 'print'])->name('print');
+    Route::put('/{cmr}', [CmrController::class, 'update'])->name('update');
     Route::post('/{cmr}/amendments', [CmrLifecycleController::class, 'amend'])->name('amendments.store');
     Route::post('/{cmr}/attachments', [CmrLifecycleController::class, 'upload'])->name('attachments.store');
     Route::get('/{cmr}/attachments/{attachment}', [CmrLifecycleController::class, 'download'])->name('attachments.download');
     Route::post('/{cmr}/signatures', [CmrLifecycleController::class, 'sign'])->name('signatures.store');
     Route::post('/{cmr}/finalize', [CmrLifecycleController::class, 'finalize'])->name('finalize');
+    Route::post('/{cmr}/duplicate', [CmrController::class, 'duplicate'])->name('duplicate');
     Route::get('/{cmr}', [CmrController::class, 'show'])->name('show');
     Route::post('/{cmr}/issue', [CmrController::class, 'issue'])->name('issue');
     Route::post('/{cmr}/cancel', [CmrController::class, 'cancel'])->name('cancel');

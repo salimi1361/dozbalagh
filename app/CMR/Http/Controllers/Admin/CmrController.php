@@ -39,6 +39,17 @@ class CmrController extends Controller
 
     public function create()
     {
+        return $this->formView();
+    }
+
+    public function edit(CmrDocument $cmr)
+    {
+        abort_unless($cmr->status === 'draft', 409, 'Only a draft can be edited.');
+        return $this->formView($cmr->load('goods'));
+    }
+
+    private function formView(?CmrDocument $editing = null)
+    {
         return view('CMR.admin.create', [
             'companies' => Company::orderBy('name')->get(),
             'drivers' => Driver::orderBy('last_name_fa')->get(),
@@ -46,7 +57,34 @@ class CmrController extends Controller
             'masterParties' => CmrParty::where('is_active', true)->orderByDesc('usage_count')->get(),
             'masterLocations' => CmrLocation::where('is_active', true)->orderByDesc('usage_count')->get(),
             'masterGoods' => CmrGoodsTemplate::where('is_active', true)->orderByDesc('usage_count')->get(),
+            'editing' => $editing,
         ]);
+    }
+
+    public function update(Request $request, CmrDocument $cmr)
+    {
+        abort_unless($cmr->status === 'draft', 409, 'Only a draft can be edited.');
+        $latin = 'regex:/^[\p{Latin}\p{N}\p{P}\p{Z}\r\n]+$/u';
+        $data = $request->validate([
+            'company_id'=>['required','exists:companies,id'],'driver_id'=>['nullable','exists:drivers,id'],'fleet_id'=>['nullable','exists:fleets,id'],
+            'language'=>['required','in:en'],'transport_type'=>['nullable','string','max:100',$latin],
+            'consignor_name'=>['required','string','max:255',$latin],'consignor_identifier'=>['nullable','string','max:255'],'consignor_address'=>['nullable','string',$latin],'consignor_country_code'=>['nullable','string','size:2'],
+            'consignee_name'=>['required','string','max:255',$latin],'consignee_identifier'=>['nullable','string','max:255'],'consignee_address'=>['nullable','string',$latin],'consignee_country_code'=>['nullable','string','size:2'],
+            'carrier_name'=>['required','string','max:255',$latin],'carrier_identifier'=>['nullable','string','max:255'],'carrier_address'=>['nullable','string',$latin],'carrier_country_code'=>['nullable','string','size:2'],
+            'taking_over_place'=>['required','string','max:255',$latin],'taking_over_at'=>['nullable','date'],'delivery_place'=>['required','string','max:255',$latin],'planned_delivery_at'=>['nullable','date'],
+            'sender_instructions'=>['nullable','string',$latin],'special_agreements'=>['nullable','string',$latin],'carrier_reservations'=>['nullable','string',$latin],
+            'carriage_payment'=>['nullable','in:paid,carriage_forward'],'cash_on_delivery'=>['nullable','numeric','min:0'],'established_at_place'=>['nullable','string','max:255',$latin],'established_at_date'=>['nullable','date'],'charges'=>['nullable','array'],
+            'attached_documents_text'=>['nullable','string',$latin],'goods'=>['required','array','min:1'],'goods.*.description'=>['required','string','max:255',$latin],
+            'goods.*.marks_and_numbers'=>['nullable','string','max:255',$latin],'goods.*.package_type'=>['nullable','string','max:100',$latin],'goods.*.package_count'=>['nullable','numeric','min:0'],'goods.*.gross_weight_kg'=>['nullable','numeric','min:0'],'goods.*.volume_m3'=>['nullable','numeric','min:0'],'goods.*.commodity_code'=>['nullable','string','max:100',$latin],'goods.*.un_number'=>['nullable','string','max:20',$latin],'goods.*.adr_class'=>['nullable','string','max:50',$latin],
+        ]);
+        DB::transaction(function () use ($cmr, $data) {
+            $goods=$data['goods']; unset($data['goods']);
+            $data['attached_documents']=collect(preg_split('/\r\n|\r|\n|,/', $data['attached_documents_text']??''))->map(fn($v)=>trim($v))->filter()->values()->all(); unset($data['attached_documents_text']);
+            $cmr->update($data); $cmr->goods()->delete();
+            foreach($goods as $index=>$good){$cmr->goods()->create($good+['line_number'=>$index+1]);}
+            CmrEvent::create(['cmr_document_id'=>$cmr->id,'event_type'=>'draft_updated','from_status'=>'draft','to_status'=>'draft','actor_user_id'=>auth()->id(),'actor_role'=>'admin','description'=>'Draft data updated.','occurred_at'=>now()]);
+        });
+        return redirect()->route('admin.cmr.show',$cmr)->with('success','پیش‌نویس به‌روزرسانی شد.');
     }
 
     public function store(Request $request)
@@ -170,6 +208,35 @@ class CmrController extends Controller
     {
         $cmr->load(['company', 'driver', 'fleet', 'goods', 'signatures']);
         return view('CMR.print.standard', compact('cmr'));
+    }
+
+    public function duplicate(CmrDocument $cmr)
+    {
+        $cmr->load('goods');
+        $document = DB::transaction(function () use ($cmr) {
+            $copy = $cmr->replicate([
+                'uuid', 'number', 'company_serial', 'status', 'version', 'issued_at', 'issued_by',
+                'issuance_fee', 'integrity_hash', 'verification_code', 'finalized_at', 'created_at', 'updated_at',
+            ]);
+            $copy->uuid = (string) Str::uuid();
+            $copy->number = null;
+            $copy->company_serial = null;
+            $copy->status = 'draft';
+            $copy->version = 1;
+            $copy->issued_at = null;
+            $copy->issued_by = null;
+            $copy->issuance_fee = 0;
+            $copy->integrity_hash = null;
+            $copy->verification_code = null;
+            $copy->finalized_at = null;
+            $copy->save();
+            foreach ($cmr->goods as $good) {
+                $copy->goods()->create(collect($good->attributesToArray())->except(['id','cmr_document_id','created_at','updated_at'])->all());
+            }
+            CmrEvent::create(['cmr_document_id'=>$copy->id,'event_type'=>'duplicated','to_status'=>'draft','actor_user_id'=>auth()->id(),'actor_role'=>'admin','description'=>'Draft copied from CMR #'.$cmr->id,'metadata'=>['source_cmr_id'=>$cmr->id,'source_version'=>$cmr->version],'occurred_at'=>now()]);
+            return $copy;
+        });
+        return redirect()->route('admin.cmr.show',$document)->with('success','یک پیش‌نویس مستقل از سند قبلی ساخته شد؛ شماره رسمی هنگام صدور تخصیص می‌یابد.');
     }
 
     public function issue(CmrDocument $cmr, CmrIssuanceService $service)
