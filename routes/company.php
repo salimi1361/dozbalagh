@@ -13,6 +13,7 @@ use App\Http\Controllers\Company\{
     WalletController
 };
 use App\Http\Controllers\TrackingMapController;
+use App\Http\Controllers\Company\CmrReportController;
 
 Route::middleware(['auth', 'role:company', 'panel.features'])->group(function () {
     Route::get('/web/company/profile', [ProfileController::class, 'edit'])->name('company.profile.edit');
@@ -62,6 +63,8 @@ Route::middleware(['auth', 'role:company', 'panel.features'])->group(function ()
         Route::post('/web/company/dozbalagh/{id}/report-lost', [DozbalaghController::class, 'reportLost'])->name('company.dozbalagh.report_lost');
         Route::get('/web/company/report/index', [ReportController::class, 'index'])->name('report.index');
         Route::get('/web/company/report/export', [ReportController::class, 'exportExcel'])->name('report.export');
+        Route::get('/web/company/cmr-reports', [CmrReportController::class, 'index'])->name('company.cmr-reports.index');
+        Route::get('/web/company/cmr-reports/export', [CmrReportController::class, 'export'])->name('company.cmr-reports.export');
 
         Route::get('/wallet', [WalletController::class, 'index'])->name('company.wallet.index');
         Route::post('/wallet/charge', [WalletController::class, 'charge'])->name('company.wallet.charge');

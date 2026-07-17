@@ -91,7 +91,8 @@
             <a href="{{ route('web.company.fleet.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->is('*fleet*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">🚛 ناوگان</a>
             @endif
             @if($panelFeatures->enabledForRole('company', 'reports'))
-            <a href="{{ route('report.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->is('*report*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📊 گزارشات</a>
+            <a href="{{ route('report.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('report.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📊 گزارشات</a>
+            <a href="{{ route('company.cmr-reports.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('company.cmr-reports.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📗 گزارش‌های e-CMR</a>
             @endif
             
             @if($panelFeatures->enabledForRole('company', 'profile'))
