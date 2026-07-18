@@ -8,36 +8,52 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('companies', function (Blueprint $table) {
-            $table->string('registration_number')->nullable();
-            $table->string('ceo_national_code', 20)->nullable();
-            $table->string('postal_code', 20)->nullable();
-            $table->string('province')->nullable();
-            $table->string('city')->nullable();
-            $table->string('activity_type')->nullable();
-            $table->string('shahbaz_verification_status')->default('profile_incomplete')->index();
-            $table->foreignId('shahbaz_verified_by_user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->dateTime('shahbaz_verified_at')->nullable();
-            $table->text('shahbaz_review_note')->nullable();
-            $table->string('activity_license_number')->nullable()->unique();
-            $table->date('activity_license_issued_on')->nullable();
-            $table->date('activity_license_expires_on')->nullable()->index();
-            $table->string('activity_license_status')->default('unverified')->index();
-        });
+        $add = static function (string $column, callable $definition): void {
+            if (! Schema::hasColumn('companies', $column)) {
+                Schema::table('companies', $definition);
+            }
+        };
 
-        Schema::create('shahbaz_company_verification_histories', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('company_id')->constrained()->cascadeOnDelete();
-            $table->string('from_status')->nullable();
-            $table->string('to_status');
-            $table->string('result')->nullable();
-            $table->text('description')->nullable();
-            $table->json('company_snapshot')->nullable();
-            $table->foreignId('changed_by_user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->dateTime('checked_at')->nullable();
-            $table->timestamps();
-            $table->index(['company_id', 'created_at']);
+        $add('registration_number', fn (Blueprint $table) => $table->string('registration_number')->nullable());
+        $add('ceo_national_code', fn (Blueprint $table) => $table->string('ceo_national_code', 20)->nullable());
+        $add('postal_code', fn (Blueprint $table) => $table->string('postal_code', 20)->nullable());
+        $add('province', fn (Blueprint $table) => $table->string('province')->nullable());
+        $add('city', fn (Blueprint $table) => $table->string('city')->nullable());
+        $add('activity_type', fn (Blueprint $table) => $table->string('activity_type')->nullable());
+        $add('shahbaz_verification_status', fn (Blueprint $table) => $table->string('shahbaz_verification_status')->default('profile_incomplete')->index());
+        $add('shahbaz_verified_by_user_id', function (Blueprint $table) {
+            $table->foreignId('shahbaz_verified_by_user_id')->nullable();
+            $table->foreign('shahbaz_verified_by_user_id', 'shbz_company_verified_by_fk')->references('id')->on('users')->nullOnDelete();
         });
+        $add('shahbaz_verified_at', fn (Blueprint $table) => $table->dateTime('shahbaz_verified_at')->nullable());
+        $add('shahbaz_review_note', fn (Blueprint $table) => $table->text('shahbaz_review_note')->nullable());
+        $add('activity_license_number', fn (Blueprint $table) => $table->string('activity_license_number')->nullable()->unique());
+        $add('activity_license_issued_on', fn (Blueprint $table) => $table->date('activity_license_issued_on')->nullable());
+        $add('activity_license_expires_on', fn (Blueprint $table) => $table->date('activity_license_expires_on')->nullable()->index());
+        $add('activity_license_status', fn (Blueprint $table) => $table->string('activity_license_status')->default('unverified')->index());
+
+        if (! Schema::hasTable('shahbaz_company_verification_histories')) {
+            Schema::create('shahbaz_company_verification_histories', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('company_id');
+                $table->string('from_status')->nullable();
+                $table->string('to_status');
+                $table->string('result')->nullable();
+                $table->text('description')->nullable();
+                $table->json('company_snapshot')->nullable();
+                $table->foreignId('changed_by_user_id')->nullable();
+                $table->dateTime('checked_at')->nullable();
+                $table->timestamps();
+                $table->foreign('company_id', 'shbz_ver_company_fk')->references('id')->on('companies')->cascadeOnDelete();
+                $table->foreign('changed_by_user_id', 'shbz_ver_changed_by_fk')->references('id')->on('users')->nullOnDelete();
+                $table->index(['company_id', 'created_at'], 'shbz_ver_company_created_idx');
+            });
+        } else {
+            // MySQL may leave the table behind when the original long FK name fails.
+            Schema::table('shahbaz_company_verification_histories', function (Blueprint $table) {
+                $table->foreign('changed_by_user_id', 'shbz_ver_changed_by_fk')->references('id')->on('users')->nullOnDelete();
+            });
+        }
     }
 
     public function down(): void
