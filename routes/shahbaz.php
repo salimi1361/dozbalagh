@@ -1,5 +1,32 @@
 <?php
-use App\Shahbaz\Http\Controllers\AdminSettingsController; use App\Shahbaz\Http\Controllers\AssociationVerificationController; use App\Shahbaz\Http\Controllers\CompanyDossierController; use App\Shahbaz\Http\Controllers\CompanyProfileController; use Illuminate\Support\Facades\Route;
-Route::middleware(['auth','role:company'])->prefix('company/shahbaz')->name('company.shahbaz.')->group(function(){ Route::get('/',[CompanyDossierController::class,'show'])->name('dossier.show'); Route::get('/profile',[CompanyProfileController::class,'edit'])->name('profile.edit'); Route::put('/profile',[CompanyProfileController::class,'update'])->name('profile.update'); });
-Route::middleware(['auth','role:admin,association'])->prefix('association/shahbaz')->name('association.shahbaz.')->group(function(){ Route::get('/companies',[AssociationVerificationController::class,'index'])->name('companies.index'); Route::get('/companies/{company}',[AssociationVerificationController::class,'show'])->name('companies.show'); Route::post('/companies/{company}/review',[AssociationVerificationController::class,'review'])->name('companies.review'); });
-Route::middleware(['auth','role:admin'])->prefix('admin/shahbaz')->name('admin.shahbaz.')->group(function(){ Route::get('/settings',[AdminSettingsController::class,'edit'])->name('settings.edit'); Route::put('/settings',[AdminSettingsController::class,'update'])->name('settings.update'); });
+
+use App\Shahbaz\Http\Controllers\AdminSettingsController;
+use App\Shahbaz\Http\Controllers\AssociationVerificationController;
+use App\Shahbaz\Http\Controllers\CompanyDossierController;
+use App\Shahbaz\Http\Controllers\CompanyPeopleController;
+use App\Shahbaz\Http\Controllers\CompanyProfileController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware(['auth', 'role:company'])->prefix('company/shahbaz')->name('company.shahbaz.')->group(function () {
+    Route::get('/', [CompanyDossierController::class, 'show'])->name('dossier.show');
+    Route::post('/submit', [CompanyDossierController::class, 'submit'])->name('dossier.submit');
+    Route::get('/profile', [CompanyProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [CompanyProfileController::class, 'update'])->name('profile.update');
+    Route::get('/people/{type}', [CompanyPeopleController::class, 'index'])->name('people.index');
+    Route::get('/people/{type}/create', [CompanyPeopleController::class, 'create'])->name('people.create');
+    Route::post('/people/{type}', [CompanyPeopleController::class, 'store'])->name('people.store');
+    Route::get('/people/{type}/{item}/edit', [CompanyPeopleController::class, 'edit'])->name('people.edit');
+    Route::put('/people/{type}/{item}', [CompanyPeopleController::class, 'update'])->name('people.update');
+    Route::delete('/people/{type}/{item}', [CompanyPeopleController::class, 'archive'])->name('people.archive');
+});
+
+Route::middleware(['auth', 'role:admin,association'])->prefix('association/shahbaz')->name('association.shahbaz.')->group(function () {
+    Route::get('/companies', [AssociationVerificationController::class, 'index'])->name('companies.index');
+    Route::get('/companies/{company}', [AssociationVerificationController::class, 'show'])->name('companies.show');
+    Route::post('/companies/{company}/review', [AssociationVerificationController::class, 'review'])->name('companies.review');
+});
+
+Route::middleware(['auth', 'role:admin'])->prefix('admin/shahbaz')->name('admin.shahbaz.')->group(function () {
+    Route::get('/settings', [AdminSettingsController::class, 'edit'])->name('settings.edit');
+    Route::put('/settings', [AdminSettingsController::class, 'update'])->name('settings.update');
+});

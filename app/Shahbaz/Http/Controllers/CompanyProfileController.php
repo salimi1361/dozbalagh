@@ -17,7 +17,8 @@ class CompanyProfileController extends Controller
             'phone'=>['required','string','max:30'],'postal_code'=>['required','string','max:20'],'province'=>['required','string','max:100'],'city'=>['required','string','max:100'],
             'address_fa'=>['required','string'],'address_en'=>['required','string'],'activity_type'=>['required','string','max:255'],
         ]);
-        DB::transaction(function() use($company,$data,$request){ $from=$company->shahbaz_verification_status; $company->fill($data+['name'=>$data['name_fa']]); $company->forceFill(['shahbaz_verification_status'=>'pending_association_review','shahbaz_verified_by_user_id'=>null,'shahbaz_verified_at'=>null])->save(); CompanyVerificationHistory::create(['company_id'=>$company->id,'from_status'=>$from,'to_status'=>'pending_association_review','result'=>'submitted','description'=>'اطلاعات توسط شرکت تکمیل و برای بررسی انجمن ارسال شد.','company_snapshot'=>$company->fresh()->toArray(),'changed_by_user_id'=>$request->user()->id]); });
-        return back()->with('success','اطلاعات برای کنترل انجمن و بررسی دستی شحباز ارسال شد.');
+        abort_unless(in_array($company->shahbaz_verification_status, ['profile_incomplete','correction_required','shahbaz_mismatch'], true), 403);
+        DB::transaction(function() use($company,$data,$request){ $from=$company->shahbaz_verification_status; $company->fill($data+['name'=>$data['name_fa']]); $company->forceFill(['shahbaz_verified_by_user_id'=>null,'shahbaz_verified_at'=>null])->save(); CompanyVerificationHistory::create(['company_id'=>$company->id,'from_status'=>$from,'to_status'=>$from,'result'=>'draft_updated','description'=>'مشخصات پایه شرکت در پیش‌نویس پرونده به‌روزرسانی شد.','company_snapshot'=>$company->fresh()->toArray(),'changed_by_user_id'=>$request->user()->id]); });
+        return back()->with('success','اطلاعات ذخیره شد. پس از تکمیل همه گام‌های اجباری، پرونده را از صفحه اصلی برای انجمن ارسال کنید.');
     }
 }

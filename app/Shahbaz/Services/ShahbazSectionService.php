@@ -53,6 +53,8 @@ class ShahbazSectionService
             'licenses' => filled($company->activity_license_number)
                 && filled($company->activity_license_issued_on)
                 && filled($company->activity_license_expires_on),
+            'personnel', 'board', 'shareholders' => \App\Shahbaz\Models\CompanyPerson::where('company_id', $company->id)
+                ->where('relation_type', $key)->where('status', '!=', 'archived')->exists(),
             default => false,
         };
     }
