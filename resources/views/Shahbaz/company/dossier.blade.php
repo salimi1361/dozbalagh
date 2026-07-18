@@ -1,0 +1,13 @@
+@extends('layouts.app')
+@section('header_title','پرونده شرکت و شحباز داخلی')
+@section('content')
+<div dir="rtl" class="mx-auto max-w-6xl space-y-6">
+<section class="rounded-3xl border bg-white p-6 shadow-sm"><div class="flex flex-wrap items-center justify-between gap-4"><div><h1 class="text-2xl font-black">{{ $company->name_fa }}</h1><p class="mt-2 text-sm text-slate-500">شناسه ملی: {{ $company->national_id ?: 'ثبت نشده' }} — وضعیت بررسی: {{ $company->shahbaz_verification_status }}</p></div><a href="{{ route('company.shahbaz.profile.edit') }}" class="rounded-xl bg-emerald-600 px-5 py-3 font-black text-white">تکمیل مشخصات پایه</a></div></section>
+@if($reminders['panel_enabled'] && $company->activity_license_expires_on)
+@php($remaining=today()->diffInDays($company->activity_license_expires_on,false))
+@if($remaining <= 60)<div class="rounded-2xl border border-amber-300 bg-amber-50 p-5 font-bold text-amber-900">هشدار اعتبار پروانه: @if($remaining < 0) پروانه فعالیت منقضی شده است. @else فقط {{ $remaining }} روز تا پایان اعتبار باقی مانده است. @endif</div>@endif
+@endif
+<section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+@foreach($sections as $section)<article class="rounded-2xl border p-5 shadow-sm {{ $section['locked'] ? 'border-slate-200 bg-slate-100 opacity-70' : ($section['complete'] ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-white') }}"><div class="flex items-center justify-between"><h2 class="font-black">{{ $loop->iteration }}. {{ $section['label'] }}</h2><span class="rounded-full px-3 py-1 text-xs font-bold {{ $section['complete'] ? 'bg-emerald-200 text-emerald-900' : ($section['locked'] ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-900') }}">{{ $section['complete'] ? 'تکمیل شده' : ($section['locked'] ? 'قفل' : 'نیازمند تکمیل') }}</span></div><p class="mt-3 text-sm text-slate-600">{{ $section['required'] ? 'این بخش برای ادامه فرایند اجباری است.' : 'این بخش اختیاری یا صرفاً نمایشی است.' }}</p>@if(!$section['locked'] && $section['key']==='profile')<a href="{{ route('company.shahbaz.profile.edit') }}" class="mt-4 inline-block font-bold text-emerald-700">ورود به بخش</a>@elseif(!$section['locked'])<span class="mt-4 inline-block text-xs font-bold text-slate-400">فرم این بخش در فاز بعد فعال می‌شود.</span>@endif</article>@endforeach
+</section></div>
+@endsection

@@ -102,7 +102,7 @@
                 </button>
                 <div id="submenu-profile" class="hidden pr-4 mt-1 space-y-1">
                     <a href="{{ route('company.profile.edit') }}" class="block p-2 text-xs font-semibold text-slate-400 hover:text-emerald-400">ویرایش پروفایل</a>
-                    <a href="{{ route('company.shahbaz.profile.edit') }}" class="block p-2 text-xs font-semibold text-slate-400 hover:text-emerald-400">تکمیل و تأیید شحباز</a>
+                    <a href="{{ route('company.shahbaz.dossier.show') }}" class="block p-2 text-xs font-semibold text-slate-400 hover:text-emerald-400">پرونده شرکت و شحباز</a>
                 </div>
             </div>
             @endif
