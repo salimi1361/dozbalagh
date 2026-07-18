@@ -98,6 +98,9 @@
     
             @if(auth()->user()?->hasRole('association') && $showAssociationFeature('dashboard'))
             <a href="{{ route('association.dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('association.dashboard') ? 'bg-sky-500 text-white shadow-lg shadow-sky-500/30' : 'hover:bg-slate-800 hover:text-white' }}">🏠 داشبورد انجمن</a>
+            @endif
+
+            @if(auth()->user()?->hasRole('admin') || (auth()->user()?->hasRole('association') && $showAssociationFeature('shahbaz')))
             <a href="{{ route('association.shahbaz.companies.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('association.shahbaz.*') ? 'bg-emerald-600 text-white' : 'hover:bg-slate-800 hover:text-white' }}">کنترل شرکت‌ها و شحباز</a>
             @endif
 

@@ -2,6 +2,7 @@
 
 return [
     'association' => [
+        'shahbaz' => ['label' => 'مدیریت شرکت‌ها و کنترل شحباز', 'routes' => ['association.shahbaz.*']],
         'dashboard' => ['label' => 'داشبورد انجمن', 'routes' => ['association.dashboard']],
         'requests' => ['label' => 'کارتابل درخواست‌های معلق', 'routes' => ['association.pending.*']],
         'issuance' => ['label' => 'صدور و تخصیص سریال', 'routes' => ['association.approved.*', 'association.permit.assign_serial']],
@@ -28,6 +29,7 @@ return [
         'driver_announcements' => ['label' => 'اطلاع‌رسانی به رانندگان', 'routes' => ['driver-announcements.*'], 'default' => false],
     ],
     'company' => [
+        'shahbaz' => ['label' => 'تکمیل و تأیید اطلاعات شرکت', 'routes' => ['company.shahbaz.*']],
         'dashboard' => ['label' => 'داشبورد', 'routes' => ['dashboard']],
         'requests' => ['label' => 'ثبت و مدیریت درخواست', 'routes' => ['dozbalagh.*', 'web.dozbalagh.renew', 'company.dozbalagh.return_lash', 'company.dozbalagh.report_lost']],
         'issued' => ['label' => 'دوزوله‌های صادرشده', 'routes' => ['company.dozbalagh.issued', 'company.dozbalagh.copy']],
