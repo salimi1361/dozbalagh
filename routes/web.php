@@ -27,6 +27,7 @@ use App\Http\Controllers\Association\AccountSecurityController;
 use App\Http\Controllers\Admin\MobileAppVersionController;
 use App\Http\Controllers\DriverAnnouncementController;
 require __DIR__.'/cmr.php';
+require __DIR__.'/shahbaz.php';
 // ==========================================
 // روت اصلی
 // ==========================================

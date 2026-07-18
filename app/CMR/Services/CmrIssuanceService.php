@@ -8,18 +8,26 @@ use App\CMR\Models\CmrSetting;
 use App\CMR\Models\CmrVersion;
 use App\CMR\Models\CmrWalletEntry;
 use App\Models\Wallet;
+use App\Shahbaz\Services\CompanyEligibilityService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use RuntimeException;
 
 class CmrIssuanceService
 {
-    public function __construct(private readonly CmrSerialService $serials) {}
+    public function __construct(
+        private readonly CmrSerialService $serials,
+        private readonly CompanyEligibilityService $companyEligibility,
+    ) {}
 
     public function issue(CmrDocument $document, int $userId): CmrDocument
     {
         return DB::transaction(function () use ($document, $userId) {
             $document = CmrDocument::query()->lockForUpdate()->findOrFail($document->id);
+            $document->loadMissing('company');
+            if (!$document->company || !$this->companyEligibility->canOperate($document->company)) {
+                throw new RuntimeException('اطلاعات شرکت، کنترل شحباز یا پروانه فعالیت معتبر نیست؛ صدور CMR مجاز نیست.');
+            }
             if ($document->status !== 'draft') {
                 throw new RuntimeException('فقط پیش‌نویس CMR قابل صدور است.');
             }

@@ -25,9 +25,9 @@ Route::middleware(['auth', 'role:company', 'panel.features'])->group(function ()
 
         Route::get('/dozbalagh', [DozbalaghController::class, 'index'])->name('dozbalagh.index');
         Route::get('/dozbalagh-issued', [\App\Http\Controllers\PermitCopyController::class, 'companyIndex'])->name('company.dozbalagh.issued');
-        Route::get('/dozbalagh/create', [DozbalaghController::class, 'create'])->name('dozbalagh.create');
+        Route::get('/dozbalagh/create', [DozbalaghController::class, 'create'])->middleware(\App\Shahbaz\Http\Middleware\EnsureCompanyEligible::class)->name('dozbalagh.create');
         Route::get('/dozbalagh/renewable-list', [DozbalaghController::class, 'renewableList'])->name('dozbalagh.renewable_list');
-        Route::post('/dozbalagh/store', [DozbalaghController::class, 'store'])->name('dozbalagh.store');
+        Route::post('/dozbalagh/store', [DozbalaghController::class, 'store'])->middleware(\App\Shahbaz\Http\Middleware\EnsureCompanyEligible::class)->name('dozbalagh.store');
         Route::get('/dozbalagh/{id}/edit', [DozbalaghController::class, 'edit'])->name('dozbalagh.edit');
         Route::get('/dozbalagh/items/{item}/copy', [\App\Http\Controllers\PermitCopyController::class, 'company'])->whereNumber('item')->name('company.dozbalagh.copy');
         Route::put('/dozbalagh/{id}/update', [DozbalaghController::class, 'update'])->name('dozbalagh.update');
@@ -58,7 +58,7 @@ Route::middleware(['auth', 'role:company', 'panel.features'])->group(function ()
         Route::post('/web/company/fleet/store', [CompanyFleetController::class, 'store'])->name('web.company.fleet.store');
         Route::post('/web/company/fleet/release', [CompanyFleetController::class, 'release'])->name('web.company.fleet.release');
 
-        Route::post('/web/dozbalagh/{id}/renew', [DozbalaghController::class, 'renew'])->name('web.dozbalagh.renew');
+        Route::post('/web/dozbalagh/{id}/renew', [DozbalaghController::class, 'renew'])->middleware(\App\Shahbaz\Http\Middleware\EnsureCompanyEligible::class)->name('web.dozbalagh.renew');
         Route::post('/web/company/dozbalagh/{id}/return-lash', [DozbalaghController::class, 'submitReturnLash'])->name('company.dozbalagh.return_lash');
         Route::post('/web/company/dozbalagh/{id}/report-lost', [DozbalaghController::class, 'reportLost'])->name('company.dozbalagh.report_lost');
         Route::get('/web/company/report/index', [ReportController::class, 'index'])->name('report.index');

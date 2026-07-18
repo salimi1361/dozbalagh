@@ -23,6 +23,25 @@ class Company extends Model
         'ceo_mobile',
         'address_fa',
         'address_en',
+        'registration_number',
+        'ceo_name',
+        'ceo_national_code',
+        'postal_code',
+        'province',
+        'city',
+        'activity_type',
+        'shahbaz_verification_status',
+        'shahbaz_review_note',
+        'activity_license_number',
+        'activity_license_issued_on',
+        'activity_license_expires_on',
+        'activity_license_status',
+    ];
+
+    protected $casts = [
+        'shahbaz_verified_at' => 'datetime',
+        'activity_license_issued_on' => 'date',
+        'activity_license_expires_on' => 'date',
     ];
 
     protected static function booted(): void
@@ -62,5 +81,10 @@ class Company extends Model
     public function associationTickets(): HasMany
     {
         return $this->hasMany(AssociationSupportTicket::class);
+    }
+
+    public function shahbazVerificationHistories(): HasMany
+    {
+        return $this->hasMany(\App\Shahbaz\Models\CompanyVerificationHistory::class);
     }
 }

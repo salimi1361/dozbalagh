@@ -1,0 +1,12 @@
+@extends('layouts.admin')
+@section('header_title','کنترل دستی شحباز')
+@section('content')
+<div dir="rtl" class="mx-auto max-w-5xl rounded-2xl border bg-white p-6"><h1 class="text-xl font-black">{{ $company->name_fa }}</h1>
+@if($errors->any())<div class="my-4 rounded-xl bg-rose-50 p-4 text-rose-800">{{ $errors->first() }}</div>@endif
+<div class="mt-5 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-sm"><span>شناسه ملی: <b>{{ $company->national_id }}</b></span><span>شماره ثبت: <b>{{ $company->registration_number }}</b></span><span>مدیرعامل: <b>{{ $company->ceo_name }}</b></span><span>کد ملی مدیرعامل: <b>{{ $company->ceo_national_code }}</b></span><span class="col-span-2">آدرس: <b>{{ $company->address_fa }}</b></span><span>نوع فعالیت: <b>{{ $company->activity_type }}</b></span><span>وضعیت: <b>{{ $company->shahbaz_verification_status }}</b></span></div>
+<form method="POST" action="{{ route('association.shahbaz.companies.review',$company) }}" class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">@csrf
+<label>نتیجه بررسی<select name="result" required class="mt-2 w-full rounded-lg border p-2"><option value="verified">تأیید شد</option><option value="correction_required">نیازمند اصلاح</option><option value="shahbaz_mismatch">دارای مغایرت</option><option value="company_not_found">شرکت یافت نشد</option><option value="follow_up">نیازمند پیگیری</option></select></label>
+<label>شماره پروانه<input name="activity_license_number" class="mt-2 w-full rounded-lg border p-2"></label><label>تاریخ صدور<input type="date" name="activity_license_issued_on" class="mt-2 w-full rounded-lg border p-2"></label><label>پایان اعتبار<input type="date" name="activity_license_expires_on" class="mt-2 w-full rounded-lg border p-2"></label>
+<label class="md:col-span-2">توضیحات کارشناس<textarea name="description" required class="mt-2 w-full rounded-lg border p-2"></textarea></label><div class="md:col-span-2"><button class="rounded-xl bg-emerald-600 px-6 py-3 font-black text-white">ثبت نتیجه غیرقابل بازنویسی</button></div></form>
+<h2 class="mt-8 font-black">تاریخچه</h2>@foreach($company->shahbazVerificationHistories->sortByDesc('id') as $row)<div class="mt-2 rounded-lg border p-3 text-sm">{{ $row->created_at }} — {{ $row->from_status }} ← {{ $row->to_status }} — {{ $row->description }}</div>@endforeach
+</div>@endsection

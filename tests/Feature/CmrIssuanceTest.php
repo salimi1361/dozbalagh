@@ -80,6 +80,33 @@ class CmrIssuanceTest extends TestCase
             'name_en' => 'Test Carrier',
             'address_fa' => 'تهران',
             'address_en' => 'Tehran',
+            'national_id' => '14000000'.$code,
+            'registration_number' => 'REG-'.$code,
+            'ceo_name' => 'مدیر آزمایشی',
+            'ceo_national_code' => '0012345'.$code,
+            'ceo_mobile' => '09120000'.$code,
+            'phone' => '0210000'.$code,
+            'postal_code' => '1234567'.$code,
+            'province' => 'تهران',
+            'city' => 'تهران',
+            'activity_type' => 'حمل‌ونقل بین‌المللی',
+            'shahbaz_verification_status' => 'verified',
+            'activity_license_number' => 'LIC-'.$code,
+            'activity_license_issued_on' => now()->subDay(),
+            'activity_license_expires_on' => now()->addYear(),
+            'activity_license_status' => 'active',
         ]);
+    }
+
+    public function test_unverified_company_cannot_issue_cmr(): void
+    {
+        $role = Role::create(['name' => 'admin', 'title_fa' => 'مدیر']);
+        $user = User::create(['role_id' => $role->id, 'username' => 'cmr-admin-blocked', 'password' => Hash::make('secret'), 'status' => 'active']);
+        $company = $this->company($user, '003');
+        $company->update(['shahbaz_verification_status' => 'pending_association_review']);
+        $document = $this->draft($company);
+
+        $this->expectException(\RuntimeException::class);
+        app(CmrIssuanceService::class)->issue($document, $user->id);
     }
 }

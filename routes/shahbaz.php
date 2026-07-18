@@ -1,0 +1,4 @@
+<?php
+use App\Shahbaz\Http\Controllers\AssociationVerificationController; use App\Shahbaz\Http\Controllers\CompanyProfileController; use Illuminate\Support\Facades\Route;
+Route::middleware(['auth','role:company'])->prefix('company/shahbaz')->name('company.shahbaz.')->group(function(){ Route::get('/profile',[CompanyProfileController::class,'edit'])->name('profile.edit'); Route::put('/profile',[CompanyProfileController::class,'update'])->name('profile.update'); });
+Route::middleware(['auth','role:admin,association'])->prefix('association/shahbaz')->name('association.shahbaz.')->group(function(){ Route::get('/companies',[AssociationVerificationController::class,'index'])->name('companies.index'); Route::get('/companies/{company}',[AssociationVerificationController::class,'show'])->name('companies.show'); Route::post('/companies/{company}/review',[AssociationVerificationController::class,'review'])->name('companies.review'); });
