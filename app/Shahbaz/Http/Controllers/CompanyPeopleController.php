@@ -77,10 +77,14 @@ class CompanyPeopleController extends Controller
             'father_name' => ['nullable','string','max:150'], 'birth_certificate_number' => ['nullable','string','max:50'], 'birth_date' => ['nullable','date'], 'birth_place' => ['nullable','string','max:150'],
             'issued_on' => ['nullable','date'], 'issue_city' => ['nullable','string','max:150'], 'gender' => ['nullable',Rule::in(['مرد','زن'])], 'is_veteran' => ['nullable','boolean'],
             'job_title_choice' => [$type === 'personnel' ? 'required' : 'nullable','string','max:150'],
-            'custom_job_title' => [$type === 'personnel' ? 'required_if:job_title_choice,__other__' : 'nullable','string','max:150'],
+            'custom_job_title' => ['nullable', $type === 'personnel' ? 'required_if:job_title_choice,__other__' : 'sometimes', 'string', 'max:150'],
             'board_position' => [$type === 'board' ? 'required' : 'nullable','string','max:150'],
             'shareholder_type' => [$type === 'shareholders' ? 'required' : 'nullable','string','max:50'], 'share_type' => ['nullable','string','max:50'], 'share_amount' => ['nullable','numeric','min:0'],
             'share_percentage' => ['nullable','numeric','min:0','max:100'], 'started_on' => ['nullable','date'], 'ended_on' => ['nullable','date','after_or_equal:started_on'], 'note' => ['nullable','string','max:2000'],
+        ], [
+            'custom_job_title.required_if' => 'در صورت انتخاب «سایر»، درج عنوان شغلی الزامی است.',
+            'custom_job_title.string' => 'عنوان شغلی سایر باید به‌صورت متن وارد شود.',
+            'job_title_choice.required' => 'انتخاب عنوان شغلی الزامی است.',
         ]);
         if ($type === 'personnel') {
             $allowed = config('shahbaz_people.personnel_job_titles', []);
