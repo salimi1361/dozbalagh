@@ -12,7 +12,7 @@
         @forelse($items as $item)
             <article class="rounded-2xl border bg-white p-5 shadow-sm">
                 <div class="flex justify-between gap-3"><strong>{{ $types[$item->request_type] ?? $item->request_type }}</strong><span class="rounded-full bg-slate-100 px-3 py-1 text-xs">{{ $statusLabels[$item->status] ?? $item->status }}</span></div>
-                <dl class="mt-4 space-y-2 text-sm"><div>کد رهگیری: <b dir="ltr">{{ $item->tracking_code }}</b></div><div>حوزه فعالیت: {{ ['domestic'=>'داخلی','international'=>'بین‌المللی','both'=>'داخلی و بین‌المللی'][$item->activity_scope] ?? $item->activity_scope }}</div><div>نوع فعالیت: {{ $item->activity_type }}</div><div>تاریخ ثبت: {{ $item->created_at }}</div></dl>
+                <dl class="mt-4 space-y-2 text-sm"><div>کد رهگیری: <b dir="ltr">{{ $item->tracking_code }}</b></div><div>حوزه فعالیت: {{ ['domestic'=>'داخلی','international'=>'بین‌المللی','both'=>'داخلی و بین‌المللی'][$item->activity_scope] ?? $item->activity_scope }}</div><div>نوع فعالیت: {{ $item->activity_type }}</div><div>تاریخ ثبت: {{ verta($item->created_at)->format('Y/m/d H:i') }}</div></dl>
                 @if($item->correction_reason)<div class="mt-3 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">دلیل نقص یا مغایرت: {{ $item->correction_reason }}</div>@endif
                 @if($editable && in_array($item->status,['draft','correction_required','shahbaz_mismatch']))<a href="{{ route('company.shahbaz.requests.edit',$item) }}" class="mt-4 inline-block font-bold text-emerald-700">ویرایش درخواست</a>@endif
             </article>

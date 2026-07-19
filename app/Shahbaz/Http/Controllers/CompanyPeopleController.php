@@ -8,6 +8,8 @@ use App\Shahbaz\Models\Person;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+use Morilog\Jalali\Jalalian;
 
 class CompanyPeopleController extends Controller
 {
@@ -63,6 +65,12 @@ class CompanyPeopleController extends Controller
 
     private function validateData(Request $request, string $type, ?int $ignore = null): array
     {
+        $this->mergeJalaliDates($request, [
+            'birth_date_jalali' => 'birth_date',
+            'issued_on_jalali' => 'issued_on',
+            'started_on_jalali' => 'started_on',
+            'ended_on_jalali' => 'ended_on',
+        ]);
         $data = $request->validate([
             'nationality' => ['required','string','max:100'], 'national_code' => ['nullable','required_without:passport_number','string','max:30',Rule::unique('shahbaz_people')->ignore($ignore)],
             'passport_number' => ['nullable','required_without:national_code','string','max:50',Rule::unique('shahbaz_people')->ignore($ignore)], 'first_name' => ['required','string','max:150'], 'last_name' => ['required','string','max:150'],
@@ -83,6 +91,19 @@ class CompanyPeopleController extends Controller
         }
         unset($data['job_title_choice'], $data['custom_job_title']);
         return $data;
+    }
+
+    private function mergeJalaliDates(Request $request, array $fields): void
+    {
+        foreach ($fields as $jalaliField => $dateField) {
+            if (! $request->filled($jalaliField)) { $request->merge([$dateField => null]); continue; }
+            try {
+                $value = strtr((string) $request->input($jalaliField), ['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']);
+                $request->merge([$dateField => Jalalian::fromFormat('Y/m/d', $value)->toCarbon()->format('Y-m-d')]);
+            } catch (\Throwable) {
+                throw ValidationException::withMessages([$jalaliField => 'تاریخ شمسی انتخاب‌شده معتبر نیست.']);
+            }
+        }
     }
 
     private function editable($company): bool { return in_array($company->shahbaz_verification_status, ['profile_incomplete','correction_required','shahbaz_mismatch'], true); }
