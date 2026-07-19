@@ -50,6 +50,8 @@ class ShahbazSectionService
     {
         return match ($key) {
             'profile' => app(CompanyEligibilityService::class)->missingFields($company) === [],
+            'requests' => \App\Shahbaz\Models\LicenseRequest::where('company_id', $company->id)
+                ->whereNotIn('status', ['cancelled', 'rejected'])->exists(),
             'licenses' => filled($company->activity_license_number)
                 && filled($company->activity_license_issued_on)
                 && filled($company->activity_license_expires_on),

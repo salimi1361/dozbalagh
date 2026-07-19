@@ -3,6 +3,7 @@
 use App\Shahbaz\Http\Controllers\AdminSettingsController;
 use App\Shahbaz\Http\Controllers\AssociationVerificationController;
 use App\Shahbaz\Http\Controllers\CompanyDossierController;
+use App\Shahbaz\Http\Controllers\CompanyLicenseRequestController;
 use App\Shahbaz\Http\Controllers\CompanyPeopleController;
 use App\Shahbaz\Http\Controllers\CompanyProfileController;
 use Illuminate\Support\Facades\Route;
@@ -12,6 +13,11 @@ Route::middleware(['auth', 'role:company'])->prefix('company/shahbaz')->name('co
     Route::post('/submit', [CompanyDossierController::class, 'submit'])->name('dossier.submit');
     Route::get('/profile', [CompanyProfileController::class, 'edit'])->name('profile.edit');
     Route::put('/profile', [CompanyProfileController::class, 'update'])->name('profile.update');
+    Route::get('/requests', [CompanyLicenseRequestController::class, 'index'])->name('requests.index');
+    Route::get('/requests/create', [CompanyLicenseRequestController::class, 'create'])->name('requests.create');
+    Route::post('/requests', [CompanyLicenseRequestController::class, 'store'])->name('requests.store');
+    Route::get('/requests/{licenseRequest}/edit', [CompanyLicenseRequestController::class, 'edit'])->name('requests.edit');
+    Route::put('/requests/{licenseRequest}', [CompanyLicenseRequestController::class, 'update'])->name('requests.update');
     Route::get('/people/{type}', [CompanyPeopleController::class, 'index'])->name('people.index');
     Route::get('/people/{type}/create', [CompanyPeopleController::class, 'create'])->name('people.create');
     Route::post('/people/{type}', [CompanyPeopleController::class, 'store'])->name('people.store');
