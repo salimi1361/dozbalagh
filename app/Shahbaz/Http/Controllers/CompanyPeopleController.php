@@ -34,6 +34,7 @@ class CompanyPeopleController extends Controller
         $this->validType($type); $company = $request->user()->company; abort_unless($this->editable($company), 403);
         $data = $this->validateData($request, $type);
         $this->ensureBoardPositionAvailable($company->id, $type, $data);
+        $this->ensureSharePercentageAvailable($company->id, $type, $data);
         DB::transaction(function () use ($data, $company, $request, $type) {
             $identity = filled($data['national_code'] ?? null) ? ['national_code' => $data['national_code']] : ['passport_number' => $data['passport_number']];
             $person = Person::updateOrCreate($identity, $this->personData($data));
@@ -56,6 +57,7 @@ class CompanyPeopleController extends Controller
         $this->owned($request, $type, $item); abort_unless($this->editable($request->user()->company), 403);
         $data = $this->validateData($request, $type, $item->person_id);
         $this->ensureBoardPositionAvailable($item->company_id, $type, $data, $item->id);
+        $this->ensureSharePercentageAvailable($item->company_id, $type, $data, $item->id);
         DB::transaction(function () use ($data, $item, $type) { $item->person->update($this->personData($data)); $item->update($this->relationData($data, $type)); });
         return redirect()->route('company.shahbaz.people.index', $type)->with('success', 'اطلاعات به‌روزرسانی شد.');
     }
@@ -88,14 +90,21 @@ class CompanyPeopleController extends Controller
             'custom_job_title' => ['nullable', $type === 'personnel' ? 'required_if:job_title_choice,__other__' : 'sometimes', 'string', 'max:150'],
             'board_position_choice' => [$type === 'board' ? 'required' : 'nullable','string','max:150'],
             'custom_board_position' => ['nullable', $type === 'board' ? 'required_if:board_position_choice,__other__' : 'sometimes', 'string', 'max:150'],
-            'shareholder_type' => [$type === 'shareholders' ? 'required' : 'nullable','string','max:50'], 'share_type' => ['nullable','string','max:50'], 'share_amount' => ['nullable','numeric','min:0'],
-            'share_percentage' => ['nullable','numeric','min:0','max:100'], 'started_on' => ['nullable','date'], 'ended_on' => ['nullable','date','after_or_equal:started_on'], 'note' => ['nullable','string','max:2000'],
+            'shareholder_type' => [$type === 'shareholders' ? 'required' : 'nullable', Rule::in(config('shahbaz_people.shareholder_types', ['حقیقی']))],
+            'share_type' => [$type === 'shareholders' ? 'required' : 'nullable', Rule::in(config('shahbaz_people.share_types', ['عادی','ممتاز']))],
+            'share_amount' => [$type === 'shareholders' ? 'required' : 'nullable','numeric','min:1'],
+            'share_percentage' => [$type === 'shareholders' ? 'required' : 'nullable','numeric','gt:0','max:100'], 'started_on' => ['nullable','date'], 'ended_on' => ['nullable','date','after_or_equal:started_on'], 'note' => ['nullable','string','max:2000'],
         ], [
             'custom_job_title.required_if' => 'در صورت انتخاب «سایر»، درج عنوان شغلی الزامی است.',
             'custom_job_title.string' => 'عنوان شغلی سایر باید به‌صورت متن وارد شود.',
             'job_title_choice.required' => 'انتخاب عنوان شغلی الزامی است.',
             'custom_board_position.required_if' => 'در صورت انتخاب «سایر»، درج سمت هیئت‌مدیره الزامی است.',
             'board_position_choice.required' => 'انتخاب سمت هیئت‌مدیره الزامی است.',
+            'shareholder_type.required' => 'انتخاب نوع سهامدار الزامی است.',
+            'share_type.required' => 'انتخاب نوع سهام الزامی است.',
+            'share_amount.required' => 'مبلغ سهام الزامی است.',
+            'share_percentage.required' => 'درصد سهام الزامی است.',
+            'share_percentage.gt' => 'درصد سهام باید بیشتر از صفر باشد.',
         ]);
         if ($type === 'personnel') {
             $allowed = config('shahbaz_people.personnel_job_titles', []);
@@ -124,9 +133,25 @@ class CompanyPeopleController extends Controller
         if ($query->exists()) throw ValidationException::withMessages(['board_position_choice' => 'برای این شرکت قبلاً یک مدیرعامل فعال ثبت شده است. ابتدا سمت قبلی را پایان دهید یا بایگانی کنید.']);
     }
 
+    private function ensureSharePercentageAvailable(int $companyId, string $type, array $data, ?int $ignoreId = null): void
+    {
+        if ($type !== 'shareholders') return;
+        $query = CompanyPerson::where('company_id', $companyId)->where('relation_type', 'shareholders')->where('status', '!=', 'archived');
+        if ($ignoreId) $query->where('id', '!=', $ignoreId);
+        $currentTotal = (float) $query->sum('share_percentage');
+        if ($currentTotal + (float) $data['share_percentage'] > 100.0000) {
+            throw ValidationException::withMessages(['share_percentage' => 'مجموع درصد سهامداران فعال نمی‌تواند بیشتر از ۱۰۰٪ باشد. درصد قابل ثبت باقی‌مانده: '.max(0, 100 - $currentTotal).'٪']);
+        }
+    }
+
     private function formOptions(): array
     {
-        return ['jobTitles' => config('shahbaz_people.personnel_job_titles', []), 'boardPositions' => config('shahbaz_people.board_positions', [])];
+        return [
+            'jobTitles' => config('shahbaz_people.personnel_job_titles', []),
+            'boardPositions' => config('shahbaz_people.board_positions', []),
+            'shareholderTypes' => config('shahbaz_people.shareholder_types', ['حقیقی']),
+            'shareTypes' => config('shahbaz_people.share_types', ['عادی','ممتاز']),
+        ];
     }
 
     private function mergeJalaliDates(Request $request, array $fields): void
