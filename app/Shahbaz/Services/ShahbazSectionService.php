@@ -61,6 +61,8 @@ class ShahbazSectionService
             'facilities' => \App\Shahbaz\Models\CompanyFacility::where('company_id', $company->id)->exists(),
             'gazettes' => \App\Shahbaz\Models\OfficialGazette::where('company_id', $company->id)->exists(),
             'registration' => \App\Shahbaz\Models\CompanyRegistration::where('company_id', $company->id)->exists(),
+            'branches' => \App\Shahbaz\Models\BranchPermit::where('company_id', $company->id)
+                ->where('status', 'active')->whereDate('expires_on', '>=', today())->exists(),
             default => false,
         };
     }
