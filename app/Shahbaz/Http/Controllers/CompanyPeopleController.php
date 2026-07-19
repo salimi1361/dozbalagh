@@ -26,16 +26,20 @@ class CompanyPeopleController extends Controller
     public function create(Request $request, string $type)
     {
         $this->validType($type); abort_unless($this->editable($request->user()->company), 403);
-        return view('Shahbaz.company.people.form', ['type' => $type, 'item' => new CompanyPerson, 'person' => new Person, 'jobTitles' => config('shahbaz_people.personnel_job_titles', [])]);
+        return view('Shahbaz.company.people.form', ['type' => $type, 'item' => new CompanyPerson, 'person' => new Person] + $this->formOptions());
     }
 
     public function store(Request $request, string $type)
     {
         $this->validType($type); $company = $request->user()->company; abort_unless($this->editable($company), 403);
         $data = $this->validateData($request, $type);
+        $this->ensureBoardPositionAvailable($company->id, $type, $data);
         DB::transaction(function () use ($data, $company, $request, $type) {
             $identity = filled($data['national_code'] ?? null) ? ['national_code' => $data['national_code']] : ['passport_number' => $data['passport_number']];
             $person = Person::updateOrCreate($identity, $this->personData($data));
+            if (CompanyPerson::where('company_id', $company->id)->where('person_id', $person->id)->where('relation_type', $type)->where('status', '!=', 'archived')->exists()) {
+                throw ValidationException::withMessages(['national_code' => 'این شخص قبلاً با همین نقش فعال در پرونده ثبت شده است.']);
+            }
             CompanyPerson::create($this->relationData($data, $type) + ['company_id' => $company->id, 'person_id' => $person->id, 'created_by_user_id' => $request->user()->id, 'status' => 'draft']);
         });
         return redirect()->route('company.shahbaz.people.index', $type)->with('success', 'اطلاعات شخص ثبت شد.');
@@ -44,13 +48,14 @@ class CompanyPeopleController extends Controller
     public function edit(Request $request, string $type, CompanyPerson $item)
     {
         $this->owned($request, $type, $item); abort_unless($this->editable($request->user()->company), 403);
-        return view('Shahbaz.company.people.form', ['type' => $type, 'item' => $item, 'person' => $item->person, 'jobTitles' => config('shahbaz_people.personnel_job_titles', [])]);
+        return view('Shahbaz.company.people.form', ['type' => $type, 'item' => $item, 'person' => $item->person] + $this->formOptions());
     }
 
     public function update(Request $request, string $type, CompanyPerson $item)
     {
         $this->owned($request, $type, $item); abort_unless($this->editable($request->user()->company), 403);
         $data = $this->validateData($request, $type, $item->person_id);
+        $this->ensureBoardPositionAvailable($item->company_id, $type, $data, $item->id);
         DB::transaction(function () use ($data, $item, $type) { $item->person->update($this->personData($data)); $item->update($this->relationData($data, $type)); });
         return redirect()->route('company.shahbaz.people.index', $type)->with('success', 'اطلاعات به‌روزرسانی شد.');
     }
@@ -71,20 +76,26 @@ class CompanyPeopleController extends Controller
             'started_on_jalali' => 'started_on',
             'ended_on_jalali' => 'ended_on',
         ]);
+        $nationalCodeRules = ['nullable','required_without:passport_number','string','max:30'];
+        $passportRules = ['nullable','required_without:national_code','string','max:50'];
+        if ($ignore) { $nationalCodeRules[] = Rule::unique('shahbaz_people')->ignore($ignore); $passportRules[] = Rule::unique('shahbaz_people')->ignore($ignore); }
         $data = $request->validate([
-            'nationality' => ['required','string','max:100'], 'national_code' => ['nullable','required_without:passport_number','string','max:30',Rule::unique('shahbaz_people')->ignore($ignore)],
-            'passport_number' => ['nullable','required_without:national_code','string','max:50',Rule::unique('shahbaz_people')->ignore($ignore)], 'first_name' => ['required','string','max:150'], 'last_name' => ['required','string','max:150'],
+            'nationality' => ['required','string','max:100'], 'national_code' => $nationalCodeRules,
+            'passport_number' => $passportRules, 'first_name' => ['required','string','max:150'], 'last_name' => ['required','string','max:150'],
             'father_name' => ['nullable','string','max:150'], 'birth_certificate_number' => ['nullable','string','max:50'], 'birth_date' => ['nullable','date'], 'birth_place' => ['nullable','string','max:150'],
             'issued_on' => ['nullable','date'], 'issue_city' => ['nullable','string','max:150'], 'gender' => ['nullable',Rule::in(['مرد','زن'])], 'is_veteran' => ['nullable','boolean'],
             'job_title_choice' => [$type === 'personnel' ? 'required' : 'nullable','string','max:150'],
             'custom_job_title' => ['nullable', $type === 'personnel' ? 'required_if:job_title_choice,__other__' : 'sometimes', 'string', 'max:150'],
-            'board_position' => [$type === 'board' ? 'required' : 'nullable','string','max:150'],
+            'board_position_choice' => [$type === 'board' ? 'required' : 'nullable','string','max:150'],
+            'custom_board_position' => ['nullable', $type === 'board' ? 'required_if:board_position_choice,__other__' : 'sometimes', 'string', 'max:150'],
             'shareholder_type' => [$type === 'shareholders' ? 'required' : 'nullable','string','max:50'], 'share_type' => ['nullable','string','max:50'], 'share_amount' => ['nullable','numeric','min:0'],
             'share_percentage' => ['nullable','numeric','min:0','max:100'], 'started_on' => ['nullable','date'], 'ended_on' => ['nullable','date','after_or_equal:started_on'], 'note' => ['nullable','string','max:2000'],
         ], [
             'custom_job_title.required_if' => 'در صورت انتخاب «سایر»، درج عنوان شغلی الزامی است.',
             'custom_job_title.string' => 'عنوان شغلی سایر باید به‌صورت متن وارد شود.',
             'job_title_choice.required' => 'انتخاب عنوان شغلی الزامی است.',
+            'custom_board_position.required_if' => 'در صورت انتخاب «سایر»، درج سمت هیئت‌مدیره الزامی است.',
+            'board_position_choice.required' => 'انتخاب سمت هیئت‌مدیره الزامی است.',
         ]);
         if ($type === 'personnel') {
             $allowed = config('shahbaz_people.personnel_job_titles', []);
@@ -93,8 +104,29 @@ class CompanyPeopleController extends Controller
             }
             $data['job_title'] = $data['job_title_choice'] === '__other__' ? $data['custom_job_title'] : $data['job_title_choice'];
         }
-        unset($data['job_title_choice'], $data['custom_job_title']);
+        if ($type === 'board') {
+            $allowed = config('shahbaz_people.board_positions', []);
+            if ($data['board_position_choice'] !== '__other__' && ! in_array($data['board_position_choice'], $allowed, true)) {
+                throw ValidationException::withMessages(['board_position_choice' => 'سمت هیئت‌مدیره انتخاب‌شده معتبر نیست.']);
+            }
+            $data['board_position'] = $data['board_position_choice'] === '__other__' ? $data['custom_board_position'] : $data['board_position_choice'];
+        }
+        unset($data['job_title_choice'], $data['custom_job_title'], $data['board_position_choice'], $data['custom_board_position']);
         return $data;
+    }
+
+    private function ensureBoardPositionAvailable(int $companyId, string $type, array $data, ?int $ignoreId = null): void
+    {
+        if ($type !== 'board' || ($data['board_position'] ?? null) !== 'مدیرعامل') return;
+        $query = CompanyPerson::where('company_id', $companyId)->where('relation_type', 'board')
+            ->where('board_position', 'مدیرعامل')->where('status', '!=', 'archived');
+        if ($ignoreId) $query->where('id', '!=', $ignoreId);
+        if ($query->exists()) throw ValidationException::withMessages(['board_position_choice' => 'برای این شرکت قبلاً یک مدیرعامل فعال ثبت شده است. ابتدا سمت قبلی را پایان دهید یا بایگانی کنید.']);
+    }
+
+    private function formOptions(): array
+    {
+        return ['jobTitles' => config('shahbaz_people.personnel_job_titles', []), 'boardPositions' => config('shahbaz_people.board_positions', [])];
     }
 
     private function mergeJalaliDates(Request $request, array $fields): void
