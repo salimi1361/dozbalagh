@@ -60,6 +60,7 @@ class ShahbazSectionService
             'fleet' => \App\Models\Fleet::where('company_id', $company->id)->exists(),
             'facilities' => \App\Shahbaz\Models\CompanyFacility::where('company_id', $company->id)->exists(),
             'gazettes' => \App\Shahbaz\Models\OfficialGazette::where('company_id', $company->id)->exists(),
+            'registration' => \App\Shahbaz\Models\CompanyRegistration::where('company_id', $company->id)->exists(),
             default => false,
         };
     }
