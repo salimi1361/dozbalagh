@@ -24,7 +24,7 @@ class CompanyPeopleController extends Controller
     public function create(Request $request, string $type)
     {
         $this->validType($type); abort_unless($this->editable($request->user()->company), 403);
-        return view('Shahbaz.company.people.form', ['type' => $type, 'item' => new CompanyPerson, 'person' => new Person]);
+        return view('Shahbaz.company.people.form', ['type' => $type, 'item' => new CompanyPerson, 'person' => new Person, 'jobTitles' => config('shahbaz_people.personnel_job_titles', [])]);
     }
 
     public function store(Request $request, string $type)
@@ -42,7 +42,7 @@ class CompanyPeopleController extends Controller
     public function edit(Request $request, string $type, CompanyPerson $item)
     {
         $this->owned($request, $type, $item); abort_unless($this->editable($request->user()->company), 403);
-        return view('Shahbaz.company.people.form', ['type' => $type, 'item' => $item, 'person' => $item->person]);
+        return view('Shahbaz.company.people.form', ['type' => $type, 'item' => $item, 'person' => $item->person, 'jobTitles' => config('shahbaz_people.personnel_job_titles', [])]);
     }
 
     public function update(Request $request, string $type, CompanyPerson $item)
@@ -63,15 +63,26 @@ class CompanyPeopleController extends Controller
 
     private function validateData(Request $request, string $type, ?int $ignore = null): array
     {
-        return $request->validate([
+        $data = $request->validate([
             'nationality' => ['required','string','max:100'], 'national_code' => ['nullable','required_without:passport_number','string','max:30',Rule::unique('shahbaz_people')->ignore($ignore)],
             'passport_number' => ['nullable','required_without:national_code','string','max:50',Rule::unique('shahbaz_people')->ignore($ignore)], 'first_name' => ['required','string','max:150'], 'last_name' => ['required','string','max:150'],
             'father_name' => ['nullable','string','max:150'], 'birth_certificate_number' => ['nullable','string','max:50'], 'birth_date' => ['nullable','date'], 'birth_place' => ['nullable','string','max:150'],
             'issued_on' => ['nullable','date'], 'issue_city' => ['nullable','string','max:150'], 'gender' => ['nullable',Rule::in(['مرد','زن'])], 'is_veteran' => ['nullable','boolean'],
-            'job_title' => [$type === 'personnel' ? 'required' : 'nullable','string','max:150'], 'board_position' => [$type === 'board' ? 'required' : 'nullable','string','max:150'],
+            'job_title_choice' => [$type === 'personnel' ? 'required' : 'nullable','string','max:150'],
+            'custom_job_title' => [$type === 'personnel' ? 'required_if:job_title_choice,__other__' : 'nullable','string','max:150'],
+            'board_position' => [$type === 'board' ? 'required' : 'nullable','string','max:150'],
             'shareholder_type' => [$type === 'shareholders' ? 'required' : 'nullable','string','max:50'], 'share_type' => ['nullable','string','max:50'], 'share_amount' => ['nullable','numeric','min:0'],
             'share_percentage' => ['nullable','numeric','min:0','max:100'], 'started_on' => ['nullable','date'], 'ended_on' => ['nullable','date','after_or_equal:started_on'], 'note' => ['nullable','string','max:2000'],
         ]);
+        if ($type === 'personnel') {
+            $allowed = config('shahbaz_people.personnel_job_titles', []);
+            if ($data['job_title_choice'] !== '__other__' && ! in_array($data['job_title_choice'], $allowed, true)) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['job_title_choice' => 'عنوان شغلی انتخاب‌شده معتبر نیست.']);
+            }
+            $data['job_title'] = $data['job_title_choice'] === '__other__' ? $data['custom_job_title'] : $data['job_title_choice'];
+        }
+        unset($data['job_title_choice'], $data['custom_job_title']);
+        return $data;
     }
 
     private function editable($company): bool { return in_array($company->shahbaz_verification_status, ['profile_incomplete','correction_required','shahbaz_mismatch'], true); }
