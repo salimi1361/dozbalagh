@@ -1,9 +1,8 @@
 @extends('layouts.app')
 @section('header_title','پرونده شرکت و شحباز داخلی')
 @section('content')
-@php
-    $statusLabels=['profile_incomplete'=>'پیش‌نویس پرونده','correction_required'=>'نیازمند اصلاح','pending_association_review'=>'در انتظار بررسی انجمن','shahbaz_mismatch'=>'دارای مغایرت شحباز','verified'=>'تأیید شده'];
-    $sectionRoutes = [
+@php($statusLabels=['profile_incomplete'=>'پیش‌نویس پرونده','correction_required'=>'نیازمند اصلاح','pending_association_review'=>'در انتظار بررسی انجمن','shahbaz_mismatch'=>'دارای مغایرت شحباز','verified'=>'تأیید شده'])
+@php($sectionRoutes = [
         'profile' => route('company.shahbaz.profile.edit'),
         'requests' => route('company.shahbaz.requests.index'),
         'fleet' => route('company.shahbaz.fleet.index'),
@@ -14,8 +13,7 @@
         'branches' => route('company.shahbaz.branches.index'),
         'manual_status' => route('company.shahbaz.manual-status.show'),
         'misc_documents' => route('company.shahbaz.misc-documents.index'),
-    ];
-@endphp
+    ])
 <div dir="rtl" class="mx-auto max-w-6xl space-y-6">
 <section class="rounded-3xl border bg-white p-6 shadow-sm"><div class="flex flex-wrap items-center justify-between gap-4"><div><h1 class="text-2xl font-black">{{ $company->name_fa }}</h1><p class="mt-2 text-sm text-slate-500">شناسه ملی: {{ $company->national_id ?: 'ثبت نشده' }} — وضعیت بررسی: {{ $statusLabels[$company->shahbaz_verification_status] ?? $company->shahbaz_verification_status }}</p></div><a href="{{ route('company.shahbaz.profile.edit') }}" class="rounded-xl bg-emerald-600 px-5 py-3 font-black text-white">تکمیل مشخصات پایه</a></div></section>
 @if($reminders['panel_enabled'] && $company->activity_license_expires_on)
@@ -33,10 +31,7 @@
 @endif
 <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 @foreach($sections as $section)
-@php
-    $url = $sectionRoutes[$section['key']] ?? null;
-    if (in_array($section['key'], ['personnel','board','shareholders'], true)) $url = route('company.shahbaz.people.index', $section['key']);
-@endphp
+@php($url = in_array($section['key'], ['personnel','board','shareholders'], true) ? route('company.shahbaz.people.index', $section['key']) : ($sectionRoutes[$section['key']] ?? null))
 <article class="rounded-2xl border p-5 shadow-sm {{ $section['locked'] ? 'border-slate-200 bg-slate-100 opacity-70' : ($section['complete'] ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-white') }}">
 <div class="flex items-center justify-between"><h2 class="font-black">{{ $loop->iteration }}. {{ $section['label'] }}</h2><span class="rounded-full px-3 py-1 text-xs font-bold {{ $section['complete'] ? 'bg-emerald-200 text-emerald-900' : ($section['locked'] ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-900') }}">{{ $section['complete'] ? 'تکمیل شده' : ($section['locked'] ? 'قفل' : 'نیازمند تکمیل') }}</span></div>
 <p class="mt-3 text-sm text-slate-600">{{ $section['required'] ? 'این بخش برای ادامه فرایند اجباری است.' : 'این بخش اختیاری یا صرفاً نمایشی است.' }}</p>
