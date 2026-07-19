@@ -18,11 +18,13 @@ class CompanyBranchPermitController extends Controller
     public function index(Request $request): View
     {
         $company = $request->user()->company;
+        $locations = $this->iranLocations();
 
         return view('Shahbaz.company.branches.index', [
             'company' => $company,
             'permits' => BranchPermit::where('company_id', $company->id)->latest('id')->get(),
             'editable' => in_array($company->shahbaz_verification_status, self::EDITABLE_STATUSES, true),
+            'iranLocations' => $locations,
         ]);
     }
 
@@ -38,10 +40,11 @@ class CompanyBranchPermitController extends Controller
         $this->mergeJalaliDate($request, 'issued_on_jalali', 'issued_on');
         $this->mergeJalaliDate($request, 'expires_on_jalali', 'expires_on');
 
+        $locations = $this->iranLocations();
         $data = $request->validate([
             'branch_type' => ['required', Rule::in(['شعبه', 'نمایندگی'])],
             'name' => ['required', 'string', 'max:200'],
-            'province' => ['required', 'string', 'max:100'],
+            'province' => ['required', Rule::in(array_keys($locations))],
             'city' => ['required', 'string', 'max:100'],
             'address' => ['required', 'string', 'max:2000'],
             'manager_name' => ['nullable', 'string', 'max:200'],
@@ -53,6 +56,9 @@ class CompanyBranchPermitController extends Controller
             'permit_number.unique' => 'این شماره مجوز قبلاً در سامانه ثبت شده است.',
             'expires_on.after_or_equal' => 'تاریخ پایان اعتبار نمی‌تواند قبل از تاریخ صدور باشد.',
         ]);
+        if (! in_array($data['city'], $locations[$data['province']] ?? [], true)) {
+            throw ValidationException::withMessages(['city' => 'شهر انتخاب‌شده متعلق به استان انتخاب‌شده نیست.']);
+        }
 
         BranchPermit::create($data + [
             'company_id' => $company->id,
@@ -75,5 +81,10 @@ class CompanyBranchPermitController extends Controller
         } catch (\Throwable) {
             throw ValidationException::withMessages([$source => 'تاریخ شمسی انتخاب‌شده معتبر نیست.']);
         }
+    }
+
+    private function iranLocations(): array
+    {
+        return json_decode((string) file_get_contents(resource_path('data/iran-locations.json')), true, 512, JSON_THROW_ON_ERROR);
     }
 }
