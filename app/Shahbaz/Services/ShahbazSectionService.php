@@ -64,6 +64,8 @@ class ShahbazSectionService
             'branches' => \App\Shahbaz\Models\BranchPermit::where('company_id', $company->id)
                 ->where('status', 'active')->whereDate('expires_on', '>=', today())->exists(),
             'manual_status' => filled($company->activity_license_status),
+            'misc_documents' => \App\Shahbaz\Models\MiscDocument::where('company_id', $company->id)
+                ->where('status', 'active')->exists(),
             default => false,
         };
     }
