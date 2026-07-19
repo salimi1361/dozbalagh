@@ -66,6 +66,7 @@ class ShahbazSectionService
             'manual_status' => filled($company->activity_license_status),
             'misc_documents' => \App\Shahbaz\Models\MiscDocument::where('company_id', $company->id)
                 ->where('status', 'active')->exists(),
+            'workflow' => $company->shahbaz_verification_status !== 'profile_incomplete',
             default => false,
         };
     }
