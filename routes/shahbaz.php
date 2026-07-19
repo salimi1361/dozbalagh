@@ -6,6 +6,7 @@ use App\Shahbaz\Http\Controllers\CompanyDossierController;
 use App\Shahbaz\Http\Controllers\CompanyLicenseRequestController;
 use App\Shahbaz\Http\Controllers\CompanyFleetDossierController;
 use App\Shahbaz\Http\Controllers\CompanyFacilitiesController;
+use App\Shahbaz\Http\Controllers\CompanyOfficialGazetteController;
 use App\Shahbaz\Http\Controllers\CompanyPeopleController;
 use App\Shahbaz\Http\Controllers\CompanyProfileController;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,8 @@ Route::middleware(['auth', 'role:company'])->prefix('company/shahbaz')->name('co
     Route::get('/fleet', [CompanyFleetDossierController::class, 'index'])->name('fleet.index');
     Route::get('/facilities', [CompanyFacilitiesController::class, 'edit'])->name('facilities.edit');
     Route::put('/facilities', [CompanyFacilitiesController::class, 'update'])->name('facilities.update');
+    Route::get('/gazettes', [CompanyOfficialGazetteController::class, 'index'])->name('gazettes.index');
+    Route::post('/gazettes', [CompanyOfficialGazetteController::class, 'store'])->name('gazettes.store');
     Route::get('/people/{type}', [CompanyPeopleController::class, 'index'])->name('people.index');
     Route::get('/people/{type}/create', [CompanyPeopleController::class, 'create'])->name('people.create');
     Route::post('/people/{type}', [CompanyPeopleController::class, 'store'])->name('people.store');

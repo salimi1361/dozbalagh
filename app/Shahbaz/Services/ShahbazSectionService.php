@@ -59,6 +59,7 @@ class ShahbazSectionService
                 ->where('relation_type', $key)->where('status', '!=', 'archived')->exists(),
             'fleet' => \App\Models\Fleet::where('company_id', $company->id)->exists(),
             'facilities' => \App\Shahbaz\Models\CompanyFacility::where('company_id', $company->id)->exists(),
+            'gazettes' => \App\Shahbaz\Models\OfficialGazette::where('company_id', $company->id)->exists(),
             default => false,
         };
     }
