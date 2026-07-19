@@ -57,6 +57,7 @@ class ShahbazSectionService
                 && filled($company->activity_license_expires_on),
             'personnel', 'board', 'shareholders' => \App\Shahbaz\Models\CompanyPerson::where('company_id', $company->id)
                 ->where('relation_type', $key)->where('status', '!=', 'archived')->exists(),
+            'fleet' => \App\Models\Fleet::where('company_id', $company->id)->exists(),
             default => false,
         };
     }
