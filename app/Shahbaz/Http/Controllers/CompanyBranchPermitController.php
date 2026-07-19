@@ -30,7 +30,11 @@ class CompanyBranchPermitController extends Controller
     {
         $company = $request->user()->company;
         abort_unless(in_array($company->shahbaz_verification_status, self::EDITABLE_STATUSES, true), 403);
-        abort_unless(filled($company->activity_license_number), 422, 'ابتدا پروانه اصلی شرکت باید ثبت و تأیید شود.');
+        if (! filled($company->activity_license_number)) {
+            throw ValidationException::withMessages([
+                'permit_number' => 'ابتدا پروانه اصلی شرکت باید توسط انجمن ثبت و تأیید شود.',
+            ]);
+        }
         $this->mergeJalaliDate($request, 'issued_on_jalali', 'issued_on');
         $this->mergeJalaliDate($request, 'expires_on_jalali', 'expires_on');
 

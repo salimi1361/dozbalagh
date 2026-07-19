@@ -31,7 +31,11 @@ class CompanyRegistrationController extends Controller
     {
         $company = $request->user()->company;
         abort_unless(in_array($company->shahbaz_verification_status, self::EDITABLE_STATUSES, true), 403);
-        abort_unless(filled($company->national_id) && filled($company->registration_number), 422, 'ابتدا شناسه ملی و شماره ثبت را در مشخصات پایه شرکت تکمیل کنید.');
+        if (! filled($company->national_id) || ! filled($company->registration_number)) {
+            throw ValidationException::withMessages([
+                'registration_city' => 'ابتدا شناسه ملی و شماره ثبت را در مشخصات پایه شرکت تکمیل کنید.',
+            ]);
+        }
 
         $this->mergeJalaliDate($request, 'registered_on_jalali', 'registered_on', true);
         $this->mergeJalaliDate($request, 'introduction_letter_date_jalali', 'introduction_letter_date');

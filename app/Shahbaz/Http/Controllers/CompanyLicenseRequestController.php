@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CompanyLicenseRequestController extends Controller
 {
@@ -104,7 +105,11 @@ class CompanyLicenseRequestController extends Controller
         ]);
 
         if ($data['request_type'] === 'renewal') {
-            abort_unless(filled($company->activity_license_number) && filled($company->activity_license_expires_on), 422, 'تمدید فقط برای پروانه قبلی ثبت‌شده مجاز است.');
+            if (! filled($company->activity_license_number) || ! filled($company->activity_license_expires_on)) {
+                throw ValidationException::withMessages([
+                    'request_type' => 'تمدید فقط برای شرکتی مجاز است که پروانه قبلی آن در سامانه ثبت شده باشد. برای شرکت بدون پروانه، «صدور اولیه پروانه» را انتخاب کنید.',
+                ]);
+            }
             $data['previous_license_number'] = $company->activity_license_number;
             $data['previous_license_expires_on'] = $company->activity_license_expires_on;
         }
