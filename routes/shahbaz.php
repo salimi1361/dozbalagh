@@ -5,6 +5,7 @@ use App\Shahbaz\Http\Controllers\AssociationVerificationController;
 use App\Shahbaz\Http\Controllers\CompanyDossierController;
 use App\Shahbaz\Http\Controllers\CompanyLicenseRequestController;
 use App\Shahbaz\Http\Controllers\CompanyManualStatusController;
+use App\Shahbaz\Http\Controllers\CompanyMiscDocumentController;
 use App\Shahbaz\Http\Controllers\CompanyLicensesController;
 use App\Shahbaz\Http\Controllers\CompanyFleetDossierController;
 use App\Shahbaz\Http\Controllers\CompanyFacilitiesController;
@@ -36,6 +37,10 @@ Route::middleware(['auth', 'role:company'])->prefix('company/shahbaz')->name('co
     Route::get('/branches', [CompanyBranchPermitController::class, 'index'])->name('branches.index');
     Route::post('/branches', [CompanyBranchPermitController::class, 'store'])->name('branches.store');
     Route::get('/manual-status', [CompanyManualStatusController::class, 'show'])->name('manual-status.show');
+    Route::get('/misc-documents', [CompanyMiscDocumentController::class, 'index'])->name('misc-documents.index');
+    Route::post('/misc-documents', [CompanyMiscDocumentController::class, 'store'])->name('misc-documents.store');
+    Route::get('/misc-documents/{document}/download', [CompanyMiscDocumentController::class, 'download'])->name('misc-documents.download');
+    Route::delete('/misc-documents/{document}', [CompanyMiscDocumentController::class, 'archive'])->name('misc-documents.archive');
     Route::get('/people/{type}', [CompanyPeopleController::class, 'index'])->name('people.index');
     Route::get('/people/{type}/create', [CompanyPeopleController::class, 'create'])->name('people.create');
     Route::post('/people/{type}', [CompanyPeopleController::class, 'store'])->name('people.store');
