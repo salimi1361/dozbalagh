@@ -4,6 +4,7 @@ use App\Shahbaz\Http\Controllers\AdminSettingsController;
 use App\Shahbaz\Http\Controllers\AssociationVerificationController;
 use App\Shahbaz\Http\Controllers\CompanyDossierController;
 use App\Shahbaz\Http\Controllers\CompanyLicenseRequestController;
+use App\Shahbaz\Http\Controllers\CompanyLicensesController;
 use App\Shahbaz\Http\Controllers\CompanyFleetDossierController;
 use App\Shahbaz\Http\Controllers\CompanyFacilitiesController;
 use App\Shahbaz\Http\Controllers\CompanyOfficialGazetteController;
@@ -29,6 +30,7 @@ Route::middleware(['auth', 'role:company'])->prefix('company/shahbaz')->name('co
     Route::post('/gazettes', [CompanyOfficialGazetteController::class, 'store'])->name('gazettes.store');
     Route::get('/registration', [CompanyRegistrationController::class, 'edit'])->name('registration.edit');
     Route::put('/registration', [CompanyRegistrationController::class, 'update'])->name('registration.update');
+    Route::get('/licenses', [CompanyLicensesController::class, 'index'])->name('licenses.index');
     Route::get('/people/{type}', [CompanyPeopleController::class, 'index'])->name('people.index');
     Route::get('/people/{type}/create', [CompanyPeopleController::class, 'create'])->name('people.create');
     Route::post('/people/{type}', [CompanyPeopleController::class, 'store'])->name('people.store');
