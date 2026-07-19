@@ -28,7 +28,24 @@
 
     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         @forelse($gazettes as $gazette)
-            <article class="rounded-2xl border bg-white p-5 shadow-sm"><div class="flex items-center justify-between gap-3"><strong>{{ $gazette->change_group }}</strong><span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">ثبت شده</span></div><dl class="mt-4 space-y-2 text-sm"><div>شماره روزنامه: <b dir="ltr">{{ $gazette->gazette_number }}</b></div><div>تاریخ روزنامه: <b>{{ verta($gazette->gazette_date)->format('Y/m/d') }}</b></div><div>موضوع: <b>{{ $gazette->subject }}</b></div><div>شماره اعلامیه: <b dir="ltr">{{ $gazette->notice_number ?: 'ثبت نشده' }}</b></div>@if($gazette->notice_date)<div>تاریخ اعلامیه: <b>{{ verta($gazette->notice_date)->format('Y/m/d') }}</b></div>@endif@if($gazette->notes)<div class="border-t pt-2 text-slate-600">{{ $gazette->notes }}</div>@endif</dl></article>
+            <article class="rounded-2xl border bg-white p-5 shadow-sm">
+                <div class="flex items-center justify-between gap-3">
+                    <strong>{{ $gazette->change_group }}</strong>
+                    <span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-800">ثبت شده</span>
+                </div>
+                <dl class="mt-4 space-y-2 text-sm">
+                    <div>شماره روزنامه: <b dir="ltr">{{ $gazette->gazette_number }}</b></div>
+                    <div>تاریخ روزنامه: <b>{{ verta($gazette->gazette_date)->format('Y/m/d') }}</b></div>
+                    <div>موضوع: <b>{{ $gazette->subject }}</b></div>
+                    <div>شماره اعلامیه: <b dir="ltr">{{ $gazette->notice_number ?: 'ثبت نشده' }}</b></div>
+                    @if($gazette->notice_date)
+                        <div>تاریخ اعلامیه: <b>{{ verta($gazette->notice_date)->format('Y/m/d') }}</b></div>
+                    @endif
+                    @if($gazette->notes)
+                        <div class="border-t pt-2 text-slate-600">{{ $gazette->notes }}</div>
+                    @endif
+                </dl>
+            </article>
         @empty
             <div class="rounded-2xl border border-dashed bg-white p-10 text-center text-slate-500 md:col-span-2 xl:col-span-3">هنوز سابقه‌ای از روزنامه رسمی ثبت نشده است.</div>
         @endforelse
