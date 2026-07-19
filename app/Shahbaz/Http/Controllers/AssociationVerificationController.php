@@ -6,7 +6,49 @@ use App\Http\Controllers\Controller; use App\Models\Company; use App\Shahbaz\Mod
 class AssociationVerificationController extends Controller
 {
     public function index(){ $companies=Company::whereIn('shahbaz_verification_status',['pending_association_review','correction_required','shahbaz_mismatch'])->latest('updated_at')->paginate(25); return view('Shahbaz.association.index',compact('companies')); }
-    public function show(Company $company, CompanyEligibilityService $eligibility){ $company->load(['shahbazVerificationHistories.changedBy']); return view('Shahbaz.association.show',compact('company','eligibility')); }
+    public function show(Company $company, CompanyEligibilityService $eligibility)
+    {
+        $company->load(['shahbazVerificationHistories.changedBy']);
+        $licenseRequests = \App\Shahbaz\Models\LicenseRequest::where('company_id', $company->id)->latest()->get();
+        $paymentRequests = \App\Shahbaz\Models\PaymentRequest::with(['licenseRequest', 'approver'])
+            ->where('company_id', $company->id)->latest()->get();
+
+        return view('Shahbaz.association.show', compact('company', 'eligibility', 'licenseRequests', 'paymentRequests'));
+    }
+    public function paymentStore(Request $request, Company $company)
+    {
+        $data = $request->validate([
+            'license_request_id' => [
+                'required',
+                Rule::exists('shahbaz_license_requests', 'id')->where('company_id', $company->id),
+            ],
+            'amount' => ['required', 'integer', 'min:10000', 'max:999999999999'],
+            'description' => ['nullable', 'string', 'max:2000'],
+        ], [
+            'license_request_id.exists' => 'درخواست انتخاب‌شده متعلق به این شرکت نیست.',
+            'amount.min' => 'مبلغ صورتحساب باید حداقل ۱۰٬۰۰۰ ریال باشد.',
+        ]);
+
+        $licenseRequest = \App\Shahbaz\Models\LicenseRequest::where('company_id', $company->id)
+            ->findOrFail($data['license_request_id']);
+
+        if (\App\Shahbaz\Models\PaymentRequest::where('license_request_id', $licenseRequest->id)
+            ->whereIn('status', ['pending_payment', 'processing', 'paid'])->exists()) {
+            return back()->withErrors(['amount' => 'برای این درخواست قبلاً صورتحساب فعال یا پرداخت‌شده ثبت شده است.']);
+        }
+
+        \App\Shahbaz\Models\PaymentRequest::create([
+            'company_id' => $company->id,
+            'license_request_id' => $licenseRequest->id,
+            'amount' => $data['amount'],
+            'status' => 'pending_payment',
+            'description' => $data['description'] ?? null,
+            'approved_by_user_id' => $request->user()->id,
+            'approved_at' => now(),
+        ]);
+
+        return back()->with('success', 'مبلغ تأیید و صورتحساب برای شرکت صادر شد.');
+    }
     public function review(Request $request, Company $company, CompanyEligibilityService $eligibility)
     {
         foreach (['activity_license_issued_on_jalali'=>'activity_license_issued_on','activity_license_expires_on_jalali'=>'activity_license_expires_on'] as $jalaliField=>$dateField) {

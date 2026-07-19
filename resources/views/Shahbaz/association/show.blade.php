@@ -3,6 +3,7 @@
 @section('content')
 <link rel="stylesheet" href="{{ asset('assets/css/persian-datepicker.vendor.min.css') }}"><style>.datepicker-plot-area{font-family:'Vazirmatn',Tahoma,sans-serif!important;z-index:99999!important}.jalali-picker{cursor:pointer}</style>
 <div dir="rtl" class="mx-auto max-w-5xl rounded-2xl border bg-white p-6"><h1 class="text-xl font-black">{{ $company->name_fa }}</h1>
+@if(session('success'))<div class="my-4 rounded-xl bg-emerald-50 p-4 text-emerald-800">{{ session('success') }}</div>@endif
 @if($errors->any())<div class="my-4 rounded-xl bg-rose-50 p-4 text-rose-800">{{ $errors->first() }}</div>@endif
 <div class="mt-5 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-sm"><span>شناسه ملی: <b>{{ $company->national_id }}</b></span><span>شماره ثبت: <b>{{ $company->registration_number }}</b></span><span>مدیرعامل: <b>{{ $company->ceo_name }}</b></span><span>کد ملی مدیرعامل: <b>{{ $company->ceo_national_code }}</b></span><span class="col-span-2">آدرس: <b>{{ $company->address_fa }}</b></span><span>نوع فعالیت: <b>{{ $company->activity_type }}</b></span><span>وضعیت: <b>{{ $company->shahbaz_verification_status }}</b></span></div>
 <form method="POST" action="{{ route('association.shahbaz.companies.review',$company) }}" class="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">@csrf
@@ -10,6 +11,21 @@
 <label>شماره پروانه<input name="activity_license_number" class="mt-2 w-full rounded-lg border p-2"></label><label>تاریخ صدور (شمسی)<span class="relative mt-2 block"><input type="text" readonly autocomplete="off" name="activity_license_issued_on_jalali" class="jalali-picker w-full rounded-lg border py-2 pl-11 pr-3 text-center" dir="ltr" placeholder="انتخاب تاریخ صدور"><span class="pointer-events-none absolute left-3 top-2 text-lg">🗓️</span></span></label><label>پایان اعتبار (شمسی)<span class="relative mt-2 block"><input type="text" readonly autocomplete="off" name="activity_license_expires_on_jalali" class="jalali-picker w-full rounded-lg border py-2 pl-11 pr-3 text-center" dir="ltr" placeholder="انتخاب پایان اعتبار"><span class="pointer-events-none absolute left-3 top-2 text-lg">🗓️</span></span></label>
 <label class="md:col-span-2">توضیحات کارشناس<textarea name="description" required class="mt-2 w-full rounded-lg border p-2"></textarea></label><div class="md:col-span-2"><button class="rounded-xl bg-emerald-600 px-6 py-3 font-black text-white">ثبت نتیجه غیرقابل بازنویسی</button></div></form>
 <h2 class="mt-8 font-black">تاریخچه</h2>@foreach($company->shahbazVerificationHistories->sortByDesc('id') as $row)<div class="mt-2 rounded-lg border p-3 text-sm">{{ verta($row->created_at)->format('Y/m/d H:i') }} — {{ $row->from_status }} ← {{ $row->to_status }} — {{ $row->description }}</div>@endforeach
+<section class="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+<h2 class="text-lg font-black text-slate-900">تعیین هزینه و صدور صورتحساب</h2>
+<p class="mt-1 text-sm text-slate-600">پس از تأیید مبلغ، صورتحساب برای شرکت قابل مشاهده خواهد بود و مبلغ قابل ویرایش نیست.</p>
+@if($licenseRequests->isEmpty())
+<div class="mt-4 rounded-xl bg-white p-4 text-sm text-amber-800">این شرکت هنوز درخواست پروانه‌ای ثبت نکرده است.</div>
+@else
+<form method="POST" action="{{ route('association.shahbaz.payments.store', $company) }}" class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">@csrf
+<label>درخواست پروانه<select name="license_request_id" required class="mt-2 w-full rounded-lg border p-2"><option value="">انتخاب درخواست</option>@foreach($licenseRequests as $licenseRequest)<option value="{{ $licenseRequest->id }}" @selected(old('license_request_id') == $licenseRequest->id)>{{ $licenseRequest->tracking_code }} — {{ $licenseRequest->request_type }} — {{ $licenseRequest->status }}</option>@endforeach</select></label>
+<label>مبلغ (ریال)<input type="number" name="amount" value="{{ old('amount') }}" min="10000" step="1" required class="mt-2 w-full rounded-lg border p-2" placeholder="مثلاً 70000000"></label>
+<label class="md:col-span-2">شرح هزینه<textarea name="description" maxlength="2000" class="mt-2 w-full rounded-lg border p-2" placeholder="شرح هزینه صدور یا تمدید پروانه">{{ old('description') }}</textarea></label>
+<div class="md:col-span-2"><button class="rounded-xl bg-amber-600 px-6 py-3 font-black text-white">تأیید مبلغ و صدور صورتحساب</button></div>
+</form>
+@endif
+</section>
+<section class="mt-6"><h2 class="font-black">سوابق صورتحساب‌ها</h2><div class="mt-3 space-y-2">@forelse($paymentRequests as $payment)<div class="rounded-xl border p-4 text-sm"><b>{{ number_format($payment->amount) }} ریال</b> — {{ $payment->status }} — درخواست {{ $payment->licenseRequest?->tracking_code }}<div class="mt-1 text-slate-500">{{ $payment->description ?: 'بدون توضیح' }} — {{ verta($payment->approved_at)->format('Y/m/d H:i') }} — {{ $payment->approver?->name ?? 'کاربر انجمن' }}</div></div>@empty<div class="rounded-xl border border-dashed p-4 text-sm text-slate-500">صورتحسابی ثبت نشده است.</div>@endforelse</div></section>
 </div>@endsection
 @section('scripts')
 <script src="{{ asset('assets/js/persian-date.vendor.min.js') }}"></script><script src="{{ asset('assets/js/persian-datepicker.vendor.min.js') }}"></script>

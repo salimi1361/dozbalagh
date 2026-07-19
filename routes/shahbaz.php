@@ -46,6 +46,7 @@ Route::middleware(['auth', 'role:admin,association'])->prefix('association/shahb
     Route::get('/companies', [AssociationVerificationController::class, 'index'])->name('companies.index');
     Route::get('/companies/{company}', [AssociationVerificationController::class, 'show'])->name('companies.show');
     Route::post('/companies/{company}/review', [AssociationVerificationController::class, 'review'])->name('companies.review');
+    Route::post('/companies/{company}/payment-requests', [AssociationVerificationController::class, 'paymentStore'])->name('payments.store');
 });
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin/shahbaz')->name('admin.shahbaz.')->group(function () {
