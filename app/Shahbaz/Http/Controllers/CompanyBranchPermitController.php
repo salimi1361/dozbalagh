@@ -85,6 +85,21 @@ class CompanyBranchPermitController extends Controller
 
     private function iranLocations(): array
     {
-        return json_decode((string) file_get_contents(resource_path('data/iran-locations.json')), true, 512, JSON_THROW_ON_ERROR);
+        $locations = json_decode(
+            (string) file_get_contents(resource_path('data/iran-locations.json')),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+
+        return collect($locations)->map(static function ($cities): array {
+            // The upstream dataset may serialize PowerShell arrays as
+            // {"value": [...], "Count": n}; always expose plain city arrays.
+            if (is_array($cities) && array_key_exists('value', $cities)) {
+                $cities = $cities['value'];
+            }
+
+            return array_values(array_filter((array) $cities, 'is_string'));
+        })->all();
     }
 }
