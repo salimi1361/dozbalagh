@@ -54,6 +54,8 @@ Route::middleware(['auth', 'role:company'])->prefix('company/shahbaz')->name('co
 Route::middleware(['auth', 'role:admin,association'])->prefix('association/shahbaz')->name('association.shahbaz.')->group(function () {
     Route::get('/companies', [AssociationVerificationController::class, 'index'])->name('companies.index');
     Route::get('/companies/{company}', [AssociationVerificationController::class, 'show'])->name('companies.show');
+    Route::get('/companies/{company}/dossier', [AssociationVerificationController::class, 'dossierHome'])->name('companies.dossier');
+    Route::get('/companies/{company}/dossier/{section}', [AssociationVerificationController::class, 'dossierSection'])->name('companies.dossier.section');
     Route::get('/companies/{company}/documents/{document}/download', [AssociationVerificationController::class, 'downloadDocument'])->name('companies.documents.download');
     Route::post('/companies/{company}/initial-review', [AssociationVerificationController::class, 'initialReview'])->name('companies.initial-review');
     Route::post('/companies/{company}/dossier-reviews', [AssociationVerificationController::class, 'dossierReview'])->name('companies.dossier-reviews.store');
