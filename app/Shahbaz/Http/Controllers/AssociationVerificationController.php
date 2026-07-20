@@ -28,10 +28,25 @@ class AssociationVerificationController extends Controller
             'gazettes' => \App\Shahbaz\Models\OfficialGazette::where('company_id', $company->id)->latest('gazette_date')->get(),
             'registration' => \App\Shahbaz\Models\CompanyRegistration::where('company_id', $company->id)->first(),
             'branches' => \App\Shahbaz\Models\BranchPermit::where('company_id', $company->id)->latest()->get(),
-            'documents' => \App\Shahbaz\Models\MiscDocument::where('company_id', $company->id)->latest()->get(),
+            'documents' => \App\Shahbaz\Models\MiscDocument::where('company_id', $company->id)->where('status', 'active')->latest()->get(),
         ];
+        $latestReviews = \App\Shahbaz\Models\DossierReview::with('reviewer')->where('company_id', $company->id)
+            ->latest('id')->get()->unique(fn ($review) => $review->entity_type.':'.$review->entity_id)
+            ->keyBy(fn ($review) => $review->entity_type.':'.$review->entity_id);
+        $reviewItems = collect([[
+            'section' => 'profile', 'type' => 'company', 'id' => $company->id,
+            'title' => 'مشخصات پایه شرکت', 'summary' => $company->national_id.' — '.$company->registration_number, 'updated_at'=>$company->updated_at,
+        ]]);
+        foreach ($licenseRequests as $item) $reviewItems->push(['section'=>'requests','type'=>'license_request','id'=>$item->id,'title'=>'درخواست '.$item->tracking_code,'summary'=>$item->request_type.' — '.$item->status,'updated_at'=>$item->updated_at]);
+        foreach ($dossier['people'] as $type => $relations) foreach ($relations as $item) $reviewItems->push(['section'=>$type,'type'=>'company_person','id'=>$item->id,'title'=>trim(($item->person?->first_name ?? '').' '.($item->person?->last_name ?? '')),'summary'=>$item->job_title ?: ($item->board_position ?: ($item->shareholder_type ?: $type)),'updated_at'=>$item->updated_at]);
+        foreach ($dossier['fleets'] as $item) $reviewItems->push(['section'=>'fleet','type'=>'fleet','id'=>$item->id,'title'=>'ناوگان '.$item->transit_plate,'summary'=>$item->truck_type.' — کارت '.$item->smart_card_number,'updated_at'=>$item->updated_at]);
+        if ($dossier['facility']) $reviewItems->push(['section'=>'facilities','type'=>'facility','id'=>$dossier['facility']->id,'title'=>'محل و امکانات','summary'=>$dossier['facility']->location_type.' — '.$dossier['facility']->ownership_type,'updated_at'=>$dossier['facility']->updated_at]);
+        foreach ($dossier['gazettes'] as $item) $reviewItems->push(['section'=>'gazettes','type'=>'gazette','id'=>$item->id,'title'=>'روزنامه رسمی '.$item->gazette_number,'summary'=>$item->change_group.' — '.$item->subject,'updated_at'=>$item->updated_at]);
+        if ($dossier['registration']) $reviewItems->push(['section'=>'registration','type'=>'registration','id'=>$dossier['registration']->id,'title'=>'ثبت شرکت','summary'=>$dossier['registration']->registration_city.' — '.$dossier['registration']->legal_type,'updated_at'=>$dossier['registration']->updated_at]);
+        foreach ($dossier['branches'] as $item) $reviewItems->push(['section'=>'branches','type'=>'branch','id'=>$item->id,'title'=>$item->name,'summary'=>$item->branch_type.' — '.$item->permit_number,'updated_at'=>$item->updated_at]);
+        foreach ($dossier['documents'] as $item) $reviewItems->push(['section'=>'misc_documents','type'=>'misc_document','id'=>$item->id,'title'=>$item->subject,'summary'=>$item->original_name,'updated_at'=>$item->updated_at]);
 
-        return view('Shahbaz.association.show', compact('company', 'eligibility', 'licenseRequests', 'paymentRequests', 'dossier'));
+        return view('Shahbaz.association.show', compact('company', 'eligibility', 'licenseRequests', 'paymentRequests', 'dossier', 'reviewItems', 'latestReviews'));
     }
     public function downloadDocument(Company $company, \App\Shahbaz\Models\MiscDocument $document)
     {
@@ -39,6 +54,42 @@ class AssociationVerificationController extends Controller
         abort_unless(Storage::disk('local')->exists($document->storage_path), 404);
 
         return Storage::disk('local')->download($document->storage_path, $document->original_name);
+    }
+    public function dossierReview(Request $request, Company $company)
+    {
+        abort_unless($company->shahbaz_verification_status === 'pending_association_review', 403);
+        $data = $request->validate([
+            'section_key' => ['required', Rule::in(['profile','requests','personnel','board','shareholders','fleet','facilities','gazettes','registration','branches','misc_documents'])],
+            'entity_type' => ['required', Rule::in(['company','license_request','company_person','fleet','facility','gazette','registration','branch','misc_document'])],
+            'entity_id' => ['required', 'integer', 'min:1'],
+            'status' => ['required', Rule::in(['approved','correction_required'])],
+            'note' => ['nullable', 'required_if:status,correction_required', 'string', 'max:2000'],
+        ]);
+        $models = [
+            'company'=>Company::class, 'license_request'=>\App\Shahbaz\Models\LicenseRequest::class,
+            'company_person'=>\App\Shahbaz\Models\CompanyPerson::class, 'fleet'=>\App\Models\Fleet::class,
+            'facility'=>\App\Shahbaz\Models\CompanyFacility::class, 'gazette'=>\App\Shahbaz\Models\OfficialGazette::class,
+            'registration'=>\App\Shahbaz\Models\CompanyRegistration::class, 'branch'=>\App\Shahbaz\Models\BranchPermit::class,
+            'misc_document'=>\App\Shahbaz\Models\MiscDocument::class,
+        ];
+        $entity = $models[$data['entity_type']]::findOrFail($data['entity_id']);
+        abort_unless($entity instanceof Company ? $entity->id === $company->id : $entity->company_id === $company->id, 403);
+        $expectedSection = match ($data['entity_type']) {
+            'company'=>'profile', 'license_request'=>'requests', 'company_person'=>$entity->relation_type,
+            'fleet'=>'fleet', 'facility'=>'facilities', 'gazette'=>'gazettes', 'registration'=>'registration',
+            'branch'=>'branches', 'misc_document'=>'misc_documents',
+        };
+        if ($expectedSection !== $data['section_key']) {
+            throw ValidationException::withMessages(['section_key' => 'بخش انتخاب‌شده با نوع رکورد مطابقت ندارد.']);
+        }
+
+        \App\Shahbaz\Models\DossierReview::create([
+            'company_id'=>$company->id, 'section_key'=>$data['section_key'], 'entity_type'=>$data['entity_type'],
+            'entity_id'=>$entity->id, 'status'=>$data['status'], 'note'=>$data['note'] ?? null,
+            'entity_snapshot'=>$entity->toArray(), 'reviewed_by_user_id'=>$request->user()->id, 'reviewed_at'=>now(),
+        ]);
+
+        return back()->with('success', 'نتیجه کنترل این مورد ثبت شد.');
     }
     public function paymentStore(Request $request, Company $company)
     {
@@ -81,6 +132,18 @@ class AssociationVerificationController extends Controller
             'result' => ['required', Rule::in(['initial_approved', 'correction_required', 'rejected'])],
             'description' => ['required', 'string', 'max:3000'],
         ]);
+        if ($data['result'] === 'initial_approved') {
+            $latest = \App\Shahbaz\Models\DossierReview::where('company_id', $company->id)->latest('id')->get()
+                ->unique(fn ($review) => $review->entity_type.':'.$review->entity_id)
+                ->keyBy(fn ($review) => $review->entity_type.':'.$review->entity_id);
+            $pending = collect($this->reviewEntityStates($company))->filter(function ($updatedAt, $key) use ($latest) {
+                $review = $latest->get($key);
+                return ! $review || $review->status !== 'approved' || $review->reviewed_at->lt($updatedAt);
+            });
+            if ($pending->isNotEmpty()) {
+                return back()->withErrors(['result' => 'ابتدا تمام موارد پرونده را جداگانه بررسی و تأیید کنید. تعداد باقی‌مانده: '.$pending->count()]);
+            }
+        }
         $to = match ($data['result']) {
             'initial_approved' => 'ready_for_shahbaz_check',
             'correction_required' => 'correction_required',
@@ -129,6 +192,23 @@ class AssociationVerificationController extends Controller
         });
 
         return redirect()->route('association.shahbaz.companies.index')->with('success', 'نتیجه بررسی اولیه ثبت شد.');
+    }
+    private function reviewEntityStates(Company $company): array
+    {
+        $states = ['company:'.$company->id => $company->updated_at];
+        $sources = [
+            'license_request' => \App\Shahbaz\Models\LicenseRequest::where('company_id',$company->id)->whereNotIn('status',['cancelled','rejected'])->get(['id','updated_at']),
+            'company_person' => \App\Shahbaz\Models\CompanyPerson::where('company_id',$company->id)->where('status','!=','archived')->get(['id','updated_at']),
+            'fleet' => \App\Models\Fleet::where('company_id',$company->id)->get(['id','updated_at']),
+            'facility' => \App\Shahbaz\Models\CompanyFacility::where('company_id',$company->id)->get(['id','updated_at']),
+            'gazette' => \App\Shahbaz\Models\OfficialGazette::where('company_id',$company->id)->get(['id','updated_at']),
+            'registration' => \App\Shahbaz\Models\CompanyRegistration::where('company_id',$company->id)->get(['id','updated_at']),
+            'branch' => \App\Shahbaz\Models\BranchPermit::where('company_id',$company->id)->get(['id','updated_at']),
+            'misc_document' => \App\Shahbaz\Models\MiscDocument::where('company_id',$company->id)->where('status','active')->get(['id','updated_at']),
+        ];
+        foreach ($sources as $type => $items) foreach ($items as $item) $states[$type.':'.$item->id] = $item->updated_at;
+
+        return $states;
     }
     public function review(Request $request, Company $company, CompanyEligibilityService $eligibility)
     {

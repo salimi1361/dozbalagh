@@ -56,6 +56,7 @@ Route::middleware(['auth', 'role:admin,association'])->prefix('association/shahb
     Route::get('/companies/{company}', [AssociationVerificationController::class, 'show'])->name('companies.show');
     Route::get('/companies/{company}/documents/{document}/download', [AssociationVerificationController::class, 'downloadDocument'])->name('companies.documents.download');
     Route::post('/companies/{company}/initial-review', [AssociationVerificationController::class, 'initialReview'])->name('companies.initial-review');
+    Route::post('/companies/{company}/dossier-reviews', [AssociationVerificationController::class, 'dossierReview'])->name('companies.dossier-reviews.store');
     Route::post('/companies/{company}/review', [AssociationVerificationController::class, 'review'])->name('companies.review');
     Route::post('/companies/{company}/payment-requests', [AssociationVerificationController::class, 'paymentStore'])->name('payments.store');
 });
