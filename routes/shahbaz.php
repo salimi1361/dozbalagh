@@ -54,6 +54,7 @@ Route::middleware(['auth', 'role:company'])->prefix('company/shahbaz')->name('co
 Route::middleware(['auth', 'role:admin,association'])->prefix('association/shahbaz')->name('association.shahbaz.')->group(function () {
     Route::get('/companies', [AssociationVerificationController::class, 'index'])->name('companies.index');
     Route::get('/companies/{company}', [AssociationVerificationController::class, 'show'])->name('companies.show');
+    Route::post('/companies/{company}/initial-review', [AssociationVerificationController::class, 'initialReview'])->name('companies.initial-review');
     Route::post('/companies/{company}/review', [AssociationVerificationController::class, 'review'])->name('companies.review');
     Route::post('/companies/{company}/payment-requests', [AssociationVerificationController::class, 'paymentStore'])->name('payments.store');
 });

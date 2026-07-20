@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('header_title','پرونده شرکت و شحباز داخلی')
 @section('content')
-@php($statusLabels=['profile_incomplete'=>'پیش‌نویس پرونده','correction_required'=>'نیازمند اصلاح','pending_association_review'=>'در انتظار بررسی انجمن','shahbaz_mismatch'=>'دارای مغایرت شحباز','verified'=>'تأیید شده'])
+@php($statusLabels=['profile_incomplete'=>'پیش‌نویس پرونده','correction_required'=>'نیازمند اصلاح','pending_association_review'=>'در انتظار بررسی انجمن','ready_for_shahbaz_check'=>'آماده استعلام شحباز','shahbaz_mismatch'=>'دارای مغایرت شحباز','verified'=>'تأیید شده','rejected'=>'رد شده'])
 @php($sectionRoutes = [
         'profile' => route('company.shahbaz.profile.edit'),
         'requests' => route('company.shahbaz.requests.index'),
@@ -17,6 +17,9 @@
     ])
 <div dir="rtl" class="mx-auto max-w-6xl space-y-6">
 <section class="rounded-3xl border bg-white p-6 shadow-sm"><div class="flex flex-wrap items-center justify-between gap-4"><div><h1 class="text-2xl font-black">{{ $company->name_fa }}</h1><p class="mt-2 text-sm text-slate-500">شناسه ملی: {{ $company->national_id ?: 'ثبت نشده' }} — وضعیت بررسی: {{ $statusLabels[$company->shahbaz_verification_status] ?? $company->shahbaz_verification_status }}</p></div><a href="{{ route('company.shahbaz.profile.edit') }}" class="rounded-xl bg-emerald-600 px-5 py-3 font-black text-white">تکمیل مشخصات پایه</a></div></section>
+@if(in_array($company->shahbaz_verification_status,['correction_required','shahbaz_mismatch','rejected'],true) && $company->shahbaz_review_note)
+<div class="rounded-2xl border border-rose-300 bg-rose-50 p-5 text-rose-900"><b>نتیجه بررسی انجمن:</b><p class="mt-2">{{ $company->shahbaz_review_note }}</p></div>
+@endif
 @if($reminders['panel_enabled'] && $company->activity_license_expires_on)
 @php($remaining=today()->diffInDays($company->activity_license_expires_on,false))
 @if($remaining <= 60)

@@ -5,7 +5,15 @@ use Morilog\Jalali\Jalalian;
 use App\Http\Controllers\Controller; use App\Models\Company; use App\Shahbaz\Models\CompanyVerificationHistory; use App\Shahbaz\Services\CompanyEligibilityService; use Illuminate\Http\Request; use Illuminate\Support\Facades\DB; use Illuminate\Validation\Rule;
 class AssociationVerificationController extends Controller
 {
-    public function index(){ $companies=Company::whereIn('shahbaz_verification_status',['pending_association_review','correction_required','shahbaz_mismatch'])->latest('updated_at')->paginate(25); return view('Shahbaz.association.index',compact('companies')); }
+    public function index()
+    {
+        $companies = Company::whereIn('shahbaz_verification_status', [
+            'pending_association_review', 'ready_for_shahbaz_check', 'correction_required',
+            'shahbaz_mismatch', 'rejected',
+        ])->latest('updated_at')->paginate(25);
+
+        return view('Shahbaz.association.index', compact('companies'));
+    }
     public function show(Company $company, CompanyEligibilityService $eligibility)
     {
         $company->load(['shahbazVerificationHistories.changedBy']);
@@ -49,8 +57,65 @@ class AssociationVerificationController extends Controller
 
         return back()->with('success', 'مبلغ تأیید و صورتحساب برای شرکت صادر شد.');
     }
+    public function initialReview(Request $request, Company $company)
+    {
+        abort_unless($company->shahbaz_verification_status === 'pending_association_review', 403);
+        $data = $request->validate([
+            'result' => ['required', Rule::in(['initial_approved', 'correction_required', 'rejected'])],
+            'description' => ['required', 'string', 'max:3000'],
+        ]);
+        $to = match ($data['result']) {
+            'initial_approved' => 'ready_for_shahbaz_check',
+            'correction_required' => 'correction_required',
+            default => 'rejected',
+        };
+
+        DB::transaction(function () use ($company, $data, $to, $request): void {
+            $from = $company->shahbaz_verification_status;
+            $company->forceFill([
+                'shahbaz_verification_status' => $to,
+                'shahbaz_review_note' => $data['description'],
+                'shahbaz_verified_by_user_id' => null,
+                'shahbaz_verified_at' => null,
+            ])->save();
+
+            \App\Shahbaz\Models\LicenseRequest::where('company_id', $company->id)
+                ->whereIn('status', ['submitted', 'association_review'])
+                ->get()->each(function ($licenseRequest) use ($to, $data, $request): void {
+                    $requestFrom = $licenseRequest->status;
+                    $requestTo = $to === 'ready_for_shahbaz_check' ? 'ready_for_shahbaz_check' : $to;
+                    $licenseRequest->forceFill([
+                        'status' => $requestTo,
+                        'correction_reason' => $to === 'correction_required' ? $data['description'] : null,
+                        'finalized_at' => $to === 'rejected' ? now() : null,
+                    ])->save();
+                    \App\Shahbaz\Models\LicenseRequestHistory::create([
+                        'request_id' => $licenseRequest->id,
+                        'from_status' => $requestFrom,
+                        'to_status' => $requestTo,
+                        'description' => $data['description'],
+                        'request_snapshot' => $licenseRequest->fresh()->toArray(),
+                        'changed_by_user_id' => $request->user()->id,
+                    ]);
+                });
+
+            CompanyVerificationHistory::create([
+                'company_id' => $company->id,
+                'from_status' => $from,
+                'to_status' => $to,
+                'result' => $data['result'],
+                'description' => $data['description'],
+                'company_snapshot' => $company->fresh()->toArray(),
+                'changed_by_user_id' => $request->user()->id,
+                'checked_at' => now(),
+            ]);
+        });
+
+        return redirect()->route('association.shahbaz.companies.index')->with('success', 'نتیجه بررسی اولیه ثبت شد.');
+    }
     public function review(Request $request, Company $company, CompanyEligibilityService $eligibility)
     {
+        abort_unless($company->shahbaz_verification_status === 'ready_for_shahbaz_check', 403);
         foreach (['activity_license_issued_on_jalali'=>'activity_license_issued_on','activity_license_expires_on_jalali'=>'activity_license_expires_on'] as $jalaliField=>$dateField) {
             if (!$request->filled($jalaliField)) { $request->merge([$dateField=>null]); continue; }
             try { $value=strtr((string)$request->input($jalaliField),['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']); $request->merge([$dateField=>Jalalian::fromFormat('Y/m/d',$value)->toCarbon()->format('Y-m-d')]); }
@@ -58,7 +123,19 @@ class AssociationVerificationController extends Controller
         }
         $data=$request->validate(['result'=>['required',Rule::in(['verified','correction_required','shahbaz_mismatch','company_not_found','follow_up'])],'description'=>['required','string','max:3000'],'activity_license_number'=>['nullable','required_if:result,verified','string','max:100',Rule::unique('companies')->ignore($company->id)],'activity_license_issued_on'=>['nullable','required_if:result,verified','date'],'activity_license_expires_on'=>['nullable','required_if:result,verified','date','after_or_equal:activity_license_issued_on']]);
         if($data['result']==='verified' && $eligibility->missingFields($company)!==[]) return back()->withErrors(['result'=>'تا تکمیل تمام اطلاعات الزامی، تأیید شرکت امکان‌پذیر نیست.']);
-        DB::transaction(function() use($company,$data,$request){ $from=$company->shahbaz_verification_status; $verified=$data['result']==='verified'; $to=$verified?'verified':($data['result']==='company_not_found'?'shahbaz_mismatch':$data['result']); $company->forceFill(['shahbaz_verification_status'=>$to,'shahbaz_review_note'=>$data['description'],'shahbaz_verified_by_user_id'=>$verified?$request->user()->id:null,'shahbaz_verified_at'=>$verified?now():null,'activity_license_number'=>$verified?$data['activity_license_number']:$company->activity_license_number,'activity_license_issued_on'=>$verified?$data['activity_license_issued_on']:$company->activity_license_issued_on,'activity_license_expires_on'=>$verified?$data['activity_license_expires_on']:$company->activity_license_expires_on,'activity_license_status'=>$verified?'active':'unverified'])->save(); CompanyVerificationHistory::create(['company_id'=>$company->id,'from_status'=>$from,'to_status'=>$to,'result'=>$data['result'],'description'=>$data['description'],'company_snapshot'=>$company->fresh()->toArray(),'changed_by_user_id'=>$request->user()->id,'checked_at'=>now()]); });
+        DB::transaction(function() use($company,$data,$request){
+            $from=$company->shahbaz_verification_status;
+            $verified=$data['result']==='verified';
+            $to=$verified ? 'verified' : (in_array($data['result'], ['shahbaz_mismatch','company_not_found'], true) ? 'shahbaz_mismatch' : ($data['result']==='follow_up' ? 'ready_for_shahbaz_check' : $data['result']));
+            $company->forceFill(['shahbaz_verification_status'=>$to,'shahbaz_review_note'=>$data['description'],'shahbaz_verified_by_user_id'=>$verified?$request->user()->id:null,'shahbaz_verified_at'=>$verified?now():null,'activity_license_number'=>$verified?$data['activity_license_number']:$company->activity_license_number,'activity_license_issued_on'=>$verified?$data['activity_license_issued_on']:$company->activity_license_issued_on,'activity_license_expires_on'=>$verified?$data['activity_license_expires_on']:$company->activity_license_expires_on,'activity_license_status'=>$verified?'active':'unverified'])->save();
+            \App\Shahbaz\Models\LicenseRequest::where('company_id',$company->id)->where('status','ready_for_shahbaz_check')->get()->each(function($licenseRequest) use($verified,$to,$data,$request){
+                $requestFrom=$licenseRequest->status;
+                $requestTo=$verified?'shahbaz_verified':$to;
+                $licenseRequest->forceFill(['status'=>$requestTo,'correction_reason'=>in_array($requestTo,['correction_required','shahbaz_mismatch'],true)?$data['description']:null])->save();
+                \App\Shahbaz\Models\LicenseRequestHistory::create(['request_id'=>$licenseRequest->id,'from_status'=>$requestFrom,'to_status'=>$requestTo,'description'=>$data['description'],'request_snapshot'=>$licenseRequest->fresh()->toArray(),'changed_by_user_id'=>$request->user()->id]);
+            });
+            CompanyVerificationHistory::create(['company_id'=>$company->id,'from_status'=>$from,'to_status'=>$to,'result'=>$data['result'],'description'=>$data['description'],'company_snapshot'=>$company->fresh()->toArray(),'changed_by_user_id'=>$request->user()->id,'checked_at'=>now()]);
+        });
         return redirect()->route('association.shahbaz.companies.index')->with('success','نتیجه بررسی شحباز ثبت شد.');
     }
 }
