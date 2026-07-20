@@ -61,7 +61,38 @@ class AssociationVerificationController extends Controller
             'کدپستی'=>$company->postal_code,'تلفن'=>$company->phone,'نشانی'=>$company->address_fa,'نوع فعالیت'=>$company->activity_type,
         ]);
         foreach(\App\Shahbaz\Models\LicenseRequest::where('company_id',$company->id)->latest()->get() as $model) $add('requests','license_request',$model,'درخواست '.$model->tracking_code,['نوع درخواست'=>$model->request_type,'حوزه فعالیت'=>$model->activity_scope,'نوع فعالیت'=>$model->activity_type,'وضعیت'=>$model->status,'توضیحات'=>$model->company_description]);
-        foreach(\App\Shahbaz\Models\CompanyPerson::with('person')->where('company_id',$company->id)->where('status','!=','archived')->get() as $model) $add($model->relation_type,'company_person',$model,trim($model->person?->first_name.' '.$model->person?->last_name),['کد ملی/گذرنامه'=>$model->person?->national_code ?: $model->person?->passport_number,'عنوان شغلی/سمت'=>$model->job_title ?: $model->board_position,'نوع سهامدار'=>$model->shareholder_type,'درصد سهم'=>$model->share_percentage,'مبلغ سهم'=>$model->share_amount,'شروع همکاری'=>$model->started_on?->format('Y-m-d'),'پایان همکاری'=>$model->ended_on?->format('Y-m-d')]);
+        foreach(\App\Shahbaz\Models\CompanyPerson::with('person')->where('company_id',$company->id)->where('status','!=','archived')->get() as $model) {
+            $person=$model->person;
+            $details=[
+                'تابعیت'=>$person?->nationality,
+                'کد ملی'=>$person?->national_code,
+                'شماره گذرنامه'=>$person?->passport_number,
+                'نام'=>$person?->first_name,
+                'نام خانوادگی'=>$person?->last_name,
+                'نام پدر'=>$person?->father_name,
+                'شماره شناسنامه'=>$person?->birth_certificate_number,
+                'تاریخ تولد'=>$person?->birth_date ? verta($person->birth_date)->format('Y/m/d') : null,
+                'محل تولد'=>$person?->birth_place,
+                'تاریخ صدور شناسنامه'=>$person?->issued_on ? verta($person->issued_on)->format('Y/m/d') : null,
+                'شهر صدور'=>$person?->issue_city,
+                'جنسیت'=>$person?->gender,
+                'شرایط ایثارگری'=>$person?->is_veteran ? 'دارد' : 'ندارد',
+            ];
+            if($model->relation_type==='personnel') $details['عنوان شغلی']=$model->job_title;
+            if($model->relation_type==='board') $details['سمت در هیئت‌مدیره']=$model->board_position;
+            if($model->relation_type==='shareholders') $details += [
+                'نوع سهامدار'=>$model->shareholder_type,
+                'نوع سهام'=>$model->share_type,
+                'مبلغ سهام'=>$model->share_amount!==null ? number_format((float)$model->share_amount).' ریال' : null,
+                'درصد سهام'=>$model->share_percentage!==null ? rtrim(rtrim(number_format((float)$model->share_percentage,4,'.',''),'0'),'.').'٪' : null,
+            ];
+            $details += [
+                'شروع همکاری'=>$model->started_on ? verta($model->started_on)->format('Y/m/d') : null,
+                'پایان همکاری'=>$model->ended_on ? verta($model->ended_on)->format('Y/m/d') : null,
+                'توضیحات'=>$model->note,
+            ];
+            $add($model->relation_type,'company_person',$model,trim($person?->first_name.' '.$person?->last_name),$details);
+        }
         foreach(\App\Models\Fleet::where('company_id',$company->id)->latest()->get() as $model) $add('fleet','fleet',$model,'ناوگان '.$model->transit_plate,['پلاک ترانزیت'=>$model->transit_plate,'کارت هوشمند'=>$model->smart_card_number,'نوع وسیله'=>$model->truck_type]);
         if($model=\App\Shahbaz\Models\CompanyFacility::where('company_id',$company->id)->first()) $add('facilities','facility',$model,'محل و امکانات',['نوع محل'=>$model->location_type,'نوع مالکیت'=>$model->ownership_type,'کدپستی'=>$model->postal_code,'تلفن'=>$model->phone,'نشانی'=>$model->address,'امکانات'=>collect($model->facilities ?? [])->map(fn($row)=>($row['type']??'').': '.($row['area']??''))->implode('، ')]);
         foreach(\App\Shahbaz\Models\OfficialGazette::where('company_id',$company->id)->latest('gazette_date')->get() as $model) $add('gazettes','gazette',$model,'روزنامه رسمی '.$model->gazette_number,['تاریخ'=>$model->gazette_date?->format('Y-m-d'),'گروه تغییرات'=>$model->change_group,'شماره آگهی'=>$model->notice_number,'موضوع'=>$model->subject]);
