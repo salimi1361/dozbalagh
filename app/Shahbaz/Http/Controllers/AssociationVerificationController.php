@@ -3,6 +3,7 @@ namespace App\Shahbaz\Http\Controllers;
 use Illuminate\Validation\ValidationException;
 use Morilog\Jalali\Jalalian;
 use App\Http\Controllers\Controller; use App\Models\Company; use App\Shahbaz\Models\CompanyVerificationHistory; use App\Shahbaz\Services\CompanyEligibilityService; use Illuminate\Http\Request; use Illuminate\Support\Facades\DB; use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Storage;
 class AssociationVerificationController extends Controller
 {
     public function index()
@@ -20,8 +21,24 @@ class AssociationVerificationController extends Controller
         $licenseRequests = \App\Shahbaz\Models\LicenseRequest::where('company_id', $company->id)->latest()->get();
         $paymentRequests = \App\Shahbaz\Models\PaymentRequest::with(['licenseRequest', 'approver'])
             ->where('company_id', $company->id)->latest()->get();
+        $dossier = [
+            'people' => \App\Shahbaz\Models\CompanyPerson::with('person')->where('company_id', $company->id)->where('status', '!=', 'archived')->get()->groupBy('relation_type'),
+            'fleets' => \App\Models\Fleet::where('company_id', $company->id)->latest()->get(),
+            'facility' => \App\Shahbaz\Models\CompanyFacility::where('company_id', $company->id)->first(),
+            'gazettes' => \App\Shahbaz\Models\OfficialGazette::where('company_id', $company->id)->latest('gazette_date')->get(),
+            'registration' => \App\Shahbaz\Models\CompanyRegistration::where('company_id', $company->id)->first(),
+            'branches' => \App\Shahbaz\Models\BranchPermit::where('company_id', $company->id)->latest()->get(),
+            'documents' => \App\Shahbaz\Models\MiscDocument::where('company_id', $company->id)->latest()->get(),
+        ];
 
-        return view('Shahbaz.association.show', compact('company', 'eligibility', 'licenseRequests', 'paymentRequests'));
+        return view('Shahbaz.association.show', compact('company', 'eligibility', 'licenseRequests', 'paymentRequests', 'dossier'));
+    }
+    public function downloadDocument(Company $company, \App\Shahbaz\Models\MiscDocument $document)
+    {
+        abort_unless($document->company_id === $company->id, 403);
+        abort_unless(Storage::disk('local')->exists($document->storage_path), 404);
+
+        return Storage::disk('local')->download($document->storage_path, $document->original_name);
     }
     public function paymentStore(Request $request, Company $company)
     {
