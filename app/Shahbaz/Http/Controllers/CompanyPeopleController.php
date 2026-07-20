@@ -15,6 +15,38 @@ class CompanyPeopleController extends Controller
 {
     private const TYPES = ['personnel', 'board', 'shareholders'];
 
+    public function lookup(Request $request)
+    {
+        $data = $request->validate([
+            'national_code' => ['required', 'string', 'max:30'],
+        ]);
+        $nationalCode = $this->normalizeDigits($data['national_code']);
+        $person = Person::where('national_code', $nationalCode)->first();
+        if (! $person) {
+            return response()->json(['found' => false, 'message' => 'شخصی با این کد ملی در بانک اطلاعاتی ثبت نشده است.']);
+        }
+
+        return response()->json([
+            'found' => true,
+            'message' => 'اطلاعات هویتی شخص پیدا شد و در فرم قرار گرفت.',
+            'person' => [
+                'nationality' => $person->nationality,
+                'national_code' => $person->national_code,
+                'passport_number' => $person->passport_number,
+                'first_name' => $person->first_name,
+                'last_name' => $person->last_name,
+                'father_name' => $person->father_name,
+                'birth_certificate_number' => $person->birth_certificate_number,
+                'birth_date_jalali' => $person->birth_date ? verta($person->birth_date)->format('Y/m/d') : null,
+                'birth_place' => $person->birth_place,
+                'issued_on_jalali' => $person->issued_on ? verta($person->issued_on)->format('Y/m/d') : null,
+                'issue_city' => $person->issue_city,
+                'gender' => $person->gender,
+                'is_veteran' => (bool) $person->is_veteran,
+            ],
+        ]);
+    }
+
     public function index(Request $request, string $type)
     {
         $this->validType($type);
@@ -72,6 +104,9 @@ class CompanyPeopleController extends Controller
 
     private function validateData(Request $request, string $type, ?int $ignore = null): array
     {
+        if ($request->filled('national_code')) {
+            $request->merge(['national_code' => $this->normalizeDigits($request->input('national_code'))]);
+        }
         $this->mergeJalaliDates($request, [
             'birth_date_jalali' => 'birth_date',
             'issued_on_jalali' => 'issued_on',
@@ -168,6 +203,7 @@ class CompanyPeopleController extends Controller
     }
 
     private function editable($company): bool { return in_array($company->shahbaz_verification_status, ['profile_incomplete','correction_required','shahbaz_mismatch'], true); }
+    private function normalizeDigits(string $value): string { return strtr(trim($value), ['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9']); }
     private function validType(string $type): void { abort_unless(in_array($type, self::TYPES, true), 404); }
     private function owned(Request $request, string $type, CompanyPerson $item): void { $this->validType($type); abort_unless($item->company_id === $request->user()->company->id && $item->relation_type === $type, 404); }
     private function personData(array $data): array { return array_intersect_key($data, array_flip(['nationality','national_code','passport_number','first_name','last_name','father_name','birth_certificate_number','birth_date','birth_place','issued_on','issue_city','gender','is_veteran'])); }

@@ -43,6 +43,7 @@ Route::middleware(['auth', 'role:company'])->prefix('company/shahbaz')->name('co
     Route::get('/misc-documents/{document}/download', [CompanyMiscDocumentController::class, 'download'])->name('misc-documents.download');
     Route::delete('/misc-documents/{document}', [CompanyMiscDocumentController::class, 'archive'])->name('misc-documents.archive');
     Route::get('/workflow', [CompanyWorkflowController::class, 'show'])->name('workflow.show');
+    Route::post('/people/identity/lookup', [CompanyPeopleController::class, 'lookup'])->middleware('throttle:30,1')->name('people.lookup');
     Route::get('/people/{type}', [CompanyPeopleController::class, 'index'])->name('people.index');
     Route::get('/people/{type}/create', [CompanyPeopleController::class, 'create'])->name('people.create');
     Route::post('/people/{type}', [CompanyPeopleController::class, 'store'])->name('people.store');
