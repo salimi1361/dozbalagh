@@ -17,7 +17,7 @@ use App\Shahbaz\Http\Controllers\CompanyPeopleController;
 use App\Shahbaz\Http\Controllers\CompanyProfileController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth', 'role:company'])->prefix('company/shahbaz')->name('company.shahbaz.')->group(function () {
+Route::middleware(['auth', 'role:company', 'panel.features'])->prefix('company/shahbaz')->name('company.shahbaz.')->group(function () {
     Route::get('/', [CompanyDossierController::class, 'show'])->name('dossier.show');
     Route::post('/submit', [CompanyDossierController::class, 'submit'])->name('dossier.submit');
     Route::get('/profile', [CompanyProfileController::class, 'edit'])->name('profile.edit');
@@ -52,7 +52,7 @@ Route::middleware(['auth', 'role:company'])->prefix('company/shahbaz')->name('co
     Route::delete('/people/{type}/{item}', [CompanyPeopleController::class, 'archive'])->name('people.archive');
 });
 
-Route::middleware(['auth', 'role:admin,association'])->prefix('association/shahbaz')->name('association.shahbaz.')->group(function () {
+Route::middleware(['auth', 'role:admin,association', 'panel.features'])->prefix('association/shahbaz')->name('association.shahbaz.')->group(function () {
     Route::get('/companies', [AssociationVerificationController::class, 'index'])->name('companies.index');
     Route::get('/companies/{company}', [AssociationVerificationController::class, 'show'])->name('companies.show');
     Route::get('/companies/{company}/dossier', [AssociationVerificationController::class, 'dossierHome'])->name('companies.dossier');

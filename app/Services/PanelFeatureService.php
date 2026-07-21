@@ -72,6 +72,9 @@ class PanelFeatureService
                 'tracking' => 'admin.tracking.index',
                 'crm' => 'admin.association_crm.index',
                 'print_layouts' => 'association.print-layouts.index',
+                'shahbaz_company_review' => 'association.shahbaz.companies.index',
+                'cmr_documents' => 'admin.cmr.index',
+                'cmr_issuance' => 'admin.cmr.create',
             ],
             'company' => [
                 'dashboard' => 'dashboard',
@@ -85,6 +88,8 @@ class PanelFeatureService
                 'reports' => 'report.index',
                 'wallet' => 'company.wallet.index',
                 'profile' => 'company.profile.edit',
+                'shahbaz_overview' => 'company.shahbaz.dossier.show',
+                'cmr_reports' => 'company.cmr-reports.index',
             ],
         ];
 

@@ -31,6 +31,37 @@ class PanelFeatureSettingsTest extends TestCase
         $this->assertFalse($stored['association']['reports']);
         $this->assertTrue($stored['company']['dashboard']);
         $this->assertFalse($stored['company']['wallet']);
+        $this->assertFalse($stored['association']['shahbaz_company_review']);
+        $this->assertFalse($stored['association']['cmr_documents']);
+        $this->assertFalse($stored['company']['shahbaz_overview']);
+        $this->assertFalse($stored['company']['cmr_reports']);
+    }
+
+    public function test_shahbaz_and_cmr_features_are_disabled_by_default(): void
+    {
+        $features = app(PanelFeatureService::class);
+
+        $this->assertFalse($features->enabledForRole('association', 'shahbaz_company_review'));
+        $this->assertFalse($features->enabledForRole('association', 'cmr_documents'));
+        $this->assertFalse($features->enabledForRole('association', 'cmr_issuance'));
+        $this->assertFalse($features->enabledForRole('company', 'shahbaz_overview'));
+        $this->assertFalse($features->enabledForRole('company', 'shahbaz_profile'));
+        $this->assertFalse($features->enabledForRole('company', 'cmr_reports'));
+    }
+
+    public function test_admin_settings_page_groups_shahbaz_and_cmr_items_for_both_panels(): void
+    {
+        $admin = $this->userWithRole('admin');
+
+        $this->actingAs($admin)
+            ->get(route('admin.settings.panel-features.index'))
+            ->assertOk()
+            ->assertSee('شهباز')
+            ->assertSee('CMR')
+            ->assertSee('features[association][shahbaz_company_review]', false)
+            ->assertSee('features[association][cmr_documents]', false)
+            ->assertSee('features[company][shahbaz_overview]', false)
+            ->assertSee('features[company][cmr_reports]', false);
     }
 
     public function test_disabled_feature_blocks_direct_access_for_association(): void
@@ -53,6 +84,54 @@ class PanelFeatureSettingsTest extends TestCase
         ]);
 
         $this->actingAs($company)->get(route('dashboard'))->assertForbidden();
+    }
+
+    public function test_disabled_shahbaz_and_cmr_routes_block_direct_access(): void
+    {
+        $association = $this->userWithRole('association');
+        SystemSetting::setValue('panel_features', [
+            'association' => [
+                'shahbaz_company_review' => false,
+                'cmr_documents' => false,
+            ],
+        ]);
+
+        $this->actingAs($association)
+            ->get(route('association.shahbaz.companies.index'))
+            ->assertForbidden();
+        $this->actingAs($association)
+            ->get(route('admin.cmr.index'))
+            ->assertForbidden();
+
+        $company = $this->userWithRole('company');
+        SystemSetting::setValue('panel_features', [
+            'company' => [
+                'shahbaz_overview' => false,
+                'cmr_reports' => false,
+            ],
+        ]);
+
+        $this->actingAs($company)
+            ->get(route('company.shahbaz.dossier.show'))
+            ->assertForbidden();
+        $this->actingAs($company)
+            ->get(route('company.cmr-reports.index'))
+            ->assertForbidden();
+    }
+
+    public function test_shahbaz_items_are_checked_independently(): void
+    {
+        SystemSetting::setValue('panel_features', [
+            'company' => [
+                'shahbaz_requests' => true,
+                'shahbaz_profile' => false,
+            ],
+        ]);
+
+        $features = app(PanelFeatureService::class);
+
+        $this->assertTrue($features->enabledForRoute('company', 'company.shahbaz.requests.index'));
+        $this->assertFalse($features->enabledForRoute('company', 'company.shahbaz.profile.edit'));
     }
 
     public function test_landing_route_uses_first_enabled_feature(): void

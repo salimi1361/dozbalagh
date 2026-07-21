@@ -24,16 +24,52 @@
                     <div class="border-b border-slate-100 bg-slate-50 px-6 py-5">
                         <h3 class="text-lg font-black text-slate-800">{{ $roleTitle }}</h3>
                     </div>
-                    <div class="divide-y divide-slate-100 px-6">
-                        @foreach($definitions[$role] as $key => $definition)
-                            <label class="flex cursor-pointer items-center justify-between gap-4 py-4">
-                                <span class="font-bold text-slate-700">{{ $definition['label'] }}</span>
-                                <span class="relative inline-flex items-center">
-                                    <input type="checkbox" name="features[{{ $role }}][{{ $key }}]" value="1" class="peer sr-only" @checked($features->enabledForRole($role, $key))>
-                                    <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-emerald-500"></span>
-                                    <span class="absolute right-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:-translate-x-5"></span>
-                                </span>
-                            </label>
+                    <div class="space-y-4 p-5">
+                        @php
+                            $groupedDefinitions = collect($definitions[$role])->groupBy(
+                                fn (array $definition) => $definition['group'] ?? 'general',
+                                true
+                            );
+                            $groupOrder = ['general', 'shahbaz', 'cmr'];
+                            $groupedDefinitions = $groupedDefinitions->sortBy(
+                                fn ($items, $group) => array_search($group, $groupOrder, true) === false
+                                    ? 99
+                                    : array_search($group, $groupOrder, true)
+                            );
+                        @endphp
+
+                        @foreach($groupedDefinitions as $group => $items)
+                            @php
+                                $groupLabel = $group === 'general'
+                                    ? 'امکانات عمومی پنل'
+                                    : ($items->first()['group_label'] ?? $group);
+                                $groupEnabledCount = $items->filter(
+                                    fn ($definition, $key) => $features->enabledForRole($role, $key)
+                                )->count();
+                            @endphp
+                            <details class="overflow-hidden rounded-2xl border {{ $group === 'general' ? 'border-slate-200' : 'border-sky-200 bg-sky-50/30' }}" @if($group !== 'general') open @endif>
+                                <summary class="flex cursor-pointer list-none items-center justify-between gap-3 bg-slate-50 px-4 py-3 font-black text-slate-800">
+                                    <span>{{ $groupLabel }}</span>
+                                    <span class="rounded-full bg-white px-2.5 py-1 text-[10px] text-slate-500 shadow-sm">{{ $groupEnabledCount }} فعال از {{ $items->count() }}</span>
+                                </summary>
+                                <div class="divide-y divide-slate-100 bg-white px-4">
+                                    @foreach($items as $key => $definition)
+                                        <label class="flex cursor-pointer items-center justify-between gap-4 py-3.5">
+                                            <span>
+                                                <span class="block font-bold text-slate-700">{{ $definition['label'] }}</span>
+                                                @if(($definition['default'] ?? true) === false)
+                                                    <span class="mt-1 block text-[10px] font-bold text-amber-600">پیش‌فرض غیرفعال</span>
+                                                @endif
+                                            </span>
+                                            <span class="relative inline-flex shrink-0 items-center">
+                                                <input type="checkbox" name="features[{{ $role }}][{{ $key }}]" value="1" class="peer sr-only" @checked($features->enabledForRole($role, $key))>
+                                                <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-emerald-500"></span>
+                                                <span class="absolute right-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:-translate-x-5"></span>
+                                            </span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </details>
                         @endforeach
                     </div>
                 </section>

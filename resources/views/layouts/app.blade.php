@@ -103,21 +103,60 @@
             @endif
 
             @if($panelFeatures->enabledForRole('company', 'reports'))
-            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('report.*', 'company.cmr-reports.*')) open @endif>
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('report.*')) open @endif>
                 <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800"><span><span class="group-icon">📊</span> گزارش‌ها</span><span class="tree-arrow text-xs">⌄</span></summary>
                 <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
                     <a href="{{ route('report.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('report.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">گزارش‌های دوزوله</a>
+                </div>
+            </details>
+            @endif
+
+            @if($panelFeatures->enabledForRole('company', 'cmr_reports'))
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('company.cmr-reports.*')) open @endif>
+                <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800"><span><span class="group-icon">▣</span> CMR</span><span class="tree-arrow text-xs">⌄</span></summary>
+                <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
                     <a href="{{ route('company.cmr-reports.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.cmr-reports.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">گزارش‌های e-CMR</a>
+                </div>
+            </details>
+            @endif
+
+            @php
+                $companyShahbazFeatures = [
+                    'shahbaz_overview', 'shahbaz_profile', 'shahbaz_requests', 'shahbaz_people',
+                    'shahbaz_fleet', 'shahbaz_facilities', 'shahbaz_gazettes', 'shahbaz_registration',
+                    'shahbaz_licenses', 'shahbaz_branches', 'shahbaz_manual_status',
+                    'shahbaz_misc_documents', 'shahbaz_workflow',
+                ];
+                $showCompanyShahbaz = collect($companyShahbazFeatures)->contains(
+                    fn (string $feature) => $panelFeatures->enabledForRole('company', $feature)
+                );
+            @endphp
+            @if($showCompanyShahbaz)
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('company.shahbaz.*')) open @endif>
+                <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800"><span><span class="group-icon">🛡️</span> شهباز</span><span class="tree-arrow text-xs">⌄</span></summary>
+                <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
+                    @if($panelFeatures->enabledForRole('company', 'shahbaz_overview'))<a href="{{ route('company.shahbaz.dossier.show') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.dossier.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">خانه پرونده</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'shahbaz_profile'))<a href="{{ route('company.shahbaz.profile.edit') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.profile.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">مشخصات پایه شرکت</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'shahbaz_requests'))<a href="{{ route('company.shahbaz.requests.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.requests.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">درخواست‌های پروانه فعالیت</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'shahbaz_people'))<a href="{{ route('company.shahbaz.people.index', ['type' => 'personnel']) }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.people.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">مدیران، اعضا و سهامداران</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'shahbaz_fleet'))<a href="{{ route('company.shahbaz.fleet.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.fleet.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">پرونده ناوگان</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'shahbaz_facilities'))<a href="{{ route('company.shahbaz.facilities.edit') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.facilities.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">امکانات و محل فعالیت</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'shahbaz_gazettes'))<a href="{{ route('company.shahbaz.gazettes.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.gazettes.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">روزنامه رسمی</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'shahbaz_registration'))<a href="{{ route('company.shahbaz.registration.edit') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.registration.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">اطلاعات ثبتی</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'shahbaz_licenses'))<a href="{{ route('company.shahbaz.licenses.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.licenses.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">پروانه‌های فعالیت</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'shahbaz_branches'))<a href="{{ route('company.shahbaz.branches.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.branches.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">مجوز شعب</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'shahbaz_manual_status'))<a href="{{ route('company.shahbaz.manual-status.show') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.manual-status.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">وضعیت استعلام دستی</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'shahbaz_misc_documents'))<a href="{{ route('company.shahbaz.misc-documents.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.misc-documents.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">سایر مدارک</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'shahbaz_workflow'))<a href="{{ route('company.shahbaz.workflow.show') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.workflow.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">گردش کار پرونده</a>@endif
                 </div>
             </details>
             @endif
             
             @if($panelFeatures->enabledForRole('company', 'profile'))
             <div class="pt-4 mt-4 border-t border-slate-800">
-                <details class="sidebar-tree rounded-xl" @if(request()->routeIs('company.profile.*', 'company.shahbaz.*')) open @endif>
-                    <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800"><span><span class="group-icon">⚙️</span> شرکت و شهباز</span><span class="tree-arrow text-xs">⌄</span></summary>
+                <details class="sidebar-tree rounded-xl" @if(request()->routeIs('company.profile.*')) open @endif>
+                    <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800"><span><span class="group-icon">⚙️</span> تنظیمات شرکت</span><span class="tree-arrow text-xs">⌄</span></summary>
                     <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
-                        <a href="{{ route('company.shahbaz.dossier.show') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">پرونده شرکت و شهباز</a>
                         <a href="{{ route('company.profile.edit') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.profile.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">ویرایش پروفایل</a>
                     </div>
                 </details>

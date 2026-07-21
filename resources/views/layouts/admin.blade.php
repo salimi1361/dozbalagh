@@ -107,7 +107,7 @@
             </a>
             @endif
 
-            @if(auth()->user()?->hasRole('admin') || (auth()->user()?->hasRole('association') && $showAssociationFeature('shahbaz')))
+            @if($showAssociationFeature('shahbaz_company_review'))
             <details class="sidebar-tree rounded-xl" @if(request()->routeIs('association.shahbaz.*', 'admin.shahbaz.*')) open @endif>
                 <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800 hover:text-white"><span>🛡️ پرونده شرکت و شهباز</span><span class="tree-arrow text-xs">⌄</span></summary>
                 <div class="mt-1 mr-3 space-y-1 border-r-2 border-emerald-800 pr-2">
@@ -119,7 +119,16 @@
             </details>
             @endif
 
-            @if(auth()->user()?->hasRole('admin'))
+            @php
+                $associationCmrFeatures = [
+                    'cmr_documents', 'cmr_issuance', 'cmr_master_data',
+                    'cmr_company_settings', 'cmr_financial', 'cmr_reports',
+                ];
+                $showAssociationCmr = collect($associationCmrFeatures)->contains(
+                    fn (string $feature) => $showAssociationFeature($feature)
+                );
+            @endphp
+            @if($showAssociationCmr)
             @php
                 $isCmrActive = request()->routeIs('admin.cmr.*');
             @endphp
@@ -129,16 +138,28 @@
                     <svg id="arrowCmr" class="h-4 w-4 transform transition-transform {{ $isCmrActive ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
                 <div id="subCmrMenu" class="{{ $isCmrActive ? '' : 'hidden' }} mt-1 mr-3 space-y-1 border-r-2 border-emerald-700 pr-2">
+                    @if($showAssociationFeature('cmr_documents'))
                     <a href="{{ route('admin.cmr.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.index') && !request('scope') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">کارتابل اسناد</a>
-                    <a href="{{ route('admin.cmr.create') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.create') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">صدور e-CMR</a>
-                    <a href="{{ route('admin.cmr.help') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.help') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">راهنمای فارسی صدور</a>
                     <a href="{{ route('admin.cmr.index',['scope'=>'drafts']) }}" class="block rounded-lg px-4 py-2 text-xs font-bold text-slate-400 hover:text-white">پیش‌نویس‌ها</a>
                     <a href="{{ route('admin.cmr.index',['scope'=>'active']) }}" class="block rounded-lg px-4 py-2 text-xs font-bold text-slate-400 hover:text-white">حمل‌های در جریان</a>
                     <a href="{{ route('admin.cmr.index',['scope'=>'archive']) }}" class="block rounded-lg px-4 py-2 text-xs font-bold text-slate-400 hover:text-white">تحویل‌شده و بایگانی</a>
+                    @endif
+                    @if($showAssociationFeature('cmr_issuance'))
+                    <a href="{{ route('admin.cmr.create') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.create') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">صدور e-CMR</a>
+                    <a href="{{ route('admin.cmr.help') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.help') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">راهنمای فارسی صدور</a>
+                    @endif
+                    @if($showAssociationFeature('cmr_master_data'))
                     <a href="{{ route('admin.cmr.master-data.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.master-data.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">اطلاعات پایه</a>
+                    @endif
+                    @if($showAssociationFeature('cmr_company_settings'))
                     <a href="{{ route('admin.cmr.company-settings.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.company-settings.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">شماره‌ها و قالب چاپ</a>
+                    @endif
+                    @if($showAssociationFeature('cmr_financial'))
                     <a href="{{ route('admin.cmr.settings') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.settings*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">تعرفه و مالی</a>
+                    @endif
+                    @if($showAssociationFeature('cmr_reports'))
                     <a href="{{ route('admin.cmr.reports.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.reports.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">گزارش‌های e-CMR</a>
+                    @endif
                 </div>
             </div>
             @endif
