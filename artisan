@@ -1,7 +1,6 @@
 <?php
 
 require_once __DIR__ . '/app/Helpers/PargarDB.php';
-require_once __DIR__ . '/app/Http/Middleware/CheckPargarRole.php';
 require_once __DIR__ . '/app/Services/DriverService.php';
 //require_once __DIR__ . '/app/Http/Controllers/AuthController.php';
 use Illuminate\Foundation\Application;
