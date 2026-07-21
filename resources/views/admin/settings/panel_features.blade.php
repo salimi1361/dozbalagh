@@ -47,7 +47,7 @@
                                     fn ($definition, $key) => $features->enabledForRole($role, $key)
                                 )->count();
                             @endphp
-                            <details class="overflow-hidden rounded-2xl border {{ $group === 'general' ? 'border-slate-200' : 'border-sky-200 bg-sky-50/30' }}" @if($group !== 'general') open @endif>
+                            <details class="overflow-hidden rounded-2xl border {{ $group === 'general' ? 'border-slate-200' : 'border-sky-200 bg-sky-50/30' }}">
                                 <summary class="flex cursor-pointer list-none items-center justify-between gap-3 bg-slate-50 px-4 py-3 font-black text-slate-800">
                                     <span>{{ $groupLabel }}</span>
                                     <span class="rounded-full bg-white px-2.5 py-1 text-[10px] text-slate-500 shadow-sm">{{ $groupEnabledCount }} فعال از {{ $items->count() }}</span>
