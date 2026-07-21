@@ -21,7 +21,6 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
-            'pargar.role' => \App\Http\Middleware\CheckPargarRole::class,
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
             'panel.features' => \App\Http\Middleware\EnsurePanelFeatureEnabled::class,
         ]);
