@@ -4,12 +4,13 @@ namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class User extends Authenticatable
 {
-    use Notifiable;
+    use Notifiable, SoftDeletes;
 
     protected $fillable = [
         'role_id',
@@ -17,8 +18,16 @@ class User extends Authenticatable
         'password',
         'mobile',
         'status',
-        'is_manual'
+        'is_manual',
+        'association_feature_keys',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'association_feature_keys' => 'array',
+        ];
+    }
 
     protected $hidden = [
         'password',

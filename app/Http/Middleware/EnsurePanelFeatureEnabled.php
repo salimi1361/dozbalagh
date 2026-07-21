@@ -13,10 +13,11 @@ class EnsurePanelFeatureEnabled
 
     public function handle(Request $request, Closure $next): Response
     {
-        $role = $request->user()?->role?->name;
+        $user = $request->user();
+        $role = $user?->role?->name;
 
         if ($role !== 'admin') {
-            abort_unless($this->features->enabledForRoute($role, $request->route()?->getName()), 403, 'این بخش توسط مدیر سامانه غیرفعال شده است.');
+            abort_unless($this->features->enabledForUserRoute($user, $request->route()?->getName()), 403, 'شما به این بخش دسترسی ندارید یا این بخش توسط مدیر سامانه غیرفعال شده است.');
         }
 
         return $next($request);

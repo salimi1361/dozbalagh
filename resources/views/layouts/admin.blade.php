@@ -93,7 +93,7 @@
         <nav class="flex-1 overflow-y-auto py-6 px-3 space-y-1.5">
             @php
                 $panelFeatures = app(\App\Services\PanelFeatureService::class);
-                $showAssociationFeature = fn (string $feature) => auth()->user()?->hasRole('admin') || $panelFeatures->enabledForRole('association', $feature);
+                $showAssociationFeature = fn (string $feature) => $panelFeatures->enabledForUser(auth()->user(), $feature);
             @endphp
     
             @if(auth()->user()?->hasRole('association') && $showAssociationFeature('dashboard'))

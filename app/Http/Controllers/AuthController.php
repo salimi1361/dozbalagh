@@ -79,8 +79,8 @@ class AuthController extends Controller
 
         return match ($user->role?->name) {
             'admin' => redirect()->route('admin.dashboard')->with('success', 'به پنل مدیریت کل سامانه خوش آمدید!'),
-            'association' => $this->redirectToFirstEnabledFeature('association', 'به پنل انجمن خوش آمدید!'),
-            'company' => $this->redirectToFirstEnabledFeature('company', 'به پنل شرکت خوش آمدید!'),
+            'association' => $this->redirectToFirstEnabledFeature($user, 'به پنل انجمن خوش آمدید!'),
+            'company' => $this->redirectToFirstEnabledFeature($user, 'به پنل شرکت خوش آمدید!'),
             default => $this->logoutUnsupportedUser(),
         };
     }
@@ -112,9 +112,9 @@ class AuthController extends Controller
         ]);
     }
 
-    private function redirectToFirstEnabledFeature(string $role, string $message)
+    private function redirectToFirstEnabledFeature(User $user, string $message)
     {
-        $route = app(PanelFeatureService::class)->landingRoute($role);
+        $route = app(PanelFeatureService::class)->landingRoute($user->role?->name ?? '', $user);
 
         if (! $route) {
             Auth::logout();

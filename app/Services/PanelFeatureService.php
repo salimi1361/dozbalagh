@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use App\Models\SystemSetting;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -44,6 +45,48 @@ class PanelFeatureService
         return true;
     }
 
+    public function enabledForUser(?User $user, string $feature): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        $role = $user->role?->name;
+
+        if ($role === 'admin') {
+            return true;
+        }
+
+        if (! $role || ! $this->enabledForRole($role, $feature)) {
+            return false;
+        }
+
+        if ($role !== 'association' || $user->association_feature_keys === null) {
+            return true;
+        }
+
+        return in_array($feature, $user->association_feature_keys, true);
+    }
+
+    public function enabledForUserRoute(?User $user, ?string $routeName): bool
+    {
+        $role = $user?->role?->name;
+
+        if (! $routeName || ! $role || $role === 'admin' || ! isset($this->definitions()[$role])) {
+            return true;
+        }
+
+        foreach ($this->definitions()[$role] as $feature => $definition) {
+            foreach ($definition['routes'] as $pattern) {
+                if (Str::is($pattern, $routeName)) {
+                    return $this->enabledForUser($user, $feature);
+                }
+            }
+        }
+
+        return true;
+    }
+
     public function save(array $submitted): void
     {
         $settings = [];
@@ -58,7 +101,7 @@ class PanelFeatureService
         $this->storedSettings = $settings;
     }
 
-    public function landingRoute(string $role): ?string
+    public function landingRoute(string $role, ?User $user = null): ?string
     {
         $routes = [
             'association' => [
@@ -103,7 +146,7 @@ class PanelFeatureService
         ];
 
         foreach ($routes[$role] ?? [] as $feature => $route) {
-            if ($this->enabledForRole($role, $feature)) {
+            if ($user ? $this->enabledForUser($user, $feature) : $this->enabledForRole($role, $feature)) {
                 return $route;
             }
         }

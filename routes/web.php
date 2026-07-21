@@ -203,6 +203,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
         Route::get('/association-users', [AssociationUserController::class, 'index'])->name('association-users.index');
         Route::post('/association-users', [AssociationUserController::class, 'store'])->name('association-users.store');
         Route::put('/association-users/{user}', [AssociationUserController::class, 'update'])->name('association-users.update');
+        Route::delete('/association-users/{user}', [AssociationUserController::class, 'destroy'])->name('association-users.destroy');
         Route::get('/reports/pwa-installations', [PwaInstallationReportController::class, 'index'])->name('reports.pwa-installations.index');
     });
 
