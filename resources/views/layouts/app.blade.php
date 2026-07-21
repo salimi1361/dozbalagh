@@ -42,6 +42,10 @@
             #sidebar:not(.sidebar-open) nav > div button { justify-content: center; padding-left: 0; padding-right: 0; font-size: 0; }
             #sidebar:not(.sidebar-open) nav > div button::before { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%2394a3b8' stroke-width='2' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3Cpath d='M19.4 15a2 2 0 00.4 2.2l.1.1-2.6 2.6-.1-.1a2 2 0 00-2.2-.4 2 2 0 00-1.2 1.8V21h-3.6v-.2A2 2 0 009 19a2 2 0 00-2.2.4l-.1.1-2.6-2.6.1-.1a2 2 0 00.4-2.2A2 2 0 002.8 13H3V9.4h-.2A2 2 0 004.6 8a2 2 0 00-.4-2.2l-.1-.1 2.6-2.6.1.1A2 2 0 009 3.6 2 2 0 0010.2 2h3.6A2 2 0 0015 3.6a2 2 0 002.2-.4l.1-.1 2.6 2.6-.1.1a2 2 0 00-.4 2.2 2 2 0 001.8 1.2h.2v3.6h-.2A2 2 0 0019.4 15z'/%3E%3C/svg%3E"); }
             #sidebar:not(.sidebar-open) #submenu-profile { display: none !important; }
+            #sidebar:not(.sidebar-open) .sidebar-tree summary { justify-content: center; padding-left: 0; padding-right: 0; font-size: 0; }
+            #sidebar:not(.sidebar-open) .sidebar-tree summary .group-icon { font-size: 1.2rem; }
+            #sidebar:not(.sidebar-open) .sidebar-tree summary .tree-arrow,
+            #sidebar:not(.sidebar-open) .sidebar-tree > div { display: none; }
         }
     </style>
 </head>
@@ -61,50 +65,63 @@
             <a href="{{ route('dashboard') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('dashboard') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">🏠 داشبورد</a>
             @endif
             
-            {{-- 🚀 اصلاح مسیر ثبت درخواست به صفحه لیست بر اساس سناریوی جدید UX --}}
-            @if($panelFeatures->enabledForRole('company', 'requests'))
-            <a href="{{ route('dozbalagh.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('dozbalagh.index') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">🚀 ثبت درخواست</a>
+            @if($panelFeatures->enabledForRole('company', 'requests') || $panelFeatures->enabledForRole('company', 'issued'))
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('dozbalagh.*', 'company.dozbalagh.*')) open @endif>
+                <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800"><span><span class="group-icon">📄</span> دوزوله</span><span class="tree-arrow text-xs">⌄</span></summary>
+                <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
+                    @if($panelFeatures->enabledForRole('company', 'requests'))
+                    <a href="{{ route('dozbalagh.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('dozbalagh.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">درخواست‌ها و ثبت دوزوله</a>
+                    @endif
+                    @if($panelFeatures->enabledForRole('company', 'issued'))
+                    <a href="{{ route('company.dozbalagh.issued') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.dozbalagh.issued') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">دوزوله‌های صادرشده</a>
+                    @endif
+                </div>
+            </details>
             @endif
-            @if($panelFeatures->enabledForRole('company', 'issued'))
-            <a href="{{ route('company.dozbalagh.issued') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('company.dozbalagh.issued') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📄 دوزوله‌های صادرشده</a>
+
+            @if($panelFeatures->enabledForRole('company', 'drivers') || $panelFeatures->enabledForRole('company', 'fleets') || $panelFeatures->enabledForRole('company', 'tracking') || $panelFeatures->enabledForRole('company', 'driver_device_reset'))
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('web.company.driver.*', 'web.company.fleet.*', 'company.tracking.*', 'driver-device-reset.*')) open @endif>
+                <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800"><span><span class="group-icon">🚛</span> عملیات ناوگان</span><span class="tree-arrow text-xs">⌄</span></summary>
+                <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
+                    @if($panelFeatures->enabledForRole('company', 'drivers'))<a href="{{ route('web.company.driver.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('web.company.driver.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">رانندگان</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'fleets'))<a href="{{ route('web.company.fleet.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('web.company.fleet.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">ناوگان</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'tracking'))<a href="{{ route('company.tracking.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.tracking.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">ردیابی ناوگان</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'driver_device_reset'))<a href="{{ route('driver-device-reset.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('driver-device-reset.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">دستگاه رانندگان</a>@endif
+                </div>
+            </details>
             @endif
-            
-            @if($panelFeatures->enabledForRole('company', 'drivers'))
-            <a href="{{ route('web.company.driver.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('web.company.driver.index') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">👤 رانندگان</a>
+
+            @if($panelFeatures->enabledForRole('company', 'driver_messages') || $panelFeatures->enabledForRole('company', 'driver_announcements') || $panelFeatures->enabledForRole('company', 'association_crm'))
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('company.driver_messages.*', 'driver-announcements.*', 'company.association_crm.*')) open @endif>
+                <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800"><span><span class="group-icon">💬</span> پیام‌ها و ارتباطات</span><span class="tree-arrow text-xs">⌄</span></summary>
+                <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
+                    @if($panelFeatures->enabledForRole('company', 'driver_messages'))<a href="{{ route('company.driver_messages.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.driver_messages.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">پیام رانندگان</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'driver_announcements'))<a href="{{ route('driver-announcements.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('driver-announcements.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">اطلاع‌رسانی به رانندگان</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'association_crm'))<a href="{{ route('company.association_crm.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.association_crm.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">پشتیبانی انجمن</a>@endif
+                </div>
+            </details>
             @endif
-            @if($panelFeatures->enabledForRole('company', 'driver_device_reset'))
-            <a href="{{ route('driver-device-reset.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('driver-device-reset.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📱 دستگاه رانندگان</a>
-            @endif
-            @if($panelFeatures->enabledForRole('company', 'tracking'))
-            <a href="{{ route('company.tracking.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('company.tracking.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📍 ردیابی ناوگان</a>
-            @endif
-            @if($panelFeatures->enabledForRole('company', 'driver_messages'))
-            <a href="{{ route('company.driver_messages.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('company.driver_messages.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">💬 پیام رانندگان</a>
-            @endif
-            @if($panelFeatures->enabledForRole('company', 'driver_announcements'))
-            <a href="{{ route('driver-announcements.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('driver-announcements.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📢 اطلاع‌رسانی به رانندگان</a>
-            @endif
-            @if($panelFeatures->enabledForRole('company', 'association_crm'))
-            <a href="{{ route('company.association_crm.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('company.association_crm.index') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">پیام‌ها و پشتیبانی انجمن</a>
-            @endif
-            @if($panelFeatures->enabledForRole('company', 'fleets'))
-            <a href="{{ route('web.company.fleet.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->is('*fleet*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">🚛 ناوگان</a>
-            @endif
+
             @if($panelFeatures->enabledForRole('company', 'reports'))
-            <a href="{{ route('report.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('report.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📊 گزارشات</a>
-            <a href="{{ route('company.cmr-reports.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm {{ request()->routeIs('company.cmr-reports.*') ? 'active-menu bg-emerald-900 text-emerald-400' : 'hover:bg-slate-800' }}">📗 گزارش‌های e-CMR</a>
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('report.*', 'company.cmr-reports.*')) open @endif>
+                <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800"><span><span class="group-icon">📊</span> گزارش‌ها</span><span class="tree-arrow text-xs">⌄</span></summary>
+                <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
+                    <a href="{{ route('report.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('report.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">گزارش‌های دوزوله</a>
+                    <a href="{{ route('company.cmr-reports.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.cmr-reports.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">گزارش‌های e-CMR</a>
+                </div>
+            </details>
             @endif
             
             @if($panelFeatures->enabledForRole('company', 'profile'))
             <div class="pt-4 mt-4 border-t border-slate-800">
-                 <button onclick="$('#submenu-profile').slideToggle();" class="w-full flex items-center justify-between px-4 py-3 rounded-xl font-bold text-sm hover:bg-slate-800">
-                    <span>⚙️ تنظیمات</span>
-                </button>
-                <div id="submenu-profile" class="hidden pr-4 mt-1 space-y-1">
-                    <a href="{{ route('company.profile.edit') }}" class="block p-2 text-xs font-semibold text-slate-400 hover:text-emerald-400">ویرایش پروفایل</a>
-                    <a href="{{ route('company.shahbaz.dossier.show') }}" class="block p-2 text-xs font-semibold text-slate-400 hover:text-emerald-400">پرونده شرکت و شحباز</a>
+                <details class="sidebar-tree rounded-xl" @if(request()->routeIs('company.profile.*', 'company.shahbaz.*')) open @endif>
+                    <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800"><span><span class="group-icon">⚙️</span> شرکت و شهباز</span><span class="tree-arrow text-xs">⌄</span></summary>
+                    <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
+                        <a href="{{ route('company.shahbaz.dossier.show') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.shahbaz.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">پرونده شرکت و شهباز</a>
+                        <a href="{{ route('company.profile.edit') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.profile.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">ویرایش پروفایل</a>
+                    </div>
+                </details>
                 </div>
-            </div>
             @endif
         </nav>
     </aside>

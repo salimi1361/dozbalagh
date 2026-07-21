@@ -101,10 +101,15 @@
             @endif
 
             @if(auth()->user()?->hasRole('admin') || (auth()->user()?->hasRole('association') && $showAssociationFeature('shahbaz')))
-            <a href="{{ route('association.shahbaz.companies.index') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('association.shahbaz.*') ? 'bg-emerald-600 text-white' : 'hover:bg-slate-800 hover:text-white' }}">کنترل شرکت‌ها و شحباز</a>
-            @endif
-            @if(auth()->user()?->hasRole('admin'))
-            <a href="{{ route('admin.shahbaz.settings.edit') }}" class="flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 {{ request()->routeIs('admin.shahbaz.settings.*') ? 'bg-emerald-600 text-white' : 'hover:bg-slate-800 hover:text-white' }}">تنظیمات مراحل شحباز</a>
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('association.shahbaz.*', 'admin.shahbaz.*')) open @endif>
+                <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800 hover:text-white"><span>🛡️ پرونده شرکت و شهباز</span><span class="tree-arrow text-xs">⌄</span></summary>
+                <div class="mt-1 mr-3 space-y-1 border-r-2 border-emerald-800 pr-2">
+                    <a href="{{ route('association.shahbaz.companies.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('association.shahbaz.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">کنترل و بررسی شرکت‌ها</a>
+                    @if(auth()->user()?->hasRole('admin'))
+                    <a href="{{ route('admin.shahbaz.settings.edit') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.shahbaz.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">تنظیمات مراحل شهباز</a>
+                    @endif
+                </div>
+            </details>
             @endif
 
             @if(auth()->user()?->hasRole('admin') || $showAssociationFeature('admin_dashboard'))
