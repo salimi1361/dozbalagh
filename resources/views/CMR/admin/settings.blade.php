@@ -1,10 +1,19 @@
-@extends('layouts.admin')
+@extends(auth()->user()?->hasRole('company') ? 'layouts.app' : 'layouts.admin')
 @section('header_title','تعرفه e-CMR')
 @section('content')
 @include('CMR.admin.partials.module-header',['title'=>'تعرفه و امور مالی e-CMR','subtitle'=>'کسر هزینه صدور از کیف پول شرکت و نگهداری تاریخچه تعرفه'])
 <div class="space-y-5" dir="rtl">
 @if($errors->any())<div class="rounded-xl bg-rose-50 p-4 text-rose-700">{{ $errors->first() }}</div>@endif
-<form method="POST" action="{{ route('admin.cmr.settings.update') }}" class="max-w-2xl space-y-5 rounded-2xl border bg-white p-6">@csrf @method('PUT')
+@if($companyReadOnly ?? false)
+<style>#cmr-admin-financial-editor,#cmr-admin-financial-editor + section{display:none}</style>
+<section class="max-w-2xl rounded-2xl border border-sky-200 bg-sky-50 p-6">
+ <h3 class="font-black text-sky-900">تعرفه جاری صدور e-CMR</h3>
+ <p class="mt-3 text-2xl font-black text-slate-900">{{ number_format((float) $settings->issuance_fee) }} ریال</p>
+ <p class="mt-2 text-sm text-sky-800">{{ $settings->billing_enabled ? 'کسر هزینه هنگام صدور فعال است.' : 'کسر هزینه هنگام صدور غیرفعال است.' }}</p>
+ <p class="mt-3 text-xs text-slate-500">تغییر تعرفه سراسری فقط در اختیار مدیر کل سامانه است.</p>
+</section>
+@endif
+<form id="cmr-admin-financial-editor" method="POST" action="{{ route('admin.cmr.settings.update') }}" class="max-w-2xl space-y-5 rounded-2xl border bg-white p-6">@csrf @method('PUT')
  <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><label class="flex items-center gap-2 font-black text-emerald-900"><input type="checkbox" name="billing_enabled" value="1" @checked($settings->billing_enabled)> کسر هزینه هنگام صدور فعال باشد</label><p class="mt-2 text-sm text-emerald-800">با صدور رسمی هر CMR، مبلغ زیر مستقیماً از کیف پول شرکت صادرکننده کسر می‌شود.</p></div>
  <label class="block font-bold">مبلغ صدور به ریال<input id="cmr-fee" class="mt-1 w-full rounded-xl border p-3 text-left text-lg font-black" dir="ltr" type="number" min="0" step="1" name="issuance_fee" value="{{ (int)$settings->issuance_fee }}" required><span id="cmr-fee-preview" class="mt-2 block text-sm text-slate-500"></span></label>
  <div class="rounded-xl bg-slate-100 p-3 text-sm"><b>واحد مالی:</b> ریال ایران <span dir="ltr">(IRR)</span><input type="hidden" name="currency" value="IRR"></div>

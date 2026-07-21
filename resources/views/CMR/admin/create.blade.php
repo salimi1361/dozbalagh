@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends(auth()->user()?->hasRole('company') ? 'layouts.app' : 'layouts.admin')
 @section('header_title', $editing ? 'ویرایش پیش‌نویس e-CMR' : 'ایجاد پیش‌نویس e-CMR')
 @section('content')
 <style>

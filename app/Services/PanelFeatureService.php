@@ -75,6 +75,10 @@ class PanelFeatureService
                 'shahbaz_company_review' => 'association.shahbaz.companies.index',
                 'cmr_documents' => 'admin.cmr.index',
                 'cmr_issuance' => 'admin.cmr.create',
+                'cmr_master_data' => 'admin.cmr.master-data.index',
+                'cmr_company_settings' => 'admin.cmr.company-settings.index',
+                'cmr_financial' => 'admin.cmr.settings',
+                'cmr_reports' => 'admin.cmr.reports.index',
             ],
             'company' => [
                 'dashboard' => 'dashboard',
@@ -89,6 +93,11 @@ class PanelFeatureService
                 'wallet' => 'company.wallet.index',
                 'profile' => 'company.profile.edit',
                 'shahbaz_overview' => 'company.shahbaz.dossier.show',
+                'cmr_documents' => 'admin.cmr.index',
+                'cmr_issuance' => 'admin.cmr.create',
+                'cmr_master_data' => 'admin.cmr.master-data.index',
+                'cmr_company_settings' => 'admin.cmr.company-settings.index',
+                'cmr_financial' => 'admin.cmr.settings',
                 'cmr_reports' => 'company.cmr-reports.index',
             ],
         ];

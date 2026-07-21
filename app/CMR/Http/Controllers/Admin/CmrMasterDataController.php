@@ -13,7 +13,9 @@ class CmrMasterDataController extends Controller
 {
     public function index(Request $request)
     {
-        $companies = Company::orderBy('name_fa')->get();
+        $companies = $request->user()?->hasRole('company')
+            ? collect([$request->user()->company])->filter()
+            : Company::orderBy('name_fa')->get();
         $company = $request->filled('company_id') ? $companies->firstWhere('id', $request->integer('company_id')) : $companies->first();
         return view('CMR.admin.master-data', [
             'companies' => $companies, 'company' => $company,

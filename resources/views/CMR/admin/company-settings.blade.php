@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends(auth()->user()?->hasRole('company') ? 'layouts.app' : 'layouts.admin')
 @section('header_title','شماره‌ها و قالب چاپ e-CMR')
 @section('content')
 <div class="space-y-5" dir="rtl">

@@ -29,6 +29,9 @@ class CmrController extends Controller
     {
         $scope = $request->string('scope')->toString();
         $query = CmrDocument::with('company')->latest();
+        if ($company = $this->companyContext()) {
+            $query->where('company_id', $company->id);
+        }
         if ($scope === 'active') {
             $query->whereIn('status', ['issued', 'accepted', 'in_transit']);
         } elseif ($scope === 'archive') {
@@ -58,13 +61,16 @@ class CmrController extends Controller
 
     private function formView(?CmrDocument $editing = null)
     {
+        $company = $this->companyContext();
+        $companies = $company ? collect([$company]) : Company::orderBy('name')->get();
+
         return view('CMR.admin.create', [
-            'companies' => Company::orderBy('name')->get(),
-            'drivers' => Driver::orderBy('last_name_fa')->get(),
-            'fleets' => Fleet::orderBy('id')->get(),
-            'masterParties' => CmrParty::where('is_active', true)->orderByDesc('usage_count')->get(),
-            'masterLocations' => CmrLocation::where('is_active', true)->orderByDesc('usage_count')->get(),
-            'masterGoods' => CmrGoodsTemplate::where('is_active', true)->orderByDesc('usage_count')->get(),
+            'companies' => $companies,
+            'drivers' => Driver::query()->when($company, fn ($query) => $query->where('current_company_id', $company->id))->orderBy('last_name_fa')->get(),
+            'fleets' => Fleet::query()->when($company, fn ($query) => $query->where('company_id', $company->id))->orderBy('id')->get(),
+            'masterParties' => CmrParty::query()->where('is_active', true)->when($company, fn ($query) => $query->where('company_id', $company->id))->orderByDesc('usage_count')->get(),
+            'masterLocations' => CmrLocation::query()->where('is_active', true)->when($company, fn ($query) => $query->where('company_id', $company->id))->orderByDesc('usage_count')->get(),
+            'masterGoods' => CmrGoodsTemplate::query()->where('is_active', true)->when($company, fn ($query) => $query->where('company_id', $company->id))->orderByDesc('usage_count')->get(),
             'editing' => $editing,
         ]);
     }
@@ -151,7 +157,7 @@ class CmrController extends Controller
 
         $companyId = (int) $data['company_id'];
         if (CmrCompanySetting::forCompany($companyId)->assignment_policy === 'same_company') {
-            if (! empty($data['driver_id']) && (int) Driver::findOrFail($data['driver_id'])->company_id !== $companyId) {
+            if (! empty($data['driver_id']) && (int) Driver::findOrFail($data['driver_id'])->current_company_id !== $companyId) {
                 return back()->withInput()->withErrors(['driver_id' => 'راننده باید متعلق به شرکت انتخاب‌شده باشد.']);
             }
             if (! empty($data['fleet_id']) && (int) Fleet::findOrFail($data['fleet_id'])->company_id !== $companyId) {
@@ -322,10 +328,20 @@ class CmrController extends Controller
 
     public function settings()
     {
+        $companyReadOnly = auth()->user()?->hasRole('company') ?? false;
+
         return view('CMR.admin.settings', [
             'settings' => CmrSetting::current(),
-            'history' => CmrTariffHistory::query()->latest('effective_from')->limit(20)->get(),
+            'history' => $companyReadOnly
+                ? collect()
+                : CmrTariffHistory::query()->latest('effective_from')->limit(20)->get(),
+            'companyReadOnly' => $companyReadOnly,
         ]);
+    }
+
+    private function companyContext(): ?Company
+    {
+        return auth()->user()?->hasRole('company') ? auth()->user()->company : null;
     }
 
     public function updateSettings(Request $request)

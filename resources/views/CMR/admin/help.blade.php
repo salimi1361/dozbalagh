@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends(auth()->user()?->hasRole('company') ? 'layouts.app' : 'layouts.admin')
 @section('header_title','راهنمای صدور e-CMR')
 @section('content')
 @include('CMR.admin.partials.module-header',['title'=>'راهنمای فارسی صدور e-CMR','subtitle'=>'راهنمای عملی کاربر شرکت از آماده‌سازی تا تحویل و بایگانی'])

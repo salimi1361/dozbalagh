@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/cmr/verify/{code}', [CmrVerificationController::class, 'show'])->name('cmr.verify');
 
-Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin,association', 'panel.features'])->group(function () {
+Route::prefix('admin/cmr')->name('admin.cmr.')->middleware(['auth', 'role:admin,association,company', 'panel.features', 'cmr.company-scope'])->group(function () {
     Route::get('/', [CmrController::class, 'index'])->name('index');
     Route::get('/create', [CmrController::class, 'create'])->name('create');
     Route::get('/help', [CmrController::class, 'help'])->name('help');

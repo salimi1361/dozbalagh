@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends(auth()->user()?->hasRole('company') ? 'layouts.app' : 'layouts.admin')
 @section('header_title','اطلاعات پایه e-CMR')
 @section('content')<div class="space-y-5" dir="rtl">
 @include('CMR.admin.partials.module-header', ['title' => 'اطلاعات پایه e-CMR', 'subtitle' => 'مدیریت طرف‌های تجاری، مکان‌های پرتکرار و الگوهای کالا'])

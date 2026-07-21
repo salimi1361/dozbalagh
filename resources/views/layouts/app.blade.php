@@ -111,11 +111,25 @@
             </details>
             @endif
 
-            @if($panelFeatures->enabledForRole('company', 'cmr_reports'))
-            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('company.cmr-reports.*')) open @endif>
+            @php
+                $companyCmrFeatures = [
+                    'cmr_documents', 'cmr_issuance', 'cmr_master_data',
+                    'cmr_company_settings', 'cmr_financial', 'cmr_reports',
+                ];
+                $showCompanyCmr = collect($companyCmrFeatures)->contains(
+                    fn (string $feature) => $panelFeatures->enabledForRole('company', $feature)
+                );
+            @endphp
+            @if($showCompanyCmr)
+            <details class="sidebar-tree rounded-xl" @if(request()->routeIs('admin.cmr.*', 'company.cmr-reports.*')) open @endif>
                 <summary class="flex cursor-pointer list-none items-center justify-between rounded-xl px-4 py-3 text-sm font-bold hover:bg-slate-800"><span><span class="group-icon">▣</span> CMR</span><span class="tree-arrow text-xs">⌄</span></summary>
                 <div class="mt-1 mr-3 space-y-1 border-r-2 border-slate-800 pr-2">
-                    <a href="{{ route('company.cmr-reports.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.cmr-reports.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">گزارش‌های e-CMR</a>
+                    @if($panelFeatures->enabledForRole('company', 'cmr_documents'))<a href="{{ route('admin.cmr.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.index', 'admin.cmr.show', 'admin.cmr.edit') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">کارتابل اسناد</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'cmr_issuance'))<a href="{{ route('admin.cmr.create') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.create') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">صدور e-CMR</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'cmr_master_data'))<a href="{{ route('admin.cmr.master-data.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.master-data.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">اطلاعات پایه</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'cmr_company_settings'))<a href="{{ route('admin.cmr.company-settings.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.company-settings.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">شماره‌ها و قالب چاپ</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'cmr_financial'))<a href="{{ route('admin.cmr.settings') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('admin.cmr.settings*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">تعرفه و امور مالی</a>@endif
+                    @if($panelFeatures->enabledForRole('company', 'cmr_reports'))<a href="{{ route('company.cmr-reports.index') }}" class="block rounded-lg px-4 py-2 text-xs font-bold {{ request()->routeIs('company.cmr-reports.*') ? 'bg-slate-800/50 text-emerald-400' : 'text-slate-400 hover:text-white' }}">گزارش‌های e-CMR</a>@endif
                 </div>
             </details>
             @endif

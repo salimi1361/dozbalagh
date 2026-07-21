@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
             'panel.features' => \App\Http\Middleware\EnsurePanelFeatureEnabled::class,
+            'cmr.company-scope' => \App\Http\Middleware\EnsureCmrCompanyScope::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

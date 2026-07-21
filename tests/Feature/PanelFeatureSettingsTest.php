@@ -2,12 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\CMR\Models\CmrDocument;
+use App\Models\Company;
 use App\Models\Role;
 use App\Models\SystemSetting;
 use App\Models\User;
 use App\Services\PanelFeatureService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class PanelFeatureSettingsTest extends TestCase
@@ -46,6 +49,11 @@ class PanelFeatureSettingsTest extends TestCase
         $this->assertFalse($features->enabledForRole('association', 'cmr_issuance'));
         $this->assertFalse($features->enabledForRole('company', 'shahbaz_overview'));
         $this->assertFalse($features->enabledForRole('company', 'shahbaz_profile'));
+        $this->assertFalse($features->enabledForRole('company', 'cmr_documents'));
+        $this->assertFalse($features->enabledForRole('company', 'cmr_issuance'));
+        $this->assertFalse($features->enabledForRole('company', 'cmr_master_data'));
+        $this->assertFalse($features->enabledForRole('company', 'cmr_company_settings'));
+        $this->assertFalse($features->enabledForRole('company', 'cmr_financial'));
         $this->assertFalse($features->enabledForRole('company', 'cmr_reports'));
     }
 
@@ -61,6 +69,11 @@ class PanelFeatureSettingsTest extends TestCase
             ->assertSee('features[association][shahbaz_company_review]', false)
             ->assertSee('features[association][cmr_documents]', false)
             ->assertSee('features[company][shahbaz_overview]', false)
+            ->assertSee('features[company][cmr_documents]', false)
+            ->assertSee('features[company][cmr_issuance]', false)
+            ->assertSee('features[company][cmr_master_data]', false)
+            ->assertSee('features[company][cmr_company_settings]', false)
+            ->assertSee('features[company][cmr_financial]', false)
             ->assertSee('features[company][cmr_reports]', false);
     }
 
@@ -134,6 +147,49 @@ class PanelFeatureSettingsTest extends TestCase
         $this->assertFalse($features->enabledForRoute('company', 'company.shahbaz.profile.edit'));
     }
 
+    public function test_company_cmr_documents_are_scoped_to_its_own_company(): void
+    {
+        $role = Role::create(['name' => 'company', 'title_fa' => 'company']);
+        $firstUser = User::create(['role_id' => $role->id, 'username' => 'company-one', 'password' => Hash::make('secret'), 'status' => 'active']);
+        $secondUser = User::create(['role_id' => $role->id, 'username' => 'company-two', 'password' => Hash::make('secret'), 'status' => 'active']);
+        $firstCompany = $this->companyForUser($firstUser, 'CMP-ONE');
+        $secondCompany = $this->companyForUser($secondUser, 'CMP-TWO');
+        $ownDocument = $this->cmrDocument($firstCompany, 'OWN-CMR');
+        $otherDocument = $this->cmrDocument($secondCompany, 'OTHER-CMR');
+
+        SystemSetting::setValue('panel_features', [
+            'company' => ['cmr_documents' => true],
+        ]);
+
+        $this->actingAs($firstUser)
+            ->get(route('admin.cmr.index'))
+            ->assertOk()
+            ->assertSee($ownDocument->number)
+            ->assertDontSee($otherDocument->number);
+
+        $this->actingAs($firstUser)
+            ->get(route('admin.cmr.show', $otherDocument))
+            ->assertNotFound();
+    }
+
+    public function test_company_can_view_but_cannot_change_global_cmr_tariff(): void
+    {
+        $companyUser = $this->userWithRole('company');
+        $this->companyForUser($companyUser, 'CMP-FIN');
+        SystemSetting::setValue('panel_features', [
+            'company' => ['cmr_financial' => true],
+        ]);
+
+        $this->actingAs($companyUser)
+            ->get(route('admin.cmr.settings'))
+            ->assertOk()
+            ->assertSee('تغییر تعرفه سراسری فقط در اختیار مدیر کل سامانه است.');
+
+        $this->actingAs($companyUser)
+            ->put(route('admin.cmr.settings.update'), ['issuance_fee' => 1])
+            ->assertForbidden();
+    }
+
     public function test_landing_route_uses_first_enabled_feature(): void
     {
         SystemSetting::setValue('panel_features', [
@@ -188,6 +244,32 @@ class PanelFeatureSettingsTest extends TestCase
             'password' => Hash::make('secret-password'),
             'status' => 'active',
             'is_manual' => true,
+        ]);
+    }
+
+    private function companyForUser(User $user, string $code): Company
+    {
+        return Company::create([
+            'user_id' => $user->id,
+            'company_code' => $code,
+            'name_fa' => 'شرکت '.$code,
+            'name_en' => 'Company '.$code,
+            'national_id' => 'NI-'.$code,
+        ]);
+    }
+
+    private function cmrDocument(Company $company, string $number): CmrDocument
+    {
+        return CmrDocument::create([
+            'uuid' => (string) Str::uuid(),
+            'number' => $number,
+            'company_id' => $company->id,
+            'status' => 'draft',
+            'consignor_name' => 'Sender',
+            'consignee_name' => 'Receiver',
+            'carrier_name' => 'Carrier',
+            'taking_over_place' => 'Tehran',
+            'delivery_place' => 'Berlin',
         ]);
     }
 }

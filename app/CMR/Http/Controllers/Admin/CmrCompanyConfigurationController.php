@@ -30,7 +30,9 @@ class CmrCompanyConfigurationController extends Controller
 
     public function index(Request $request)
     {
-        $companies = Company::query()->orderBy('name_fa')->get();
+        $companies = $request->user()?->hasRole('company')
+            ? collect([$request->user()->company])->filter()
+            : Company::query()->orderBy('name_fa')->get();
         $company = $request->filled('company_id')
             ? $companies->firstWhere('id', (int) $request->integer('company_id'))
             : $companies->first();

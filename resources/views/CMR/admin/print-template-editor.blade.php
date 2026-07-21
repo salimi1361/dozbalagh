@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends(auth()->user()?->hasRole('company') ? 'layouts.app' : 'layouts.admin')
 @section('header_title','طراح قالب چاپ e-CMR')
 @section('content')
 @include('CMR.admin.partials.module-header',['title'=>'طراح قالب چاپ e-CMR','subtitle'=>'جانمایی فیلدها روی فرم خام اختصاصی '.$company->name_fa])
