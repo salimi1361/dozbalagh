@@ -101,6 +101,7 @@ class AuthController extends Controller
                 'id' => $driver->id,
                 'name' => ($driver->first_name_fa || $driver->last_name_fa) ? ($driver->first_name_fa . ' ' . $driver->last_name_fa) : ($driver->name ?? 'راننده سیستم'),
                 'national_code' => $driver->national_code,
+                'mobile' => $driver->mobile,
                 
                 // اطلاعات داینامیک شرکت
                 'company_name' => $companyName,

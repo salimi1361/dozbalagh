@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Driver;
 
 use App\Http\Controllers\Controller;
+use App\Models\DozbalaghItem;
 use App\Models\PermitRequest;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -68,6 +69,12 @@ class PermitController extends Controller
         $issuedAt = $permit->issued_at ?? $permit->created_at;
         $validUntil = $permit->permit_valid_until;
         $items = $this->permitItems($permit->id);
+        $trackingItems = DozbalaghItem::query()
+            ->whereIn('serial_number', collect($items)->pluck('d_serial_number')->filter()->values())
+            ->whereIn('lifecycle_status', ['issued', 'consumed'])
+            ->whereNull('returned_at')
+            ->get()
+            ->keyBy(fn (DozbalaghItem $item) => (string) $item->serial_number);
         $firstItem = $items[0] ?? null;
         $cmrDate = $permit->cmr_date ?? ($firstItem['cmr_date_raw'] ?? null);
         $tirCarnetDate = $permit->tir_carnet_date ?? ($firstItem['tir_carnet_date_raw'] ?? null);
@@ -113,7 +120,13 @@ class PermitController extends Controller
             'total_amount' => $permit->total_amount ? $this->toPersianNumbers(number_format((float) $permit->total_amount)) : null,
             'payment_status' => $permit->payment_status,
             'company_note' => $permit->company_note,
-            'dozoleh_items' => array_map(fn ($item) => $this->formatPermitItem($item), $items),
+            'dozoleh_items' => array_map(
+                fn ($item) => $this->formatPermitItem(
+                    $item,
+                    $trackingItems->get((string) ($item['d_serial_number'] ?? '')),
+                ),
+                $items,
+            ),
             'fleet_plate' => $permit->fleet?->transit_plate,
             'fleet_smart_card' => $permit->fleet?->smart_card_number,
             'truck_type' => $permit->fleet?->truck_type,
@@ -137,13 +150,14 @@ class PermitController extends Controller
             ->all();
     }
 
-    private function formatPermitItem(array $item): array
+    private function formatPermitItem(array $item, ?DozbalaghItem $trackingItem = null): array
     {
         $cmrDates = $this->formatDatePair($item['cmr_date_raw'] ?? null);
         $tirDates = $this->formatDatePair($item['tir_carnet_date_raw'] ?? null);
 
         return [
             'id' => $item['id'] ?? null,
+            'tracking_item_id' => $trackingItem?->id,
             'country_name' => $item['country_name'] ?? null,
             'permit_type' => $item['permit_type'] ?? null,
             'operation_type' => $item['operation_type'] ?? null,
@@ -154,7 +168,12 @@ class PermitController extends Controller
             'receipt_code' => $item['receipt_code'] ?? null,
             'serial_number' => isset($item['d_serial_number']) ? $this->toPersianNumbers($item['d_serial_number']) : null,
             'allocation_status' => $item['allocation_status'] ?? null,
+            'item_status' => $item['item_status'] ?? null,
             'return_status' => $item['return_status'] ?? null,
+            'issue_date_jalali' => $this->formatDatePair($item['issued_at'] ?? null)['jalali'],
+            'issue_date_gregorian' => $this->formatDatePair($item['issued_at'] ?? null)['gregorian'],
+            'valid_until_jalali' => $this->formatDatePair($item['permit_valid_until'] ?? null)['jalali'],
+            'valid_until_gregorian' => $this->formatDatePair($item['permit_valid_until'] ?? null)['gregorian'],
             'cmr_date_jalali' => $cmrDates['jalali'],
             'cmr_date_gregorian' => $cmrDates['gregorian'],
             'tir_carnet_number' => $item['tir_carnet_number'] ?? null,

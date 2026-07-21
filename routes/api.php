@@ -66,6 +66,7 @@ Route::prefix('v1/driver')->group(function () {
         Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
         Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
         Route::get('/company-messages', [CompanyMessageController::class, 'index']);
+        Route::get('/company-messages/conversations', [CompanyMessageController::class, 'conversations']);
         Route::post('/company-messages/{id}/read', [CompanyMessageController::class, 'markAsRead']);
         Route::post('/company-messages/reply', [CompanyMessageController::class, 'reply']);
         Route::post('/pwa-installations', [PwaInstallationController::class, 'store']);

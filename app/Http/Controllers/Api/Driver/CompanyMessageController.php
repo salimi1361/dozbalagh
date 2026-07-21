@@ -10,11 +10,16 @@ class CompanyMessageController extends Controller
 {
     public function index(Request $request)
     {
+        $request->validate([
+            'company_id' => ['nullable', 'integer'],
+        ]);
+
         $driver = $request->user();
 
         $messages = CompanyDriverMessage::query()
             ->with('company')
             ->where('driver_id', $driver->id)
+            ->when($request->filled('company_id'), fn ($query) => $query->where('company_id', $request->integer('company_id')))
             ->latest()
             ->limit(50)
             ->get()
@@ -40,6 +45,58 @@ class CompanyMessageController extends Controller
                 ->whereNull('read_at')
                 ->count(),
             'data' => $messages,
+        ]);
+    }
+
+    public function conversations(Request $request)
+    {
+        $driver = $request->user();
+
+        $summaries = CompanyDriverMessage::query()
+            ->where('driver_id', $driver->id)
+            ->selectRaw('company_id, MAX(id) as last_message_id, MAX(created_at) as last_message_at')
+            ->selectRaw("SUM(CASE WHEN sender = 'company' AND read_at IS NULL THEN 1 ELSE 0 END) as unread_count")
+            ->groupBy('company_id')
+            ->orderByDesc('last_message_at')
+            ->get();
+
+        $lastMessages = CompanyDriverMessage::query()
+            ->with('company')
+            ->whereIn('id', $summaries->pluck('last_message_id'))
+            ->get()
+            ->keyBy('id');
+
+        $conversations = $summaries
+            ->map(function ($summary) use ($lastMessages) {
+                $lastMessage = $lastMessages->get((int) $summary->last_message_id);
+
+                if (!$lastMessage) {
+                    return null;
+                }
+
+                $companyName = $lastMessage->company?->name_fa
+                    ?? $lastMessage->company?->name
+                    ?? 'شرکت حمل و نقل';
+
+                return [
+                    'id' => 'company:' . $lastMessage->company_id,
+                    'type' => 'company',
+                    'participant_id' => $lastMessage->company_id,
+                    'title' => $companyName,
+                    'subtitle' => 'گفتگوی راننده و شرکت',
+                    'last_message' => $lastMessage->message,
+                    'last_message_at' => optional($lastMessage->created_at)->format('Y/m/d H:i'),
+                    'unread_count' => (int) $summary->unread_count,
+                    'can_reply' => true,
+                ];
+            })
+            ->filter()
+            ->values();
+
+        return response()->json([
+            'status' => 'success',
+            'unread_count' => $conversations->sum('unread_count'),
+            'data' => $conversations,
         ]);
     }
 

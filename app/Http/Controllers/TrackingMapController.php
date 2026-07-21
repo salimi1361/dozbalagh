@@ -44,7 +44,14 @@ class TrackingMapController extends Controller
             ->when($request->integer('item_id'), fn ($q, $id) => $q->where('dozbalagh_item_id', $id))
             ->when($request->filled('from'), fn ($q) => $q->where('recorded_at', '>=', $request->date('from')))
             ->when($user->hasRole('company'), function ($q) use ($companyId) {
-                $q->whereHas('driver', fn ($driver) => $driver->where('current_company_id', $companyId));
+                if (! $companyId) {
+                    $q->whereRaw('1 = 0');
+                    return;
+                }
+                $q->whereHas('dozbalaghItem', function ($item) use ($companyId) {
+                    $item->where('company_id', $companyId)
+                        ->orWhereHas('permitRequest', fn ($permit) => $permit->where('company_id', $companyId));
+                });
             });
 
         $locations = $query->orderByDesc('recorded_at')->limit(5000)->get()->sortBy('recorded_at')->values();
