@@ -8,14 +8,18 @@ use Illuminate\Http\Request;
 
 class EnsureCompanyEligible
 {
-    public function handle(Request $request, Closure $next, CompanyEligibilityService $eligibility)
+    public function __construct(private readonly CompanyEligibilityService $eligibility)
+    {
+    }
+
+    public function handle(Request $request, Closure $next)
     {
         $company = $request->user()?->company;
         abort_unless($company, 403);
 
-        if (!$eligibility->canOperate($company)) {
+        if (!$this->eligibility->canOperate($company)) {
             return redirect()->route('company.shahbaz.profile.edit')
-                ->with('warning', implode(' ', $eligibility->blockingReasons($company)));
+                ->with('warning', implode(' ', $this->eligibility->blockingReasons($company)));
         }
 
         return $next($request);
