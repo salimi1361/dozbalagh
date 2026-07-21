@@ -8,17 +8,31 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->json('association_feature_keys')->nullable()->after('is_manual');
-            $table->softDeletes();
-        });
+        if (! Schema::hasColumn('users', 'association_feature_keys')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->json('association_feature_keys')->nullable()->after('is_manual');
+            });
+        }
+
+        if (! Schema::hasColumn('users', 'deleted_at')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->softDeletes();
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('association_feature_keys');
-            $table->dropSoftDeletes();
-        });
+        if (Schema::hasColumn('users', 'association_feature_keys')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropColumn('association_feature_keys');
+            });
+        }
+
+        if (Schema::hasColumn('users', 'deleted_at')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropSoftDeletes();
+            });
+        }
     }
 };
