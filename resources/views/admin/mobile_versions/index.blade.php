@@ -53,7 +53,14 @@
                 <div><label class="mb-2 block text-xs font-black text-slate-600">SHA-256 فایل (اختیاری)</label><input name="file_checksum" value="{{ old('file_checksum', $version?->file_checksum) }}" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-mono text-xs" dir="ltr"></div>
                 <div><label class="mb-2 block text-xs font-black text-slate-600">پیام به‌روزرسانی</label><textarea name="message" rows="2" class="w-full rounded-xl border border-slate-300 px-3 py-2.5">{{ old('message', $version?->message) }}</textarea></div>
                 <div><label class="mb-2 block text-xs font-black text-slate-600">تغییرات نسخه</label><textarea name="release_notes" rows="4" class="w-full rounded-xl border border-slate-300 px-3 py-2.5">{{ old('release_notes', $version?->release_notes) }}</textarea></div>
-                <div><label class="mb-2 block text-xs font-black text-slate-600">زمان انتشار (هجری شمسی)</label><input type="text" name="published_at_jalali" value="{{ old('published_at_jalali', $version?->published_at ? verta($version->published_at)->format('Y/m/d H:i') : '') }}" placeholder="1405/04/25 14:30" inputmode="numeric" autocomplete="off" class="jalali-datetime-picker w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-center" dir="ltr"><p class="mt-2 text-xs font-semibold text-slate-400">از تقویم شمسی انتخاب کنید؛ اگر تقویم باز نشد، با قالب 1405/04/25 14:30 وارد کنید.</p></div>
+                <div>
+                    <label class="mb-2 block text-xs font-black text-slate-600">زمان انتشار (هجری شمسی)</label>
+                    <span class="relative block">
+                        <input type="text" readonly name="published_at_jalali" value="{{ old('published_at_jalali', $version?->published_at ? verta($version->published_at)->format('Y/m/d H:i') : '') }}" placeholder="انتخاب تاریخ و ساعت انتشار" autocomplete="off" class="jalali-datetime-picker w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-11 pr-3 text-center" dir="ltr">
+                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg" aria-hidden="true">🗓️</span>
+                    </span>
+                    <p class="mt-2 text-xs font-semibold text-slate-400">تاریخ و ساعت انتشار را از تقویم شمسی انتخاب کنید.</p>
+                </div>
                 <div class="grid gap-3 sm:grid-cols-3">
                     <label class="flex items-center gap-2 rounded-xl bg-slate-50 p-3 text-xs font-black"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $version?->is_active ?? true))> سیاست فعال</label>
                     <label class="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-xs font-black text-amber-800"><input type="checkbox" name="force_update" value="1" @checked(old('force_update', $version?->force_update))> آپدیت اجباری</label>
@@ -76,21 +83,53 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     if (!window.jQuery || typeof window.jQuery.fn.pDatepicker !== 'function') return;
-    $('.jalali-datetime-picker').pDatepicker({
-        format: 'YYYY/MM/DD HH:mm',
-        initialValue: false,
-        autoClose: true,
-        responsive: true,
-        onlySelectOnDate: false,
-        calendarType: 'persian',
-        calendar: {
-            persian: { locale: 'fa', showHint: false, leapYearMode: 'algorithmic' },
-            gregorian: { showHint: false }
-        },
-        navigator: { enabled: true, scroll: { enabled: true } },
-        toolbox: { enabled: true, calendarSwitch: { enabled: false }, todayButton: { enabled: true }, submitButton: { enabled: true } },
-        timePicker: { enabled: true, second: { enabled: false }, meridian: { enabled: false } }
+
+    const placePicker = model => requestAnimationFrame(() => {
+        const box = model.view.$container;
+        const inputRect = model.inputElement.getBoundingClientRect();
+        const plot = box.find('.datepicker-plot-area')[0];
+        if (!plot) return;
+
+        const plotRect = plot.getBoundingClientRect();
+        const above = window.innerHeight - inputRect.bottom < plotRect.height && inputRect.top > plotRect.height;
+        const currentTop = parseFloat(box.css('top')) || 0;
+        const delta = above
+            ? inputRect.top - 4 - plotRect.bottom
+            : inputRect.bottom + 4 - plotRect.top;
+
+        box.css('top', (currentTop + delta) + 'px');
     });
+
+    $('.jalali-datetime-picker').each(function () {
+        $(this).pDatepicker({
+            format: 'YYYY/MM/DD HH:mm',
+            initialValue: Boolean(this.value),
+            initialValueType: 'persian',
+            autoClose: true,
+            responsive: true,
+            onlySelectOnDate: false,
+            calendarType: 'persian',
+            calendar: {
+                persian: { locale: 'fa', showHint: false, leapYearMode: 'algorithmic' },
+                gregorian: { showHint: false }
+            },
+            navigator: { enabled: true, scroll: { enabled: true } },
+            toolbox: { enabled: true, calendarSwitch: { enabled: false }, todayButton: { enabled: true }, submitButton: { enabled: true } },
+            timePicker: { enabled: true, second: { enabled: false }, meridian: { enabled: false } },
+            onShow: placePicker
+        });
+    });
+
+    const closeOnOutsideMove = event => {
+        if (event.target instanceof Element && event.target.closest('.datepicker-container, .datepicker-plot-area')) return;
+        $('.jalali-datetime-picker').each(function () {
+            const picker = $(this).data('datepicker');
+            if (picker) picker.hide();
+        });
+    };
+
+    window.addEventListener('wheel', closeOnOutsideMove, { passive: true, capture: true });
+    window.addEventListener('touchmove', closeOnOutsideMove, { passive: true, capture: true });
 });
 </script>
 @endsection
