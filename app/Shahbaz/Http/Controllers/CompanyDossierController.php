@@ -15,9 +15,12 @@ class CompanyDossierController extends Controller
     public function show(Request $request, ShahbazSectionService $sections)
     {
         $company = $request->user()->company;
+        $latestReviews = \App\Shahbaz\Models\DossierReview::where('company_id', $company->id)
+            ->latest('id')->get()->unique(fn ($review) => $review->entity_type.':'.$review->entity_id);
+        $correctionsBySection = $latestReviews->where('status', 'correction_required')->groupBy('section_key');
         return view('Shahbaz.company.dossier', [
             'company' => $company, 'sections' => $sections->accessibleRows($company),
-            'reminders' => $sections->reminders(),
+            'reminders' => $sections->reminders(), 'correctionsBySection' => $correctionsBySection,
         ]);
     }
 

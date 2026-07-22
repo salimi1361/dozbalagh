@@ -170,13 +170,43 @@ class AssociationVerificationController extends Controller
             throw ValidationException::withMessages(['section_key' => 'بخش انتخاب‌شده با نوع رکورد مطابقت ندارد.']);
         }
 
-        \App\Shahbaz\Models\DossierReview::create([
-            'company_id'=>$company->id, 'section_key'=>$data['section_key'], 'entity_type'=>$data['entity_type'],
-            'entity_id'=>$entity->id, 'status'=>$data['status'], 'note'=>$data['note'] ?? null,
-            'entity_snapshot'=>$entity->toArray(), 'reviewed_by_user_id'=>$request->user()->id, 'reviewed_at'=>now(),
-        ]);
+        DB::transaction(function () use ($company, $entity, $data, $request) {
+            \App\Shahbaz\Models\DossierReview::create([
+                'company_id'=>$company->id, 'section_key'=>$data['section_key'], 'entity_type'=>$data['entity_type'],
+                'entity_id'=>$entity->id, 'status'=>$data['status'], 'note'=>$data['note'] ?? null,
+                'entity_snapshot'=>$entity->toArray(), 'reviewed_by_user_id'=>$request->user()->id, 'reviewed_at'=>now(),
+            ]);
 
-        return back()->with('success', 'نتیجه کنترل این مورد ثبت شد.');
+            if ($data['status'] !== 'correction_required') return;
+
+            $from = $company->shahbaz_verification_status;
+            $company->forceFill([
+                'shahbaz_verification_status' => 'correction_required',
+                'shahbaz_review_note' => $data['note'],
+                'shahbaz_verified_by_user_id' => null,
+                'shahbaz_verified_at' => null,
+            ])->save();
+            CompanyVerificationHistory::create([
+                'company_id'=>$company->id, 'from_status'=>$from, 'to_status'=>'correction_required',
+                'result'=>'dossier_item_correction_required',
+                'description'=>'نقص بخش «'.data_get(config('shahbaz_sections'), $data['section_key'].'.label', $data['section_key']).'»: '.$data['note'],
+                'company_snapshot'=>$company->fresh()->toArray(), 'changed_by_user_id'=>$request->user()->id, 'checked_at'=>now(),
+            ]);
+
+            if ($entity instanceof \App\Shahbaz\Models\LicenseRequest) {
+                $requestFrom = $entity->status;
+                $entity->forceFill(['status'=>'correction_required', 'correction_reason'=>$data['note']])->save();
+                \App\Shahbaz\Models\LicenseRequestHistory::create([
+                    'request_id'=>$entity->id, 'from_status'=>$requestFrom, 'to_status'=>'correction_required',
+                    'description'=>$data['note'], 'request_snapshot'=>$entity->fresh()->toArray(),
+                    'changed_by_user_id'=>$request->user()->id,
+                ]);
+            }
+        });
+
+        return $data['status']==='correction_required'
+            ? redirect()->route('association.shahbaz.companies.index')->with('success', 'نقص ثبت شد و پرونده برای اصلاح به شرکت برگشت داده شد.')
+            : back()->with('success', 'این مورد تأیید شد.');
     }
     public function paymentStore(Request $request, Company $company)
     {
