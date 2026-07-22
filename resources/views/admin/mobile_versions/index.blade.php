@@ -81,8 +81,12 @@
 <script src="{{ asset('assets/js/persian-date.vendor.min.js') }}"></script>
 <script src="{{ asset('assets/js/persian-datepicker.vendor.min.js') }}"></script>
 <script>
+const mobileVersionDatepickerJQuery = window.jQuery;
+
 document.addEventListener('DOMContentLoaded', function () {
-    if (!window.jQuery || typeof window.jQuery.fn.pDatepicker !== 'function') return;
+    if (!mobileVersionDatepickerJQuery || typeof mobileVersionDatepickerJQuery.fn.pDatepicker !== 'function') return;
+
+    const pickerJQuery = mobileVersionDatepickerJQuery;
 
     const placePicker = model => requestAnimationFrame(() => {
         const box = model.view.$container;
@@ -118,14 +122,14 @@ document.addEventListener('DOMContentLoaded', function () {
             onShow: placePicker
     };
 
-    $('.jalali-picker').each(function () {
-        $(this).pDatepicker(pickerOptions);
+    pickerJQuery('.jalali-picker').each(function () {
+        pickerJQuery(this).pDatepicker(pickerOptions);
     });
 
     const closeOnOutsideMove = event => {
         if (event.target instanceof Element && event.target.closest('.datepicker-container, .datepicker-plot-area')) return;
-        $('.jalali-picker').each(function () {
-            const picker = $(this).data('datepicker');
+        pickerJQuery('.jalali-picker').each(function () {
+            const picker = pickerJQuery(this).data('datepicker');
             if (picker) picker.hide();
         });
     };
