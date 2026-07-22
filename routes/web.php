@@ -263,6 +263,7 @@ Route::middleware(['auth', 'role:admin,association', 'panel.features'])->group(f
         Route::post('/', [\App\Http\Controllers\Association\PrintLayoutController::class, 'store'])->name('store');
         Route::get('/{layout}/edit', [\App\Http\Controllers\Association\PrintLayoutController::class, 'edit'])->name('edit');
         Route::put('/{layout}', [\App\Http\Controllers\Association\PrintLayoutController::class, 'update'])->name('update');
+        Route::delete('/{layout}', [\App\Http\Controllers\Association\PrintLayoutController::class, 'destroy'])->name('destroy');
     });
 });
 

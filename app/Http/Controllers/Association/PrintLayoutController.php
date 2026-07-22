@@ -34,6 +34,7 @@ class PrintLayoutController extends Controller
             'company_address' => 'نشانی شرکت (فارسی)',
             'company_address_en' => 'نشانی شرکت (لاتین)',
             'driver_name' => 'نام راننده',
+            'driver_name_en' => 'نام راننده (لاتین)',
             'driver_passport' => 'شماره گذرنامه راننده',
             'vehicle_plate' => 'پلاک کشنده',
             'trailer_plate' => 'پلاک تریلر',
@@ -91,6 +92,15 @@ class PrintLayoutController extends Controller
     public function update(Request $request, PermitPrintLayout $layout)
     {
         return $this->persist($request, $layout);
+    }
+
+    public function destroy(PermitPrintLayout $layout)
+    {
+        $layout->delete();
+
+        return redirect()
+            ->route('association.print-layouts.index')
+            ->with('success', 'قالب چاپ حذف شد.');
     }
 
     private function persist(Request $request, PermitPrintLayout $layout)

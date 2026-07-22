@@ -29,6 +29,7 @@ class PermitPrintService
             'company_address' => $company->address_fa ?? '',
             'company_address_en' => $company->address_en ?? '',
             'driver_name' => trim(($driver->first_name_fa ?? '') . ' ' . ($driver->last_name_fa ?? '')),
+            'driver_name_en' => trim(($driver->first_name_en ?? '') . ' ' . ($driver->last_name_en ?? '')),
             'driver_passport' => $driver->passport_number ?? '',
             'vehicle_plate' => $fleet->transit_plate ?? '',
             'trailer_plate' => $item->trailer_plate ?? '',
