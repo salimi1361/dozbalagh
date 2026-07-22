@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="{{ asset('assets/css/persian-datepicker.vendor.min.css') }}">
 <style>
     .datepicker-plot-area { font-family: 'Vazirmatn', Tahoma, sans-serif !important; z-index: 99999 !important; }
-    .jalali-datetime-picker { cursor: pointer; }
+    .jalali-picker { cursor: pointer; }
 </style>
 <div class="mx-auto max-w-6xl space-y-6" dir="rtl">
     @if(session('success'))<div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-bold text-emerald-700">{{ session('success') }}</div>@endif
@@ -56,7 +56,7 @@
                 <div>
                     <label class="mb-2 block text-xs font-black text-slate-600">زمان انتشار (هجری شمسی)</label>
                     <span class="relative block">
-                        <input type="text" readonly name="published_at_jalali" value="{{ old('published_at_jalali', $version?->published_at ? verta($version->published_at)->format('Y/m/d H:i') : '') }}" placeholder="انتخاب تاریخ و ساعت انتشار" autocomplete="off" class="jalali-datetime-picker w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-11 pr-3 text-center" dir="ltr">
+                        <input type="text" readonly name="published_at_jalali" value="{{ old('published_at_jalali', $version?->published_at ? verta($version->published_at)->format('Y/m/d H:i') : '') }}" placeholder="انتخاب تاریخ و ساعت انتشار" autocomplete="off" class="jalali-picker w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-11 pr-3 text-center" dir="ltr">
                         <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg" aria-hidden="true">🗓️</span>
                     </span>
                     <p class="mt-2 text-xs font-semibold text-slate-400">تاریخ و ساعت انتشار را از تقویم شمسی انتخاب کنید.</p>
@@ -100,11 +100,9 @@ document.addEventListener('DOMContentLoaded', function () {
         box.css('top', (currentTop + delta) + 'px');
     });
 
-    $('.jalali-datetime-picker').each(function () {
-        const input = $(this);
-        input.pDatepicker({
+    const pickerOptions = {
             format: 'YYYY/MM/DD HH:mm',
-            initialValue: Boolean(this.value),
+            initialValue: true,
             initialValueType: 'persian',
             autoClose: true,
             responsive: true,
@@ -118,17 +116,15 @@ document.addEventListener('DOMContentLoaded', function () {
             toolbox: { enabled: true, calendarSwitch: { enabled: false }, todayButton: { enabled: true }, submitButton: { enabled: true } },
             timePicker: { enabled: true, second: { enabled: false }, meridian: { enabled: false } },
             onShow: placePicker
-        });
+    };
 
-        input.on('click focus', function () {
-            const picker = input.data('datepicker');
-            if (picker) picker.show();
-        });
+    $('.jalali-picker').each(function () {
+        $(this).pDatepicker(pickerOptions);
     });
 
     const closeOnOutsideMove = event => {
         if (event.target instanceof Element && event.target.closest('.datepicker-container, .datepicker-plot-area')) return;
-        $('.jalali-datetime-picker').each(function () {
+        $('.jalali-picker').each(function () {
             const picker = $(this).data('datepicker');
             if (picker) picker.hide();
         });
