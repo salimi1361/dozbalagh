@@ -101,7 +101,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     $('.jalali-datetime-picker').each(function () {
-        $(this).pDatepicker({
+        const input = $(this);
+        input.pDatepicker({
             format: 'YYYY/MM/DD HH:mm',
             initialValue: Boolean(this.value),
             initialValueType: 'persian',
@@ -117,6 +118,11 @@ document.addEventListener('DOMContentLoaded', function () {
             toolbox: { enabled: true, calendarSwitch: { enabled: false }, todayButton: { enabled: true }, submitButton: { enabled: true } },
             timePicker: { enabled: true, second: { enabled: false }, meridian: { enabled: false } },
             onShow: placePicker
+        });
+
+        input.on('click focus', function () {
+            const picker = input.data('datepicker');
+            if (picker) picker.show();
         });
     });
 
