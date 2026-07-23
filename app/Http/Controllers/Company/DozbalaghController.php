@@ -227,6 +227,7 @@ class DozbalaghController extends Controller
                         'pri.id',
                         'pri.country_id',
                         'c.name as country_name',
+                        'c.validity_days as country_validity_days',
                         'pri.permit_type',
                         'pri.operation_type',
                         'pri.loading_origin',
@@ -253,6 +254,7 @@ class DozbalaghController extends Controller
                     'payment_status' => $permit->payment_status,
                     'issued_at' => $permit->previous_item_issued_at,
                     'permit_valid_until' => $permit->previous_item_valid_until,
+                    'validity_days' => (int) ($firstDetail->country_validity_days ?? 30),
                     'driver_id' => $permit->driver_id,
                     'fleet_id' => $permit->fleet_id,
 
@@ -290,6 +292,11 @@ class DozbalaghController extends Controller
             $query = DB::table('permit_requests as pr')
                 ->leftJoin('drivers as d', 'pr.driver_id', '=', 'd.id')
                 ->leftJoin('fleets as f', 'pr.fleet_id', '=', 'f.id')
+                ->leftJoin('permit_request_items as renewal_item', function ($join) {
+                    $join->on('renewal_item.permit_request_id', '=', 'pr.id')
+                        ->whereRaw('renewal_item.id = (select min(pri2.id) from permit_request_items pri2 where pri2.permit_request_id = pr.id)');
+                })
+                ->leftJoin('countries as renewal_country', 'renewal_item.country_id', '=', 'renewal_country.id')
                 ->where('pr.company_id', $companyId)
                 ->where('pr.status', 'issued')
                 ->where('pr.payment_status', 'settled')
@@ -297,7 +304,10 @@ class DozbalaghController extends Controller
                 ->where('pr.serial_number', '<>', '')
                 ->whereNotNull('pr.issued_at')
                 ->whereNotNull('pr.permit_valid_until')
-                ->whereDate('pr.permit_valid_until', '<=', now()->toDateString());
+                ->where(function ($renewable) {
+                    $renewable->where('renewal_country.validity_days', 0)
+                        ->orWhereDate('pr.permit_valid_until', '<=', now()->toDateString());
+                });
 
             if (!empty($fleetId)) {
                 $query->where('pr.fleet_id', $fleetId);
@@ -329,6 +339,7 @@ class DozbalaghController extends Controller
                     ->select(
                         'pri.country_id',
                         'c.name as country_name',
+                        'c.validity_days as country_validity_days',
                         'pri.permit_type',
                         'pri.operation_type',
                         'pri.loading_origin',
@@ -354,6 +365,7 @@ class DozbalaghController extends Controller
                     'payment_status' => $row->payment_status,
                     'issued_at' => $row->issued_at,
                     'permit_valid_until' => $row->permit_valid_until,
+                    'validity_days' => (int) ($firstDetail->country_validity_days ?? 30),
                     'driver_id' => $row->driver_id,
                     'fleet_id' => $row->fleet_id,
                     'cargo_type' => $firstDetail->operation_type ?? '',
@@ -396,13 +408,17 @@ class DozbalaghController extends Controller
             ->join('permit_requests as pr', 'pri.permit_request_id', '=', 'pr.id')
             ->leftJoin('drivers as d', 'pr.driver_id', '=', 'd.id')
             ->leftJoin('fleets as f', 'pr.fleet_id', '=', 'f.id')
+            ->leftJoin('countries as renewal_country', 'pri.country_id', '=', 'renewal_country.id')
             ->where('pr.company_id', $companyId)
             ->where('pr.status', 'issued')
             ->where('pr.payment_status', 'settled')
             ->whereNotNull('pri.d_serial_number')
             ->where('pri.d_serial_number', '<>', '')
             ->whereNotNull('pri.issued_at')
-            ->whereDate(DB::raw('COALESCE(pri.permit_valid_until, pr.permit_valid_until)'), '<=', now()->toDateString())
+            ->where(function ($renewable) {
+                $renewable->where('renewal_country.validity_days', 0)
+                    ->orWhereDate(DB::raw('COALESCE(pri.permit_valid_until, pr.permit_valid_until)'), '<=', now()->toDateString());
+            })
             ->where(function ($q) use ($code) {
                 $q->where('pr.d_code', $code)
                   ->orWhere('pr.serial_number', $code)
@@ -416,6 +432,7 @@ class DozbalaghController extends Controller
                 'pri.d_serial_number as previous_item_serial_number',
                 'pri.issued_at as previous_item_issued_at',
                 'pri.permit_valid_until as previous_item_valid_until',
+                'renewal_country.validity_days as country_validity_days',
                 'd.first_name_fa',
                 'd.last_name_fa',
                 'f.transit_plate',

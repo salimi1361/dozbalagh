@@ -21,7 +21,7 @@ class CountryController extends Controller
             'name'           => 'required|string|max:255|unique:countries,name',
             'code'           => 'nullable|string|max:10',
             'price'          => 'required|numeric|min:0',
-            'validity_days'  => 'required|integer|min:1', // 👈 اضافه شد
+            'validity_days'  => 'required|integer|min:0',
             'permit_types'   => 'required|array|min:1',
             'permit_types.*' => 'in:bilateral,transit,bilateral_transit,third_country_transit,third_country',
         ], [
@@ -48,7 +48,7 @@ class CountryController extends Controller
             'name'           => 'required|string|max:255|unique:countries,name,' . $id,
             'code'           => 'nullable|string|max:10',
             'price'          => 'required|numeric|min:0',
-            'validity_days'  => 'required|integer|min:1', // 👈 اضافه شد
+            'validity_days'  => 'required|integer|min:0',
             'permit_types'   => 'required|array|min:1',
             'permit_types.*' => 'in:bilateral,transit,bilateral_transit,third_country_transit,third_country',
         ], [

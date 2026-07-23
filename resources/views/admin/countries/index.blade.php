@@ -12,7 +12,8 @@
 
 @section('content')
     <div class="max-w-4xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="bg-slate-950 p-6 text-white flex justify-between items-center">
+        <div class="relative overflow-hidden bg-gradient-to-l from-[#064e3b] via-[#073b3a] to-[#071b2a] p-6 text-white flex justify-between items-center">
+            <div class="absolute -left-10 -top-16 h-40 w-40 rounded-full bg-emerald-400/10 blur-2xl"></div>
             <div>
                 <h1 class="text-base font-black">لیست کشورهای مجاز دوزوله</h1>
                 <p class="text-slate-400 text-[11px] mt-0.5">کشورهایی که در این لیست فعال باشند، در فرم درخواست نمایش داده می‌شوند.</p>
@@ -30,6 +31,7 @@
                         <th class="p-4">نام کشور</th>
                         <th class="p-4 text-center">کد اختصاری</th>
                         <th class="p-4 text-center">مبلغ (ریال)</th>
+                        <th class="p-4 text-center">اعتبار (روز)</th>
                         <th class="p-4 text-center">نوع مجوزها</th> 
                         <th class="p-4 text-center">وضعیت</th>
                         <th class="p-4 text-center">عملیات</th>
@@ -42,6 +44,9 @@
                             <td class="p-4 font-bold text-slate-700">{{ $country->name }}</td>
                             <td class="p-4 text-center font-mono text-slate-500">{{ $country->code ?? '---' }}</td>
                             <td class="p-4 text-center font-mono font-bold text-slate-700">{{ number_format($country->price) }}</td>
+                            <td class="p-4 text-center font-mono font-bold text-emerald-700">
+                                {{ (int) $country->validity_days === 0 ? 'بدون محدودیت' : number_format($country->validity_days) }}
+                            </td>
                             
                             <td class="p-4 text-center">
                                 @if(!empty($country->allowed_permit_types) && is_array($country->allowed_permit_types))
@@ -95,7 +100,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="p-8 text-center text-slate-400 font-bold">هیچ کشوری در سیستم ثبت نشده است.</td>
+                            <td colspan="8" class="p-8 text-center text-slate-400 font-bold">هیچ کشوری در سیستم ثبت نشده است.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -125,7 +130,8 @@
                         </div>
                         <div>
                             <label class="block text-slate-700 font-bold mb-2 text-sm">اعتبار پیش‌فرض (روز) <span class="text-rose-500">*</span></label>
-                            <input type="number" name="validity_days" value="30" required min="1" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" dir="ltr">
+                            <input type="number" name="validity_days" value="30" required min="0" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" dir="ltr">
+                            <p class="mt-1 text-[10px] text-slate-500">صفر یعنی تمدید بدون محدودیت زمانی، حتی در همان روز.</p>
                         </div>
                     </div>
                     <div>
@@ -185,7 +191,8 @@
                         </div>
                         <div>
                             <label class="block text-slate-700 font-bold mb-2 text-sm">اعتبار (روز) <span class="text-rose-500">*</span></label>
-                            <input type="number" name="validity_days" id="edit_validity_days" required min="1" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" dir="ltr">
+                            <input type="number" name="validity_days" id="edit_validity_days" required min="0" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" dir="ltr">
+                            <p class="mt-1 text-[10px] text-slate-500">صفر یعنی تمدید بدون محدودیت زمانی، حتی در همان روز.</p>
                         </div>
                     </div>
                     <div>
@@ -241,7 +248,8 @@
         $('#edit_price').val(price); 
         
         // 🟢 اصلاحیه قطعی: واکشی امن دیتا مستقیماً از دیتا-ویژگی المنت HTML دکمه جدول
-        let validityDays = $(btnElement).data('validity') || 30;
+        let validityDays = $(btnElement).data('validity');
+        if (validityDays === undefined || validityDays === null || validityDays === '') validityDays = 30;
         $('#edit_validity_days').val(validityDays); 
         
         let permits = $(btnElement).data('permits');

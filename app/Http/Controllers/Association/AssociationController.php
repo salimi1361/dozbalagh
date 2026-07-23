@@ -433,7 +433,7 @@ class AssociationController
                 ? (int) $validityDaysInput
                 : ($countryInfo->validity_days ?? 30);
 
-            if ($validityDays <= 0) {
+            if ($validityDays < 0) {
                 DB::rollBack();
                 return response()->json(['success' => false, 'message' => 'تعداد روز اعتبار معتبر نیست.'], 422);
             }

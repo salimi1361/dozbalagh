@@ -179,6 +179,7 @@
                     <div>راننده پرونده: <span id="renewal_selected_driver" class="font-bold"></span></div>
                     <div>ناوگان پرونده: <span id="renewal_selected_fleet" class="font-bold"></span></div>
                     <div>مقاصد پرونده: <span id="renewal_selected_countries" class="font-bold"></span></div>
+                    <div>اعتبار کشور: <span id="renewal_selected_validity" class="font-bold"></span></div>
                 </div>
 
                 <div id="renewal_detail_box" class="hidden mt-3 rounded-2xl border border-slate-200 bg-slate-50 overflow-hidden">
@@ -222,6 +223,10 @@
                         <div class="md:col-span-2 bg-white border border-slate-100 rounded-xl p-2">
                             <span class="text-slate-400 font-bold">مقاصد دوزوله:</span>
                             <span id="renewal_detail_countries" class="font-black text-slate-900"></span>
+                        </div>
+                        <div class="md:col-span-2 bg-white border border-slate-100 rounded-xl p-2">
+                            <span class="text-slate-400 font-bold">اعتبار کشور:</span>
+                            <span id="renewal_detail_validity" class="font-black text-slate-900"></span>
                         </div>
                     </div>
 
@@ -336,6 +341,8 @@
         $jq('#renewal_selected_driver').text(item.driver_name || item.driver || '---');
         $jq('#renewal_selected_fleet').text(item.fleet_plate || item.fleet || '---');
         $jq('#renewal_selected_countries').text(item.countries_text || '---');
+        let validityText = Number(item.validity_days) === 0 ? 'بدون محدودیت (تمدید همان‌روز مجاز)' : `${item.validity_days || 30} روز`;
+        $jq('#renewal_selected_validity').text(validityText);
         $jq('#renewal_preview').removeClass('hidden');
         $jq('#renewal_empty').addClass('hidden');
 
@@ -348,6 +355,7 @@
         $jq('#renewal_detail_origin').text(item.loading_origin || '---');
         $jq('#renewal_detail_destination').text(item.loading_destination || '---');
         $jq('#renewal_detail_countries').text(item.countries_text || '---');
+        $jq('#renewal_detail_validity').text(validityText);
         $jq('#renewal_detail_box').removeClass('hidden');
 
         window.renewalReference = item;
