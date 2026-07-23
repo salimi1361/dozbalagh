@@ -12,13 +12,13 @@
 
 @section('content')
     <div class="max-w-4xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="relative overflow-hidden bg-gradient-to-l from-[#064e3b] via-[#073b3a] to-[#071b2a] p-6 text-white flex justify-between items-center">
-            <div class="absolute -left-10 -top-16 h-40 w-40 rounded-full bg-emerald-400/10 blur-2xl"></div>
-            <div>
+        <div class="relative min-h-[108px] overflow-hidden bg-gradient-to-l from-[#064e3b] via-[#073b3a] to-[#071b2a] p-6 pl-44 text-white">
+            <div class="pointer-events-none absolute -left-10 -top-16 h-40 w-40 rounded-full bg-emerald-400/10 blur-2xl"></div>
+            <div class="relative z-10">
                 <h1 class="text-base font-black">لیست کشورهای مجاز دوزوله</h1>
                 <p class="text-slate-400 text-[11px] mt-0.5">کشورهایی که در این لیست فعال باشند، در فرم درخواست نمایش داده می‌شوند.</p>
             </div>
-            <button onclick="openCountryModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-5 py-2.5 rounded-xl text-xs shadow-lg transition">
+            <button type="button" onclick="openCountryModal()" class="absolute left-6 top-1/2 z-20 -translate-y-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-black px-5 py-2.5 rounded-xl text-xs shadow-lg transition">
                 ➕ افزودن کشور
             </button>
         </div>
@@ -111,7 +111,7 @@
     {{-- مودال افزودن کشور --}}
     <div id="country_modal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200">
-            <div class="bg-slate-950 p-5 flex justify-between items-center text-white">
+            <div class="bg-gradient-to-l from-[#064e3b] via-[#073b3a] to-[#071b2a] p-5 flex justify-between items-center text-white">
                 <h3 class="font-black text-lg">🌍 ثبت کشور جدید</h3>
                 <button onclick="closeCountryModal()" class="text-slate-400 hover:text-white text-2xl">✕</button>
             </div>
@@ -171,7 +171,7 @@
     {{-- مودال ویرایش کشور --}}
     <div id="edit_country_modal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200">
-            <div class="bg-slate-950 p-5 flex justify-between items-center text-white">
+            <div class="bg-gradient-to-l from-[#064e3b] via-[#073b3a] to-[#071b2a] p-5 flex justify-between items-center text-white">
                 <h3 class="font-black text-lg">✏️ ویرایش کشور</h3>
                 <button onclick="closeEditCountryModal()" class="text-slate-400 hover:text-white text-2xl">✕</button>
             </div>
