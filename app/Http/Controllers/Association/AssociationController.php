@@ -670,6 +670,23 @@ class AssociationController
                 ->leftJoin('countries as c', 'c.id', '=', 'pri.country_id')
                 ->where('pr.status', 'issued')
                 ->whereNotNull('pri.d_serial_number')
+                // به محض ثبت یک تمدید فعال، تعهد لاشه از نسخه قبلی به زنجیره
+                // تمدید منتقل می‌شود؛ بنابراین نسخه قبلی دیگر نباید در کارتابل
+                // تردد انجمن به‌عنوان یک پروانه فعال مستقل نمایش داده شود.
+                ->whereNotExists(function ($renewal) {
+                    $renewal->selectRaw('1')
+                        ->from('permit_request_items as renewal_item')
+                        ->join('permit_requests as renewal_request', 'renewal_request.id', '=', 'renewal_item.permit_request_id')
+                        ->whereColumn('renewal_item.renewed_from_item_id', 'pri.id')
+                        ->where('renewal_request.request_type', 'renewal')
+                        ->whereIn('renewal_request.status', [
+                            'pending',
+                            'under_review',
+                            'returned',
+                            'approved',
+                            'issued',
+                        ]);
+                })
                 ->orderBy('pri.updated_at', 'desc')
                 ->select($selects);
 
