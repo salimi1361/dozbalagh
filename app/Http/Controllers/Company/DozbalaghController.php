@@ -63,10 +63,21 @@ class DozbalaghController extends Controller
 
         $query = PermitRequest::where('company_id', $companyId)->with(['driver', 'fleet']);
 
+        // در پنل شرکت هر زنجیره صدور/تمدید یک پرونده محسوب می‌شود. وقتی یک
+        // تمدید فعال وجود دارد، ردیف مرجع قدیمی جداگانه نمایش داده نمی‌شود.
+        $query->whereNotExists(function ($renewals) {
+            $renewals->selectRaw('1')
+                ->from('permit_requests as active_renewals')
+                ->whereColumn('active_renewals.previous_request_id', 'permit_requests.id')
+                ->where('active_renewals.request_type', 'renewal')
+                ->whereIn('active_renewals.status', $this->activePermitStatuses());
+        });
+
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('d_code', 'like', "%{$search}%")
+                  ->orWhere('previous_d_code', 'like', "%{$search}%")
                   ->orWhereHas('driver', function($d) use ($search) {
                       $d->where('first_name_fa', 'like', "%{$search}%")
                         ->orWhere('last_name_fa', 'like', "%{$search}%")

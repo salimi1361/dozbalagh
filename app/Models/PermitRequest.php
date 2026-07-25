@@ -29,6 +29,10 @@ class PermitRequest extends Model
         'country_id',
         'permit_type',
         'serial_number',
+        'request_type',
+        'previous_request_id',
+        'previous_d_code',
+        'previous_serial_number',
         'issued_at',
         'validity_days',
         'permit_valid_until',
@@ -77,5 +81,15 @@ class PermitRequest extends Model
     public function country()
     {
         return $this->belongsTo(Country::class);
+    }
+
+    public function previousRequest()
+    {
+        return $this->belongsTo(self::class, 'previous_request_id');
+    }
+
+    public function renewals()
+    {
+        return $this->hasMany(self::class, 'previous_request_id');
     }
 }
