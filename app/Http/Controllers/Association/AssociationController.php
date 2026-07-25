@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Association;
 use App\Models\Driver;
 use App\Notifications\DriverPermitIssuedNotification;
 use App\Services\SmsService;
+use App\Models\MobileAppVersion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -564,7 +565,14 @@ class AssociationController
 
             DB::commit();
 
-            $this->notifyDriverPermitIssued($permit->id, (string) $allocatedSerial, $permit->driver_id, $permit->company_id, $validUntil->toDateString());
+            $this->notifyDriverPermitIssued(
+                $permit->id,
+                (string) $allocatedSerial,
+                $permit->driver_id,
+                $permit->company_id,
+                $validUntil->toDateString(),
+                $isRenewal
+            );
 
             $countryName = $countryInfo->name ?? 'نامشخص';
             $message = $isRenewal
@@ -595,7 +603,14 @@ class AssociationController
         return view('association.driver.show', compact('id'));
     } 
 
-    private function notifyDriverPermitIssued(int $permitId, string $serialNumber, mixed $driverId, mixed $companyId, ?string $validUntil): void
+    private function notifyDriverPermitIssued(
+        int $permitId,
+        string $serialNumber,
+        mixed $driverId,
+        mixed $companyId,
+        ?string $validUntil,
+        bool $isRenewal = false
+    ): void
     {
         try {
             if (blank($driverId)) {
@@ -619,12 +634,32 @@ class AssociationController
                 $permitId,
                 $serialNumber,
                 $companyName,
-                $validUntil
+                $validUntil,
+                $isRenewal
             ));
 
-            $driverAppUrl = url('/driver/index.html');
-            $sms = "سامانه دوزوله\nراننده گرامی، دوزوله شماره {$serialNumber} توسط {$companyName} برای شما صادر شد.\nبرای ورود به وب‌اپ راننده ابتدا برنامه را از لینک زیر نصب کنید و سپس از آیکن نصب‌شده وارد سامانه شوید:\n{$driverAppUrl}";
-            app(SmsService::class)->send($driver->mobile, $sms, 'driver_permit_issued');
+            $latestAndroidVersion = MobileAppVersion::query()
+                ->where('platform', 'android')
+                ->where('is_active', true)
+                ->where(function ($query) {
+                    $query->whereNull('published_at')
+                        ->orWhere('published_at', '<=', now());
+                })
+                ->orderByDesc('published_at')
+                ->orderByDesc('latest_build')
+                ->first();
+
+            $driverAppUrl = trim((string) $latestAndroidVersion?->download_url);
+            if ($driverAppUrl === '') {
+                $driverAppUrl = url('/driver/index.html');
+            }
+
+            $actionText = $isRenewal
+                ? "دوزوله شما به شماره {$serialNumber} توسط {$companyName} تمدید شد."
+                : "دوزوله شماره {$serialNumber} توسط {$companyName} برای شما صادر شد.";
+            $sms = "سامانه دوزوله\nراننده گرامی، {$actionText}\nبرای دریافت یا به‌روزرسانی آخرین نسخه اپلیکیشن راننده از لینک زیر استفاده کنید:\n{$driverAppUrl}";
+            $smsType = $isRenewal ? 'driver_permit_renewed' : 'driver_permit_issued';
+            app(SmsService::class)->send($driver->mobile, $sms, $smsType);
         } catch (\Throwable $e) {
             Log::warning('Driver permit issued notification failed: ' . $e->getMessage());
         }
