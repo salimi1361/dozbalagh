@@ -16,6 +16,7 @@
     ];
     $priorityLabels = ['normal' => 'عادی', 'important' => 'مهم', 'urgent' => 'فوری'];
     $statusLabels = ['open' => 'باز', 'in_progress' => 'در حال بررسی', 'answered' => 'پاسخ داده شده', 'closed' => 'بسته شده'];
+    $selectedCompany = $companies->firstWhere('id', (int) old('company_id'));
 @endphp
 
 <div class="space-y-6 pb-8" dir="rtl">
@@ -70,19 +71,22 @@
                 </div>
                 <div id="companySelectWrap">
                     <label class="mb-2 block text-xs font-black text-slate-600">شرکت دریافت‌کننده</label>
-                    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500">
-                        <div class="flex items-center gap-2 border-b border-slate-100 px-3">
-                            <span class="text-slate-400">⌕</span>
-                            <input type="search" id="companySearch" class="w-full border-0 bg-transparent px-0 py-2.5 text-sm outline-none focus:ring-0" placeholder="جست‌وجوی نام یا کد شرکت..." autocomplete="off">
+                    <div id="companyCombobox" class="relative">
+                        <input type="hidden" name="company_id" id="company_id" value="{{ old('company_id') }}">
+                        <button type="button" id="companyComboboxTrigger" aria-haspopup="listbox" aria-expanded="false" class="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm transition hover:border-slate-300 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <span id="companySelectedLabel" class="truncate {{ $selectedCompany ? 'font-bold text-slate-700' : 'text-slate-400' }}">{{ $selectedCompany ? (($selectedCompany->name_fa ?? $selectedCompany->name).' - '.$selectedCompany->company_code) : 'انتخاب و جست‌وجوی شرکت...' }}</span>
+                            <span class="mr-3 shrink-0 text-slate-500">⌄</span>
+                        </button>
+                        <div id="companyDropdown" class="absolute inset-x-0 top-full z-50 mt-1 hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+                            <div class="flex items-center gap-2 border-b border-slate-100 px-3">
+                                <span class="text-slate-400">⌕</span>
+                                <input type="search" id="companySearch" class="w-full border-0 bg-transparent px-0 py-3 text-sm outline-none focus:ring-0" placeholder="جست‌وجوی نام یا کد شرکت..." autocomplete="off">
+                            </div>
+                            <div id="companyOptions" role="listbox" class="max-h-56 overflow-y-auto p-1"></div>
+                            <p id="companySearchEmpty" class="hidden px-4 py-5 text-center text-xs font-black text-rose-600">شرکتی با این عبارت پیدا نشد.</p>
                         </div>
-                        <select name="company_id" id="company_id" class="w-full border-0 bg-white px-3 py-2.5 text-sm outline-none focus:ring-0" required>
-                            <option value="">انتخاب شرکت...</option>
-                            @foreach($companies as $company)
-                                <option value="{{ $company->id }}" @selected((string) old('company_id') === (string) $company->id)>{{ $company->name_fa ?? $company->name }} - {{ $company->company_code }}</option>
-                            @endforeach
-                        </select>
                     </div>
-                    <p id="companySearchEmpty" class="mt-2 hidden text-[11px] font-black text-rose-600">شرکتی با این عبارت پیدا نشد.</p>
+                    <p id="companyRequiredError" class="mt-2 hidden text-[11px] font-black text-rose-600">لطفاً شرکت دریافت‌کننده را انتخاب کنید.</p>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -300,48 +304,87 @@
         const audience = document.getElementById('audience');
         const wrap = document.getElementById('companySelectWrap');
         const company = document.getElementById('company_id');
+        const trigger = document.getElementById('companyComboboxTrigger');
         const search = document.getElementById('companySearch');
         const selected = audience.value === 'selected';
 
         wrap.classList.toggle('opacity-50', !selected);
-        company.required = selected;
-        company.disabled = !selected;
+        trigger.disabled = !selected;
         search.disabled = !selected;
         if (!selected) {
             company.value = '';
             search.value = '';
-            filterCompanies('');
+            setSelectedCompany(null);
+            closeCompanyDropdown();
         }
     }
 
-    const companyOptions = Array.from(document.querySelectorAll('#company_id option')).map((option) => ({
-        value: option.value,
-        label: option.textContent,
-        search: option.textContent.toLocaleLowerCase('fa'),
-    }));
+    const companyOptions = @json($companies->map(fn ($company) => [
+        'value' => (string) $company->id,
+        'label' => ($company->name_fa ?? $company->name).' - '.$company->company_code,
+    ])->values());
 
     function filterCompanies(term) {
-        const select = document.getElementById('company_id');
+        const list = document.getElementById('companyOptions');
         const empty = document.getElementById('companySearchEmpty');
         const query = String(term || '').trim().toLocaleLowerCase('fa');
-        const currentValue = select.value;
-        const matches = companyOptions.filter((option) => !option.value || option.search.includes(query));
+        const matches = companyOptions.filter((option) => option.label.toLocaleLowerCase('fa').includes(query));
 
-        select.replaceChildren(...matches.map((item) => {
-            const option = document.createElement('option');
-            option.value = item.value;
-            option.textContent = item.label;
-            option.selected = item.value === currentValue;
-            return option;
+        list.replaceChildren(...matches.map((item) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.role = 'option';
+            button.className = 'block w-full rounded-lg px-3 py-2.5 text-right text-sm font-bold text-slate-700 transition hover:bg-emerald-50 hover:text-emerald-800';
+            button.textContent = item.label;
+            button.addEventListener('click', () => setSelectedCompany(item));
+            return button;
         }));
 
-        if (currentValue && !matches.some((item) => item.value === currentValue)) {
-            select.value = '';
-        }
-        empty.classList.toggle('hidden', matches.filter((item) => item.value).length > 0);
+        empty.classList.toggle('hidden', matches.length > 0);
+        list.classList.toggle('hidden', matches.length === 0);
     }
 
+    function setSelectedCompany(company) {
+        const input = document.getElementById('company_id');
+        const label = document.getElementById('companySelectedLabel');
+        input.value = company?.value || '';
+        label.textContent = company?.label || 'انتخاب و جست‌وجوی شرکت...';
+        label.classList.toggle('text-slate-400', !company);
+        label.classList.toggle('font-bold', Boolean(company));
+        label.classList.toggle('text-slate-700', Boolean(company));
+        document.getElementById('companyRequiredError').classList.add('hidden');
+        closeCompanyDropdown();
+    }
+
+    function openCompanyDropdown() {
+        const dropdown = document.getElementById('companyDropdown');
+        const trigger = document.getElementById('companyComboboxTrigger');
+        dropdown.classList.remove('hidden');
+        trigger.setAttribute('aria-expanded', 'true');
+        filterCompanies(document.getElementById('companySearch').value);
+        setTimeout(() => document.getElementById('companySearch').focus(), 0);
+    }
+
+    function closeCompanyDropdown() {
+        document.getElementById('companyDropdown').classList.add('hidden');
+        document.getElementById('companyComboboxTrigger').setAttribute('aria-expanded', 'false');
+    }
+
+    document.getElementById('companyComboboxTrigger').addEventListener('click', () => {
+        const dropdown = document.getElementById('companyDropdown');
+        dropdown.classList.contains('hidden') ? openCompanyDropdown() : closeCompanyDropdown();
+    });
     document.getElementById('companySearch').addEventListener('input', (event) => filterCompanies(event.target.value));
+    document.addEventListener('click', (event) => {
+        if (!document.getElementById('companyCombobox').contains(event.target)) closeCompanyDropdown();
+    });
+    document.querySelector('form[action="{{ route('admin.association_crm.messages.store') }}"]').addEventListener('submit', (event) => {
+        if (document.getElementById('audience').value === 'selected' && !document.getElementById('company_id').value) {
+            event.preventDefault();
+            document.getElementById('companyRequiredError').classList.remove('hidden');
+            openCompanyDropdown();
+        }
+    });
 
     function openReceiptModal(id) {
         document.getElementById(id).classList.remove('hidden');
