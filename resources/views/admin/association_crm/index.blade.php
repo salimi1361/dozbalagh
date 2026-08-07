@@ -70,12 +70,19 @@
                 </div>
                 <div id="companySelectWrap">
                     <label class="mb-2 block text-xs font-black text-slate-600">شرکت دریافت‌کننده</label>
-                    <select name="company_id" id="company_id" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" required>
-                        <option value="">انتخاب شرکت...</option>
-                        @foreach($companies as $company)
-                            <option value="{{ $company->id }}" @selected((string) old('company_id') === (string) $company->id)>{{ $company->name_fa ?? $company->name }} - {{ $company->company_code }}</option>
-                        @endforeach
-                    </select>
+                    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white focus-within:border-emerald-500 focus-within:ring-1 focus-within:ring-emerald-500">
+                        <div class="flex items-center gap-2 border-b border-slate-100 px-3">
+                            <span class="text-slate-400">⌕</span>
+                            <input type="search" id="companySearch" class="w-full border-0 bg-transparent px-0 py-2.5 text-sm outline-none focus:ring-0" placeholder="جست‌وجوی نام یا کد شرکت..." autocomplete="off">
+                        </div>
+                        <select name="company_id" id="company_id" class="w-full border-0 bg-white px-3 py-2.5 text-sm outline-none focus:ring-0" required>
+                            <option value="">انتخاب شرکت...</option>
+                            @foreach($companies as $company)
+                                <option value="{{ $company->id }}" @selected((string) old('company_id') === (string) $company->id)>{{ $company->name_fa ?? $company->name }} - {{ $company->company_code }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <p id="companySearchEmpty" class="mt-2 hidden text-[11px] font-black text-rose-600">شرکتی با این عبارت پیدا نشد.</p>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
@@ -293,15 +300,48 @@
         const audience = document.getElementById('audience');
         const wrap = document.getElementById('companySelectWrap');
         const company = document.getElementById('company_id');
+        const search = document.getElementById('companySearch');
         const selected = audience.value === 'selected';
 
         wrap.classList.toggle('opacity-50', !selected);
         company.required = selected;
         company.disabled = !selected;
+        search.disabled = !selected;
         if (!selected) {
             company.value = '';
+            search.value = '';
+            filterCompanies('');
         }
     }
+
+    const companyOptions = Array.from(document.querySelectorAll('#company_id option')).map((option) => ({
+        value: option.value,
+        label: option.textContent,
+        search: option.textContent.toLocaleLowerCase('fa'),
+    }));
+
+    function filterCompanies(term) {
+        const select = document.getElementById('company_id');
+        const empty = document.getElementById('companySearchEmpty');
+        const query = String(term || '').trim().toLocaleLowerCase('fa');
+        const currentValue = select.value;
+        const matches = companyOptions.filter((option) => !option.value || option.search.includes(query));
+
+        select.replaceChildren(...matches.map((item) => {
+            const option = document.createElement('option');
+            option.value = item.value;
+            option.textContent = item.label;
+            option.selected = item.value === currentValue;
+            return option;
+        }));
+
+        if (currentValue && !matches.some((item) => item.value === currentValue)) {
+            select.value = '';
+        }
+        empty.classList.toggle('hidden', matches.filter((item) => item.value).length > 0);
+    }
+
+    document.getElementById('companySearch').addEventListener('input', (event) => filterCompanies(event.target.value));
 
     function openReceiptModal(id) {
         document.getElementById(id).classList.remove('hidden');
