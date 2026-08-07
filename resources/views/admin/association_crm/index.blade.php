@@ -18,7 +18,7 @@
     $statusLabels = ['open' => 'باز', 'in_progress' => 'در حال بررسی', 'answered' => 'پاسخ داده شده', 'closed' => 'بسته شده'];
 @endphp
 
-<div class="space-y-5" dir="rtl">
+<div class="space-y-6 pb-8" dir="rtl">
     @if(session('success'))
         <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{{ session('success') }}</div>
     @endif
@@ -27,94 +27,95 @@
         <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{{ $errors->first() }}</div>
     @endif
 
-    <section class="grid gap-4 md:grid-cols-4">
-        <div class="rounded-lg border border-sky-200 bg-sky-50 p-4 shadow-sm">
-            <p class="text-xs font-black text-slate-500">پیام فعال</p>
-            <b class="mt-2 block font-mono text-3xl font-black text-sky-700">{{ number_format($stats['active_messages']) }}</b>
-        </div>
-        <div class="rounded-lg border border-amber-300 bg-amber-50 p-4 shadow-sm">
-            <p class="text-xs font-black text-slate-500">پیام اجباری</p>
-            <b class="mt-2 block font-mono text-3xl font-black text-amber-600">{{ number_format($stats['mandatory_messages']) }}</b>
-        </div>
-        <div class="rounded-lg border border-rose-300 bg-rose-50 p-4 shadow-sm">
-            <p class="text-xs font-black text-slate-500">تیکت باز</p>
-            <b class="mt-2 block font-mono text-3xl font-black text-rose-600">{{ number_format($stats['open_tickets']) }}</b>
-        </div>
-        <div class="rounded-lg border border-emerald-300 bg-emerald-50 p-4 shadow-sm">
-            <p class="text-xs font-black text-slate-500">رسید خواندن</p>
-            <b class="mt-2 block font-mono text-3xl font-black text-emerald-600">{{ number_format($stats['acknowledged_receipts']) }}</b>
+    <section class="overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-900 via-emerald-950 to-slate-950 px-6 py-6 text-white shadow-lg shadow-emerald-950/10">
+        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+                <span class="inline-flex rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200">مرکز ارتباط با شرکت‌ها</span>
+                <h1 class="mt-3 text-2xl font-black">پیام‌ها و پشتیبانی انجمن</h1>
+                <p class="mt-2 text-sm font-bold text-emerald-100/75">انتشار اطلاعیه، پیگیری تأیید مطالعه و پاسخ‌گویی به درخواست شرکت‌ها در یک صفحه</p>
+            </div>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                @foreach([
+                    ['پیام فعال', $stats['active_messages'], 'text-sky-200'],
+                    ['نیازمند تأیید', $stats['mandatory_messages'], 'text-amber-200'],
+                    ['تیکت باز', $stats['open_tickets'], 'text-rose-200'],
+                    ['رسید مطالعه', $stats['acknowledged_receipts'], 'text-emerald-200'],
+                ] as [$label, $value, $color])
+                    <div class="min-w-[120px] rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+                        <p class="text-[11px] font-bold text-white/60">{{ $label }}</p>
+                        <b class="mt-1 block font-mono text-2xl font-black {{ $color }}">{{ number_format($value) }}</b>
+                    </div>
+                @endforeach
+            </div>
         </div>
     </section>
 
-    <section class="overflow-hidden rounded-lg border border-sky-200 bg-white shadow-sm">
-        <div class="border-b border-sky-100 bg-sky-50 px-5 py-4">
-            <h2 class="text-lg font-black text-slate-900">ثبت پیام برای شرکت‌ها</h2>
-            <p class="mt-1 text-xs font-bold text-sky-700">ارسال اطلاعیه عمومی یا پیام اختصاصی برای یک شرکت مشخص</p>
+    <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+            <div>
+                <h2 class="text-lg font-black text-slate-900">انتشار پیام جدید</h2>
+                <p class="mt-1 text-xs font-bold text-slate-500">پیام عمومی برای همه شرکت‌ها یا پیام اختصاصی برای یک شرکت</p>
+            </div>
+            <span class="hidden rounded-xl bg-emerald-50 px-3 py-2 text-xs font-black text-emerald-700 sm:inline-flex">اطلاع‌رسانی انجمن</span>
         </div>
-        <div class="p-5">
-        <form action="{{ route('admin.association_crm.messages.store') }}" method="POST" class="grid gap-4 lg:grid-cols-4">
+        <form action="{{ route('admin.association_crm.messages.store') }}" method="POST" class="grid lg:grid-cols-[340px_minmax(0,1fr)]">
             @csrf
-            <div>
-                <label class="mb-1 block text-xs font-black text-slate-600">مخاطب</label>
-                <select name="audience" id="audience" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" onchange="toggleCompanySelect()">
-                    <option value="selected">شرکت مشخص</option>
-                    <option value="all">همه شرکت‌ها</option>
-                </select>
+            <div class="space-y-4 border-b border-slate-100 bg-slate-50/70 p-6 lg:border-b-0 lg:border-l">
+                <div>
+                    <label class="mb-2 block text-xs font-black text-slate-600">نوع مخاطب</label>
+                    <select name="audience" id="audience" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" onchange="toggleCompanySelect()">
+                        <option value="selected" @selected(old('audience', 'selected') === 'selected')>یک شرکت مشخص</option>
+                        <option value="all" @selected(old('audience') === 'all')>همه شرکت‌ها</option>
+                    </select>
+                </div>
+                <div id="companySelectWrap">
+                    <label class="mb-2 block text-xs font-black text-slate-600">شرکت دریافت‌کننده</label>
+                    <select name="company_id" id="company_id" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" required>
+                        <option value="">انتخاب شرکت...</option>
+                        @foreach($companies as $company)
+                            <option value="{{ $company->id }}" @selected((string) old('company_id') === (string) $company->id)>{{ $company->name_fa ?? $company->name }} - {{ $company->company_code }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-600">دسته‌بندی</label>
+                        <select name="category" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                            @foreach(['general', 'financial', 'documents', 'membership', 'legal', 'urgent'] as $category)
+                                <option value="{{ $category }}" @selected(old('category') === $category)>{{ $categoryLabels[$category] }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-xs font-black text-slate-600">اولویت</label>
+                        <select name="priority" class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
+                            @foreach($priorityLabels as $value => $label)
+                                <option value="{{ $value }}" @selected(old('priority') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="space-y-2 rounded-xl border border-slate-200 bg-white p-3">
+                    <label class="flex items-center justify-between gap-3 text-xs font-black text-slate-700"><span>دریافت تأیید مطالعه</span><input type="checkbox" name="is_mandatory" value="1" @checked(old('is_mandatory', true)) class="rounded border-slate-300 text-emerald-600"></label>
+                    <label class="flex items-center justify-between gap-3 border-t border-slate-100 pt-2 text-xs font-black text-slate-700"><span>انتشار به‌صورت فعال</span><input type="checkbox" name="is_active" value="1" @checked(old('is_active', true)) class="rounded border-slate-300 text-emerald-600"></label>
+                </div>
             </div>
-            <div id="companySelectWrap">
-                <label class="mb-1 block text-xs font-black text-slate-600">شرکت</label>
-                <select name="company_id" id="company_id" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" required>
-                    <option value="">انتخاب کنید</option>
-                    @foreach($companies as $company)
-                        <option value="{{ $company->id }}">{{ $company->name_fa ?? $company->name }} - {{ $company->company_code }}</option>
-                    @endforeach
-                </select>
-                <p class="mt-1 text-[11px] font-bold text-slate-500">برای ارسال اختصاصی، مخاطب را روی «شرکت مشخص» بگذارید و شرکت را انتخاب کنید.</p>
-            </div>
-            <div>
-                <label class="mb-1 block text-xs font-black text-slate-600">دسته‌بندی</label>
-                <select name="category" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    @foreach(['general', 'financial', 'documents', 'membership', 'legal', 'urgent'] as $category)
-                        <option value="{{ $category }}">{{ $categoryLabels[$category] }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div>
-                <label class="mb-1 block text-xs font-black text-slate-600">اولویت</label>
-                <select name="priority" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm">
-                    @foreach($priorityLabels as $value => $label)
-                        <option value="{{ $value }}">{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="lg:col-span-2">
-                <label class="mb-1 block text-xs font-black text-slate-600">عنوان</label>
-                <input name="title" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" maxlength="180" required>
-            </div>
-            <div class="flex items-end gap-4">
-                <label class="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
-                    <input type="checkbox" name="is_mandatory" value="1" checked class="rounded border-slate-300">
-                    نیازمند تایید خواندن
-                </label>
-                <label class="inline-flex items-center gap-2 text-sm font-bold text-slate-700">
-                    <input type="checkbox" name="is_active" value="1" checked class="rounded border-slate-300">
-                    فعال
-                </label>
-            </div>
-            <div class="lg:col-span-4">
-                <label class="mb-1 block text-xs font-black text-slate-600">متن پیام</label>
-                <textarea name="body" rows="4" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm" required></textarea>
-            </div>
-            <div class="lg:col-span-4">
-                <button class="rounded-lg bg-sky-600 px-5 py-2.5 text-sm font-black text-white hover:bg-sky-700">انتشار پیام</button>
+            <div class="flex min-h-[320px] flex-col p-6">
+                <label class="mb-2 block text-xs font-black text-slate-600">عنوان پیام</label>
+                <input name="title" value="{{ old('title') }}" class="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:border-emerald-500 focus:ring-emerald-500" maxlength="180" placeholder="عنوان کوتاه و روشن بنویسید" required>
+                <label class="mb-2 mt-5 block text-xs font-black text-slate-600">متن پیام</label>
+                <textarea name="body" rows="6" class="min-h-[130px] w-full flex-1 resize-y rounded-xl border border-slate-200 px-4 py-3 text-sm leading-7 focus:border-emerald-500 focus:ring-emerald-500" placeholder="متن کامل اطلاعیه یا درخواست انجمن..." required>{{ old('body') }}</textarea>
+                <div class="mt-5 flex items-center justify-between gap-4 border-t border-slate-100 pt-4">
+                    <p class="text-[11px] font-bold text-slate-400">پیام پس از انتشار در کارتابل شرکت نمایش داده می‌شود.</p>
+                    <button class="shrink-0 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-black text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700">انتشار پیام</button>
+                </div>
             </div>
         </form>
-        </div>
     </section>
 
     <section class="grid gap-5 xl:grid-cols-2">
-        <div class="overflow-hidden rounded-lg border border-indigo-200 bg-white shadow-sm">
-            <div class="border-b border-indigo-100 bg-indigo-50 px-5 py-4">
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-100 px-5 py-4">
                 <h2 class="text-lg font-black text-slate-900">پیام‌های اخیر</h2>
                 <p class="mt-1 text-xs font-bold text-indigo-700">مدیریت اطلاعیه‌ها، رسیدهای خواندن و حذف پیام‌های قدیمی</p>
             </div>
@@ -139,10 +140,10 @@
                                         {{ $message->is_active ? 'غیرفعال' : 'فعال' }}
                                     </button>
                                 </form>
-                                <form action="{{ route('admin.association_crm.messages.destroy', $message) }}" method="POST" onsubmit="return confirm('این پیام و رسیدهای آن حذف شود؟')">
+                                <form id="delete-crm-message-{{ $message->id }}" action="{{ route('admin.association_crm.messages.destroy', $message) }}" method="POST">
                                     @csrf
                                     @method('DELETE')
-                                    <button class="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-black text-slate-700">حذف</button>
+                                    <button type="button" onclick="confirmMessageDelete('delete-crm-message-{{ $message->id }}', @js($message->title))" class="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-black text-rose-700 transition hover:bg-rose-100">حذف پیام</button>
                                 </form>
                             </div>
                         </div>
@@ -161,8 +162,8 @@
             <div class="mt-4">{{ $messages->links() }}</div>
         </div>
 
-        <div class="overflow-hidden rounded-lg border border-rose-200 bg-white shadow-sm">
-            <div class="border-b border-rose-100 bg-rose-50 px-5 py-4">
+        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div class="border-b border-slate-100 px-5 py-4">
                 <h2 class="text-lg font-black text-slate-900">تیکت‌های شرکت‌ها</h2>
                 <p class="mt-1 text-xs font-bold text-rose-700">گفت‌وگو، تغییر وضعیت و بستن سریع تیکت‌ها</p>
             </div>
@@ -275,6 +276,7 @@
     @endforeach
 </div>
 
+<script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 <script>
     const adminTicketsLiveUrl = '{{ route('admin.association_crm.tickets.live') }}';
 
@@ -307,6 +309,24 @@
 
     function closeReceiptModal(id) {
         document.getElementById(id).classList.add('hidden');
+    }
+
+    function confirmMessageDelete(formId, title) {
+        Swal.fire({
+            title: 'حذف پیام انجمن',
+            html: `پیام «<b>${escapeHtml(title)}</b>» حذف شود؟<br><small>رسیدهای مشاهده حذف می‌شوند؛ تیکت‌های مرتبط باقی می‌مانند.</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'بله، حذف شود',
+            cancelButtonText: 'انصراف',
+            reverseButtons: true,
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById(formId).submit();
+            }
+        });
     }
 
     function adminChatBubble(message) {

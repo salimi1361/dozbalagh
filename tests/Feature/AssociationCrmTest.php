@@ -97,5 +97,21 @@ class AssociationCrmTest extends TestCase
 
         $this->assertSame(1, AssociationSupportTicket::count());
         $this->assertSame(1, AssociationTicketMessage::count());
+
+        $this->actingAs($companyUser)
+            ->delete(route('admin.association_crm.messages.destroy', $message))
+            ->assertForbidden();
+
+        $this->actingAs($admin)
+            ->delete(route('admin.association_crm.messages.destroy', $message))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('association_company_messages', ['id' => $message->id]);
+        $this->assertDatabaseMissing('association_message_receipts', ['message_id' => $message->id]);
+        $this->assertDatabaseHas('association_support_tickets', [
+            'company_id' => $company->id,
+            'message_id' => null,
+            'title' => 'مشکل در مدارک',
+        ]);
     }
 }
