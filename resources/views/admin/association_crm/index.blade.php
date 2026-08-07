@@ -19,7 +19,7 @@
     $selectedCompany = $companies->firstWhere('id', (int) old('company_id'));
 @endphp
 
-<div class="space-y-6 pb-8" dir="rtl">
+<div class="space-y-5 pb-8" dir="rtl">
     @if(session('success'))
         <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">{{ session('success') }}</div>
     @endif
@@ -28,26 +28,25 @@
         <div class="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{{ $errors->first() }}</div>
     @endif
 
-    <section class="overflow-hidden rounded-2xl bg-gradient-to-l from-emerald-900 via-emerald-950 to-slate-950 px-6 py-6 text-white shadow-lg shadow-emerald-950/10">
-        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-                <span class="inline-flex rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200">مرکز ارتباط با شرکت‌ها</span>
-                <h1 class="mt-3 text-2xl font-black">پیام‌ها و پشتیبانی انجمن</h1>
-                <p class="mt-2 text-sm font-bold text-emerald-100/75">انتشار اطلاعیه، پیگیری تأیید مطالعه و پاسخ‌گویی به درخواست شرکت‌ها در یک صفحه</p>
+    <section class="relative overflow-hidden rounded-2xl px-5 py-4 text-white shadow-lg sm:px-6 sm:py-5" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0369a1 100%);">
+        <div class="absolute -left-12 -top-16 h-40 w-40 rounded-full bg-white opacity-10"></div>
+        <div class="absolute -bottom-20 right-1/3 h-36 w-36 rounded-full bg-cyan-300 opacity-10"></div>
+        <div class="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div class="flex items-center gap-3.5">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white bg-opacity-15 ring-1 ring-white ring-opacity-20">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 10h8m-8 4h5m8-2a9 9 0 1 1-4.15-7.58L21 3v9Z"/></svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black sm:text-2xl">پیام‌ها و پشتیبانی انجمن</h1>
+                    <p class="mt-1 text-xs font-semibold text-blue-100">انتشار اطلاعیه، پیگیری تأیید مطالعه و پاسخ‌گویی به درخواست شرکت‌ها</p>
+                </div>
             </div>
-            <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                @foreach([
-                    ['پیام فعال', $stats['active_messages'], 'text-sky-200'],
-                    ['نیازمند تأیید', $stats['mandatory_messages'], 'text-amber-200'],
-                    ['تیکت باز', $stats['open_tickets'], 'text-rose-200'],
-                    ['رسید مطالعه', $stats['acknowledged_receipts'], 'text-emerald-200'],
-                ] as [$label, $value, $color])
-                    <div class="min-w-[120px] rounded-xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
-                        <p class="text-[11px] font-bold text-white/60">{{ $label }}</p>
-                        <b class="mt-1 block font-mono text-2xl font-black {{ $color }}">{{ number_format($value) }}</b>
-                    </div>
-                @endforeach
-            </div>
+        </div>
+        <div class="relative mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
+            <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">پیام فعال</span><strong class="text-lg font-black text-cyan-200">{{ number_format($stats['active_messages']) }}</strong></div>
+            <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">نیازمند تأیید</span><strong class="text-lg font-black text-amber-300">{{ number_format($stats['mandatory_messages']) }}</strong></div>
+            <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">تیکت باز</span><strong class="text-lg font-black text-rose-200">{{ number_format($stats['open_tickets']) }}</strong></div>
+            <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">رسید مطالعه</span><strong class="text-lg font-black text-emerald-300">{{ number_format($stats['acknowledged_receipts']) }}</strong></div>
         </div>
     </section>
 
