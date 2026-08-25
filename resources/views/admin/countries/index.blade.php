@@ -5,6 +5,7 @@
 @endsection
 
 @section('header_actions')
+    <a href="{{ route('admin.countries.permit-statuses.index') }}" class="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100">فعال/غیرفعال‌سازی مجوزها</a>
     <button onclick="openCountryModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-sm transition">
         ➕ افزودن کشور جدید
     </button>
