@@ -87,6 +87,17 @@ class CountryController extends Controller
         return back()->with('success', 'اطلاعات کشور و مجوزها بروزرسانی شد.');
     }
 
+    public function toggleStatus(Country $country)
+    {
+        $country->update(['is_active' => ! $country->is_active]);
+        $status = $country->is_active ? 'فعال' : 'غیرفعال';
+
+        return back()->with(
+            'success',
+            "کشور «{$country->name}» اکنون {$status} است.",
+        );
+    }
+
     public function destroy($id)
     {
         $country = Country::findOrFail($id);

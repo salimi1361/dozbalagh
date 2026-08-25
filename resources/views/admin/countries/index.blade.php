@@ -74,12 +74,18 @@
                                 @endif
                             </td>
 
-                            <td class="p-4 text-center">
-                                @if($country->is_active)
-                                    <span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-md text-xs font-bold">فعال</span>
-                                @else
-                                    <span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-md text-xs font-bold">غیرفعال</span>
-                                @endif
+                            <td class="p-3 text-center">
+                                <div class="flex flex-col items-center gap-1.5">
+                                    <span class="rounded-full px-2.5 py-1 text-[11px] font-black {{ $country->is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700' }}">
+                                        {{ $country->is_active ? 'فعال' : 'غیرفعال' }}
+                                    </span>
+                                    <form action="{{ route('admin.countries.toggle-status', $country) }}" method="POST">
+                                        @csrf
+                                        <button type="submit" class="rounded-lg px-2 py-1 text-[10px] font-black transition {{ $country->is_active ? 'bg-rose-50 text-rose-700 hover:bg-rose-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' }}">
+                                            {{ $country->is_active ? 'غیرفعال کردن' : 'فعال کردن' }}
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                             <td class="p-4 text-center flex items-center justify-center gap-2">
                                 {{-- 🟢 اصلاحیه طلایی: اضافه کردن فیلد به دیتای دکمه جهت خواندن قطعی توسط جاوااسکریپت بدون باگ کش مرورگر --}}
@@ -113,15 +119,15 @@
 
     {{-- مودال افزودن کشور --}}
     <div id="country_modal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200">
-            <div class="bg-gradient-to-l from-[#064e3b] via-[#073b3a] to-[#071b2a] p-5 flex justify-between items-center text-white">
+        <div class="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div class="flex items-center justify-between bg-gradient-to-l from-[#064e3b] via-[#073b3a] to-[#071b2a] p-4 text-white">
                 <h3 class="font-black text-lg">🌍 ثبت کشور جدید</h3>
                 <button onclick="closeCountryModal()" class="text-slate-400 hover:text-white text-2xl">✕</button>
             </div>
             
-            <form action="{{ route('admin.countries.store') }}" method="POST">
+            <form action="{{ route('admin.countries.store') }}" method="POST" class="flex min-h-0 flex-col">
                 @csrf
-                <div class="p-6 space-y-5">
+                <div class="min-h-0 space-y-4 overflow-y-auto p-4 sm:p-5">
                     <div>
                         <label class="block text-slate-700 font-bold mb-2 text-sm">نام کشور <span class="text-rose-500">*</span></label>
                         <input type="text" name="name" required class="w-full p-3 border border-slate-300 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="مثال: ترکیه">
@@ -163,7 +169,7 @@
                     </div>
                 </div>
 
-                <div class="bg-slate-50 p-5 border-t flex justify-end gap-3">
+                <div class="flex justify-end gap-3 border-t bg-slate-50 p-4">
                     <button type="button" onclick="closeCountryModal()" class="px-5 py-2.5 rounded-xl font-bold text-slate-600 transition hover:bg-slate-200">انصراف</button>
                     <button type="submit" class="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold transition hover:bg-blue-700">💾 ذخیره کشور</button>
                 </div>
@@ -173,16 +179,16 @@
 
     {{-- مودال ویرایش کشور --}}
     <div id="edit_country_modal" class="hidden fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-xl max-w-md w-full shadow-2xl overflow-hidden border border-slate-200">
-            <div class="bg-gradient-to-l from-[#064e3b] via-[#073b3a] to-[#071b2a] p-5 flex justify-between items-center text-white">
+        <div class="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div class="flex items-center justify-between bg-gradient-to-l from-[#064e3b] via-[#073b3a] to-[#071b2a] p-4 text-white">
                 <h3 class="font-black text-lg">✏️ ویرایش کشور</h3>
                 <button onclick="closeEditCountryModal()" class="text-slate-400 hover:text-white text-2xl">✕</button>
             </div>
             
-            <form id="edit_country_form" action="" method="POST">
+            <form id="edit_country_form" action="" method="POST" class="flex min-h-0 flex-col">
                 @csrf
                 @method('PUT')
-                <div class="p-6 space-y-5">
+                <div class="min-h-0 space-y-4 overflow-y-auto p-4 sm:p-5">
                     <div>
                         <label class="block text-slate-700 font-bold mb-2 text-sm">نام کشور <span class="text-rose-500">*</span></label>
                         <input type="text" name="name" id="edit_name" required class="w-full p-3 border border-slate-300 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
@@ -202,6 +208,7 @@
                         <label class="block text-slate-700 font-bold mb-2 text-sm">مبلغ هر دوزوله (ریال) <span class="text-rose-500">*</span></label>
                         <input type="number" name="price" id="edit_price" required min="0" class="w-full p-3 border border-slate-300 rounded-xl text-left font-mono focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" dir="ltr">
                     </div>
+                    <div class="grid gap-4 lg:grid-cols-2">
                     <div>
                         <label class="block text-slate-700 font-bold mb-2 text-sm">نوع مجوزهای مجاز <span class="text-rose-500">*</span></label>
                         <div class="grid grid-cols-1 gap-2.5 p-4 border border-slate-200 rounded-xl bg-slate-50" id="edit_permit_types_container">
@@ -236,9 +243,10 @@
                         </div>
                         <p class="mt-2 text-[10px] font-bold text-emerald-700">برداشتن تیک در این بخش فقط انتخاب کاربر را می‌بندد و هیچ تأثیری بر موجودی و سوابق انبار ندارد.</p>
                     </div>
+                    </div>
                 </div>
 
-                <div class="bg-slate-50 p-5 border-t flex justify-end gap-3">
+                <div class="flex justify-end gap-3 border-t bg-slate-50 p-4">
                     <button type="button" onclick="closeEditCountryModal()" class="px-5 py-2.5 rounded-xl font-bold text-slate-600 transition hover:bg-slate-200">انصراف</button>
                     <button type="submit" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold transition hover:bg-indigo-700">🔄 بروزرسانی کشور</button>
                 </div>

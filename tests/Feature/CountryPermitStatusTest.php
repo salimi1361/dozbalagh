@@ -68,6 +68,27 @@ class CountryPermitStatusTest extends TestCase
         $this->assertSame(['transit'], $freshCountry->requestable_permit_types);
     }
 
+    public function test_admin_can_toggle_country_availability_without_changing_permit_definitions(): void
+    {
+        $country = $this->country();
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->post(
+            route('admin.countries.toggle-status', $country),
+        )->assertRedirect();
+
+        $freshCountry = $country->fresh();
+        $this->assertFalse((bool) $freshCountry->is_active);
+        $this->assertSame(['bilateral', 'transit', 'third_country'], $freshCountry->allowed_permit_types);
+        $this->assertSame(['bilateral', 'transit', 'third_country'], $freshCountry->requestable_permit_types);
+
+        $this->actingAs($admin)->post(
+            route('admin.countries.toggle-status', $country),
+        )->assertRedirect();
+
+        $this->assertTrue((bool) $country->fresh()->is_active);
+    }
+
     public function test_disabled_permit_type_is_rejected_for_new_request_without_changing_inventory_definition(): void
     {
         $country = $this->country();
@@ -88,6 +109,23 @@ class CountryPermitStatusTest extends TestCase
             ['bilateral', 'transit', 'third_country'],
             $country->fresh()->allowed_permit_types,
         );
+    }
+
+    public function test_inactive_country_is_rejected_for_new_request(): void
+    {
+        $country = $this->country();
+        $country->update(['is_active' => false]);
+
+        Route::post('/_test/inactive-country', fn () => response('ok'))
+            ->middleware(\App\Http\Middleware\EnsureRequestablePermitTypes::class);
+
+        $this->from('/request-form')->post('/_test/inactive-country', [
+            'destinations' => [[
+                'country_id' => $country->id,
+                'permit_type' => 'bilateral',
+            ]],
+        ])->assertRedirect('/request-form')
+            ->assertSessionHasErrors('destinations');
     }
 
     public function test_enabled_permit_type_can_continue_to_request_controller(): void

@@ -17,16 +17,21 @@ class EnsureRequestablePermitTypes
             $country = Country::find($destination['country_id'] ?? null);
             $permitType = trim((string) ($destination['permit_type'] ?? ''));
 
-            if ($country && in_array($permitType, $country->requestablePermitTypes(), true)) {
+            if ($country?->is_active && in_array($permitType, $country->requestablePermitTypes(), true)) {
                 continue;
             }
 
             $countryName = $country?->name ?? 'انتخاب‌شده';
             $permitLabel = $permitTypeLabels[$permitType] ?? ($permitType ?: 'نامشخص');
+            $message = !$country
+                ? "نوع مجوز «{$permitLabel}» برای کشور «{$countryName}» غیرفعال است و در درخواست جدید قابل انتخاب نیست."
+                : (! $country->is_active
+                    ? "کشور «{$countryName}» در حال حاضر غیرفعال است و در درخواست جدید قابل انتخاب نیست."
+                    : "نوع مجوز «{$permitLabel}» برای کشور «{$countryName}» غیرفعال است و در درخواست جدید قابل انتخاب نیست.");
 
             return back()
                 ->withErrors([
-                    'destinations' => "نوع مجوز «{$permitLabel}» برای کشور «{$countryName}» غیرفعال است و در درخواست جدید قابل انتخاب نیست.",
+                    'destinations' => $message,
                 ])
                 ->withInput();
         }

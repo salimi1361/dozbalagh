@@ -145,6 +145,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::get('/countries', [CountryController::class, 'index'])->name('countries.index');
     Route::get('/countries/permit-statuses', [\App\Http\Controllers\Admin\CountryPermitStatusController::class, 'index'])->name('countries.permit-statuses.index');
     Route::put('/countries/{country}/permit-statuses', [\App\Http\Controllers\Admin\CountryPermitStatusController::class, 'update'])->name('countries.permit-statuses.update');
+    Route::post('/countries/{country}/toggle-status', [CountryController::class, 'toggleStatus'])->name('countries.toggle-status');
     Route::post('/countries', [CountryController::class, 'store'])->name('countries.store');
     Route::put('/countries/{id}', [CountryController::class, 'update'])->name('countries.update');
     Route::delete('/countries/{id}', [CountryController::class, 'destroy'])->name('countries.destroy');
