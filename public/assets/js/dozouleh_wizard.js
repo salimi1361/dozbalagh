@@ -626,10 +626,13 @@ jQuery(document).ready(function() {
         if (selectedCountryId && window.DozoulehConfig && window.DozoulehConfig.countriesList) {
             let countryData = window.DozoulehConfig.countriesList.find(c => c.id == selectedCountryId);
             
-            if (countryData && countryData.allowed_permit_types) { 
-                let permits = typeof countryData.allowed_permit_types === 'string' 
-                    ? JSON.parse(countryData.allowed_permit_types) 
-                    : countryData.allowed_permit_types;
+            if (countryData) {
+                const requestableTypes = countryData.requestable_permit_types == null
+                    ? countryData.allowed_permit_types
+                    : countryData.requestable_permit_types;
+                let permits = typeof requestableTypes === 'string'
+                    ? JSON.parse(requestableTypes)
+                    : requestableTypes;
                 
                 if(Array.isArray(permits)) {
                     const permitLabels = {

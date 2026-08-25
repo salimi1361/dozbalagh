@@ -62,9 +62,10 @@
                                                     'third_country' => 'ثالث'
                                                 ];
                                                 $showLabel = $labels[$permit] ?? str_replace('_', ' ', $permit);
+                                                $isRequestable = in_array($permit, $country->requestablePermitTypes(), true);
                                             @endphp
-                                            <span class="bg-indigo-50 text-indigo-600 border border-indigo-200 px-2 py-0.5 rounded text-[10px] font-bold">
-                                                {{ $showLabel }}
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold border {{ $isRequestable ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-slate-100 text-slate-500 border-slate-200' }}">
+                                                {{ $showLabel }}{{ $isRequestable ? '' : ' (غیرفعال)' }}
                                             </span>
                                         @endforeach
                                     </div>
@@ -84,6 +85,7 @@
                                 {{-- 🟢 اصلاحیه طلایی: اضافه کردن فیلد به دیتای دکمه جهت خواندن قطعی توسط جاوااسکریپت بدون باگ کش مرورگر --}}
                                 <button type="button" 
                                         data-permits="{{ json_encode($country->allowed_permit_types ?? []) }}"
+                                        data-requestable-permits="{{ json_encode($country->requestablePermitTypes()) }}"
                                         data-validity="{{ $country->validity_days ?? 30 }}"
                                         onclick="openEditCountryModal(this, '{{ $country->id }}', '{{ $country->name }}', '{{ $country->code }}', '{{ $country->price }}')" 
                                         class="text-indigo-600 hover:text-indigo-800 font-bold text-xs bg-indigo-50 px-3 py-1.5 rounded-md transition flex items-center gap-1">
@@ -219,6 +221,20 @@
                                 </label>
                             @endforeach
                         </div>
+                        <p class="mt-2 text-[10px] font-bold text-amber-700">این فهرست به تعریف کشور و انبار مربوط است. برای توقف انتخاب یک مجوز، از بخش زیر استفاده کنید.</p>
+                    </div>
+                    <div>
+                        <input type="hidden" name="requestable_permit_types_present" value="1">
+                        <label class="block text-slate-700 font-bold mb-2 text-sm">قابل انتخاب در درخواست‌های جدید</label>
+                        <div class="grid grid-cols-1 gap-2.5 p-4 border border-emerald-200 rounded-xl bg-emerald-50/50">
+                            @foreach($editPermitOptions as $key => $label)
+                                <label class="flex items-center justify-between gap-3 text-sm font-bold text-slate-600 transition requestable-permit-label" data-permit-key="{{ $key }}">
+                                    <span>{{ $label }}</span>
+                                    <input type="checkbox" name="requestable_permit_types[]" value="{{ $key }}" class="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 edit-requestable-permit-checkbox">
+                                </label>
+                            @endforeach
+                        </div>
+                        <p class="mt-2 text-[10px] font-bold text-emerald-700">برداشتن تیک در این بخش فقط انتخاب کاربر را می‌بندد و هیچ تأثیری بر موجودی و سوابق انبار ندارد.</p>
                     </div>
                 </div>
 
@@ -261,6 +277,18 @@
                 $('.edit-permit-checkbox[value="' + permitValue + '"]').prop('checked', true);
             });
         }
+
+        let requestablePermits = [];
+        try {
+            requestablePermits = JSON.parse($(btnElement).attr('data-requestable-permits') || '[]');
+        } catch (error) {
+            requestablePermits = [];
+        }
+        $('.edit-requestable-permit-checkbox').prop('checked', false);
+        requestablePermits.forEach(function(permitValue) {
+            $('.edit-requestable-permit-checkbox[value="' + permitValue + '"]').prop('checked', true);
+        });
+        syncRequestablePermitCheckboxes();
         
         let updateUrl = "{{ route('admin.countries.update', ':id') }}";
         updateUrl = updateUrl.replace(':id', id);
@@ -268,6 +296,20 @@
         
         $('#edit_country_modal').removeClass('hidden');
     }
+
+    function syncRequestablePermitCheckboxes() {
+        $('.edit-requestable-permit-checkbox').each(function() {
+            const permitValue = $(this).val();
+            const isDefined = $('.edit-permit-checkbox[value="' + permitValue + '"]').is(':checked');
+            $(this).prop('disabled', !isDefined);
+            $(this).closest('.requestable-permit-label')
+                .toggleClass('opacity-40 cursor-not-allowed', !isDefined)
+                .toggleClass('cursor-pointer', isDefined);
+            if (!isDefined) $(this).prop('checked', false);
+        });
+    }
+
+    $(document).on('change', '.edit-permit-checkbox', syncRequestablePermitCheckboxes);
     
     function closeEditCountryModal() { 
         $('#edit_country_modal').addClass('hidden'); 

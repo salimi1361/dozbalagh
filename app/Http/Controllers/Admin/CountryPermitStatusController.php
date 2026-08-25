@@ -37,11 +37,11 @@ class CountryPermitStatusController extends Controller
         ]);
 
         $activeTypes = array_values(array_intersect(
-            array_keys(self::PERMIT_TYPES),
+            $country->allowed_permit_types ?? [],
             $validated['permit_types'] ?? [],
         ));
 
-        $country->forceFill(['allowed_permit_types' => $activeTypes])->save();
+        $country->forceFill(['requestable_permit_types' => $activeTypes])->save();
 
         return back()->with(
             'success',

@@ -7,6 +7,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class CountryPermitStatusTest extends TestCase
@@ -22,10 +23,12 @@ class CountryPermitStatusTest extends TestCase
             ['permit_types' => ['bilateral', 'third_country']],
         )->assertRedirect();
 
+        $freshCountry = $country->fresh();
         $this->assertSame(
             ['bilateral', 'third_country'],
-            $country->fresh()->allowed_permit_types,
+            $freshCountry->requestable_permit_types,
         );
+        $this->assertSame(['bilateral', 'transit', 'third_country'], $freshCountry->allowed_permit_types);
     }
 
     public function test_admin_can_disable_all_permits_for_a_country(): void
@@ -36,7 +39,71 @@ class CountryPermitStatusTest extends TestCase
             route('admin.countries.permit-statuses.update', $country),
         )->assertRedirect();
 
-        $this->assertSame([], $country->fresh()->allowed_permit_types);
+        $freshCountry = $country->fresh();
+        $this->assertSame([], $freshCountry->requestable_permit_types);
+        $this->assertSame(['bilateral', 'transit', 'third_country'], $freshCountry->allowed_permit_types);
+    }
+
+    public function test_country_edit_keeps_inventory_definition_separate_from_request_selection(): void
+    {
+        $country = $this->country();
+
+        $this->actingAs($this->admin())->put(
+            route('admin.countries.update', $country),
+            [
+                'name' => $country->name,
+                'code' => $country->code,
+                'price' => 0,
+                'member_price' => 0,
+                'non_member_price' => 0,
+                'validity_days' => 30,
+                'permit_types' => ['bilateral', 'transit', 'third_country'],
+                'requestable_permit_types_present' => '1',
+                'requestable_permit_types' => ['transit'],
+            ],
+        )->assertRedirect();
+
+        $freshCountry = $country->fresh();
+        $this->assertSame(['bilateral', 'transit', 'third_country'], $freshCountry->allowed_permit_types);
+        $this->assertSame(['transit'], $freshCountry->requestable_permit_types);
+    }
+
+    public function test_disabled_permit_type_is_rejected_for_new_request_without_changing_inventory_definition(): void
+    {
+        $country = $this->country();
+        $country->update(['requestable_permit_types' => ['transit']]);
+
+        Route::post('/_test/requestable-permits', fn () => response('ok'))
+            ->middleware(\App\Http\Middleware\EnsureRequestablePermitTypes::class);
+
+        $this->from('/request-form')->post('/_test/requestable-permits', [
+            'destinations' => [[
+                'country_id' => $country->id,
+                'permit_type' => 'bilateral',
+            ]],
+        ])->assertRedirect('/request-form')
+            ->assertSessionHasErrors('destinations');
+
+        $this->assertSame(
+            ['bilateral', 'transit', 'third_country'],
+            $country->fresh()->allowed_permit_types,
+        );
+    }
+
+    public function test_enabled_permit_type_can_continue_to_request_controller(): void
+    {
+        $country = $this->country();
+        $country->update(['requestable_permit_types' => ['transit']]);
+
+        Route::post('/_test/requestable-permits-enabled', fn () => response('ok'))
+            ->middleware(\App\Http\Middleware\EnsureRequestablePermitTypes::class);
+
+        $this->post('/_test/requestable-permits-enabled', [
+            'destinations' => [[
+                'country_id' => $country->id,
+                'permit_type' => 'transit',
+            ]],
+        ])->assertOk();
     }
 
     private function admin(): User
@@ -60,7 +127,8 @@ class CountryPermitStatusTest extends TestCase
             'price' => 0,
             'validity_days' => 30,
             'is_active' => true,
-            'allowed_permit_types' => ['bilateral', 'transit'],
+            'allowed_permit_types' => ['bilateral', 'transit', 'third_country'],
+            'requestable_permit_types' => ['bilateral', 'transit', 'third_country'],
         ]);
     }
 }

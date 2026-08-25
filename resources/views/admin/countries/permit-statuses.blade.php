@@ -20,21 +20,22 @@
     <section class="relative overflow-hidden rounded-3xl bg-gradient-to-l from-slate-900 via-blue-900 to-sky-700 p-6 text-white shadow-lg">
         <div class="relative z-10">
             <h1 class="text-2xl font-black">فعال یا غیرفعال‌سازی مجوزها برای هر کشور</h1>
-            <p class="mt-2 max-w-3xl text-sm leading-7 text-blue-100">مجوز غیرفعال در درخواست‌های جدید، ثبت موجودی و تخصیص نمایش داده نمی‌شود. سوابق و دوزوله‌های قبلاً صادرشده حذف یا تغییر نمی‌کنند. می‌توانید همه مجوزهای یک کشور را نیز موقتاً خاموش کنید.</p>
+            <p class="mt-2 max-w-3xl text-sm leading-7 text-blue-100">مجوز غیرفعال فقط از انتخاب کاربر در درخواست‌های جدید حذف می‌شود. موجودی انبار، تخصیص، سوابق و دوزوله‌های قبلی حذف یا تغییر نمی‌کنند.</p>
         </div>
         <div class="pointer-events-none absolute -bottom-20 -left-12 h-48 w-48 rounded-full bg-cyan-300/20 blur-2xl"></div>
     </section>
 
     <div class="grid gap-5 xl:grid-cols-2">
         @forelse($countries as $country)
-            @php($activeTypes = $country->allowed_permit_types ?? [])
+            @php($definedTypes = $country->allowed_permit_types ?? [])
+            @php($activeTypes = $country->requestablePermitTypes())
             <form method="POST" action="{{ route('admin.countries.permit-statuses.update', $country) }}" class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
                 @csrf
                 @method('PUT')
                 <div class="flex items-center justify-between gap-4 border-b border-slate-100 bg-slate-50 px-5 py-4">
                     <div>
                         <h2 class="font-black text-slate-800">{{ $country->name }}</h2>
-                        <p class="mt-1 text-xs text-slate-500">{{ count($activeTypes) }} مجوز فعال از {{ count($permitTypes) }}</p>
+                        <p class="mt-1 text-xs text-slate-500">{{ count($activeTypes) }} مجوز قابل درخواست از {{ count($definedTypes) }} مجوز تعریف‌شده</p>
                     </div>
                     <span class="rounded-full px-3 py-1 text-[11px] font-black {{ $country->is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600' }}">کشور {{ $country->is_active ? 'فعال' : 'غیرفعال' }}</span>
                 </div>
@@ -42,13 +43,14 @@
                 <div class="divide-y divide-slate-100 px-5">
                     @foreach($permitTypes as $key => $label)
                         @php($isActive = in_array($key, $activeTypes, true))
-                        <label class="flex cursor-pointer items-center justify-between gap-4 py-3.5">
+                        @php($isDefined = in_array($key, $definedTypes, true))
+                        <label class="flex items-center justify-between gap-4 py-3.5 {{ $isDefined ? 'cursor-pointer' : 'cursor-not-allowed opacity-50' }}">
                             <span>
                                 <span class="block font-bold text-slate-700">{{ $label }}</span>
-                                <span class="mt-1 block text-[10px] font-bold {{ $isActive ? 'text-emerald-600' : 'text-slate-400' }}">{{ $isActive ? 'قابل درخواست' : 'غیرفعال و غیرقابل درخواست' }}</span>
+                                <span class="mt-1 block text-[10px] font-bold {{ $isActive ? 'text-emerald-600' : 'text-slate-400' }}">{{ ! $isDefined ? 'برای این کشور تعریف نشده' : ($isActive ? 'قابل درخواست' : 'غیرفعال و غیرقابل درخواست') }}</span>
                             </span>
                             <span class="relative inline-flex shrink-0 items-center">
-                                <input type="checkbox" name="permit_types[]" value="{{ $key }}" class="peer sr-only" @checked($isActive)>
+                                <input type="checkbox" name="permit_types[]" value="{{ $key }}" class="peer sr-only" @checked($isActive) @disabled(! $isDefined)>
                                 <span class="h-7 w-12 rounded-full bg-slate-300 transition peer-checked:bg-emerald-500"></span>
                                 <span class="absolute right-1 h-5 w-5 rounded-full bg-white shadow transition peer-checked:-translate-x-5"></span>
                             </span>

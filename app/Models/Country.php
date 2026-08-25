@@ -19,9 +19,20 @@ class Country extends Model
         'price',
         'validity_days', // 🟢 اجازه دسترسی و ذخیره داینامیک تعداد روزهای اعتبار در دیتابیس
         'allowed_permit_types',
+        'requestable_permit_types',
     ];
 
     protected $casts = [
         'allowed_permit_types' => 'array',
+        'requestable_permit_types' => 'array',
     ];
+
+    /**
+     * مجوزهایی که کاربر می‌تواند در درخواست جدید انتخاب کند.
+     * null فقط برای سازگاری با داده‌های پیش از Migration به فهرست انبار fallback می‌شود.
+     */
+    public function requestablePermitTypes(): array
+    {
+        return array_values($this->requestable_permit_types ?? $this->allowed_permit_types ?? []);
+    }
 }

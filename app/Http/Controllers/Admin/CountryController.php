@@ -24,17 +24,26 @@ class CountryController extends Controller
             'validity_days'  => 'required|integer|min:0',
             'permit_types'   => 'required|array|min:1',
             'permit_types.*' => 'in:bilateral,transit,bilateral_transit,third_country_transit,third_country',
+            'requestable_permit_types' => 'nullable|array',
+            'requestable_permit_types.*' => 'in:bilateral,transit,bilateral_transit,third_country_transit,third_country',
         ], [
             'permit_types.required' => 'انتخاب حداقل یک نوع مجوز الزامی است.',
             'permit_types.*.in'     => 'نوع مجوز انتخاب شده در سیستم معتبر نیست.',
         ]);
+
+        $definedPermitTypes = array_values($request->permit_types);
+        $requestablePermitTypes = array_values(array_intersect(
+            $definedPermitTypes,
+            $request->input('requestable_permit_types', $definedPermitTypes),
+        ));
 
         Country::create([
             'name'                 => trim($request->name),
             'code'                 => strtoupper(trim($request->code)),
             'price'                => $request->price,
             'validity_days'        => $request->validity_days, // 👈 ذخیره در دیتابیس
-            'allowed_permit_types' => $request->permit_types,
+            'allowed_permit_types' => $definedPermitTypes,
+            'requestable_permit_types' => $requestablePermitTypes,
             'is_active'            => true,
         ]);
 
@@ -51,19 +60,28 @@ class CountryController extends Controller
             'validity_days'  => 'required|integer|min:0',
             'permit_types'   => 'required|array|min:1',
             'permit_types.*' => 'in:bilateral,transit,bilateral_transit,third_country_transit,third_country',
+            'requestable_permit_types' => 'nullable|array',
+            'requestable_permit_types.*' => 'in:bilateral,transit,bilateral_transit,third_country_transit,third_country',
         ], [
             'permit_types.required' => 'انتخاب حداقل یک نوع مجوز الزامی است.',
             'permit_types.*.in'     => 'نوع مجوز انتخاب شده در سیستم معتبر نیست.',
         ]);
 
         $country = Country::findOrFail($id);
+
+        $definedPermitTypes = array_values($request->permit_types);
+        $requestedTypes = $request->boolean('requestable_permit_types_present')
+            ? $request->input('requestable_permit_types', [])
+            : $country->requestablePermitTypes();
+        $requestablePermitTypes = array_values(array_intersect($definedPermitTypes, $requestedTypes));
         
         $country->update([
             'name'                 => trim($request->name),
             'code'                 => strtoupper(trim($request->code)),
             'price'                => $request->price,
             'validity_days'        => $request->validity_days, // 👈 آپدیت در دیتابیس
-            'allowed_permit_types' => $request->permit_types,
+            'allowed_permit_types' => $definedPermitTypes,
+            'requestable_permit_types' => $requestablePermitTypes,
         ]);
 
         return back()->with('success', 'اطلاعات کشور و مجوزها بروزرسانی شد.');
