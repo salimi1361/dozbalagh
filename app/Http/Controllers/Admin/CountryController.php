@@ -70,8 +70,8 @@ class CountryController extends Controller
         $country = Country::findOrFail($id);
 
         $definedPermitTypes = array_values($request->permit_types);
-        $requestedTypes = $request->boolean('requestable_permit_types_present')
-            ? $request->input('requestable_permit_types', [])
+        $requestedTypes = $request->has('requestable_permit_types_present')
+            ? (array) $request->input('requestable_permit_types', [])
             : $country->requestablePermitTypes();
         $requestablePermitTypes = array_values(array_intersect($definedPermitTypes, $requestedTypes));
         

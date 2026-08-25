@@ -64,7 +64,7 @@
                                                 $showLabel = $labels[$permit] ?? str_replace('_', ' ', $permit);
                                                 $isRequestable = in_array($permit, $country->requestablePermitTypes(), true);
                                             @endphp
-                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold border {{ $isRequestable ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-slate-100 text-slate-500 border-slate-200' }}">
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold border {{ $isRequestable ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : 'bg-rose-50 text-rose-700 border-rose-200' }}">
                                                 {{ $showLabel }}{{ $isRequestable ? '' : ' (غیرفعال)' }}
                                             </span>
                                         @endforeach
@@ -89,9 +89,9 @@
                             </td>
                             <td class="p-4 text-center flex items-center justify-center gap-2">
                                 {{-- 🟢 اصلاحیه طلایی: اضافه کردن فیلد به دیتای دکمه جهت خواندن قطعی توسط جاوااسکریپت بدون باگ کش مرورگر --}}
-                                <button type="button" 
-                                        data-permits="{{ json_encode($country->allowed_permit_types ?? []) }}"
-                                        data-requestable-permits="{{ json_encode($country->requestablePermitTypes()) }}"
+                                <button type="button"
+                                        data-permits='@json($country->allowed_permit_types ?? [])'
+                                        data-requestable-permits='@json($country->requestablePermitTypes())'
                                         data-validity="{{ $country->validity_days ?? 30 }}"
                                         onclick="openEditCountryModal(this, '{{ $country->id }}', '{{ $country->name }}', '{{ $country->code }}', '{{ $country->price }}')" 
                                         class="text-indigo-600 hover:text-indigo-800 font-bold text-xs bg-indigo-50 px-3 py-1.5 rounded-md transition flex items-center gap-1">

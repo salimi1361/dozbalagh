@@ -68,6 +68,29 @@ class CountryPermitStatusTest extends TestCase
         $this->assertSame(['transit'], $freshCountry->requestable_permit_types);
     }
 
+    public function test_country_edit_can_disable_all_requestable_permits(): void
+    {
+        $country = $this->country();
+
+        $this->actingAs($this->admin())->put(
+            route('admin.countries.update', $country),
+            [
+                'name' => $country->name,
+                'code' => $country->code,
+                'price' => 0,
+                'member_price' => 0,
+                'non_member_price' => 0,
+                'validity_days' => 30,
+                'permit_types' => ['bilateral', 'transit', 'third_country'],
+                'requestable_permit_types_present' => '1',
+            ],
+        )->assertRedirect();
+
+        $freshCountry = $country->fresh();
+        $this->assertSame(['bilateral', 'transit', 'third_country'], $freshCountry->allowed_permit_types);
+        $this->assertSame([], $freshCountry->requestable_permit_types);
+    }
+
     public function test_admin_can_toggle_country_availability_without_changing_permit_definitions(): void
     {
         $country = $this->country();
