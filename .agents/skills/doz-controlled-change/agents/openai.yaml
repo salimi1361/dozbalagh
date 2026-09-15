@@ -1,0 +1,4 @@
+interface:
+  display_name: "تغییر کنترل‌شده دوز"
+  short_description: "تغییرات محدود و تست‌محور دوزبلاغ"
+  default_prompt: "Use $doz-controlled-change to implement only the approved request in doztest."
