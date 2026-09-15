@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../auth/auth_repository.dart';
+import '../notifications/push_notification_service.dart';
 import '../security/security_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/iran_plate.dart';
@@ -30,11 +33,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _biometricEnabled = false;
   bool _hasPin = false;
   bool _loadingSecurity = true;
+  late DriverSession _session;
+  StreamSubscription<void>? _profileRefreshSubscription;
+  bool _refreshingProfile = false;
 
   @override
   void initState() {
     super.initState();
+    _session = widget.session;
     _loadSecurity();
+    _refreshProfile();
+    _profileRefreshSubscription = PushNotificationService
+        .instance
+        .profileRefreshRequests
+        .listen((_) => _refreshProfile());
+  }
+
+  @override
+  void dispose() {
+    _profileRefreshSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refreshProfile() async {
+    if (_refreshingProfile) return;
+    _refreshingProfile = true;
+    try {
+      final refreshed = await _authRepository.refreshSession(_session);
+      if (mounted) setState(() => _session = refreshed);
+    } catch (_) {
+      // Keep the last profile available while offline.
+    } finally {
+      _refreshingProfile = false;
+    }
   }
 
   Future<void> _loadSecurity() async {
@@ -46,7 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     setState(() {
       _biometricAvailable = results[0];
-      _biometricEnabled = results[1];
+      _biometricEnabled = results[0] && results[1];
       _hasPin = results[2];
       _loadingSecurity = false;
     });
@@ -119,10 +150,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   return;
                 }
                 try {
-                  await _authRepository.saveDevicePin(
-                    widget.session,
-                    next.text,
-                  );
+                  await _authRepository.saveDevicePin(_session, next.text);
                   await _security.savePin(next.text);
                   if (context.mounted) Navigator.pop(context, true);
                 } on AuthException catch (exception) {
@@ -242,7 +270,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     context: context,
     builder: (context) => AlertDialog(
       icon: const Icon(Icons.local_shipping_rounded, color: AppTheme.blue),
-      title: const Text('دوزوله راننده'),
+      title: const Text('درباره راه‌نامه'),
       content: const Text(
         'اپلیکیشن همراه رانندگان ترانزیت بین‌المللی برای ارتباط با شرکت، مدیریت سفرها و خدمات هوشمند آینده.',
         textAlign: TextAlign.center,
@@ -288,7 +316,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final driver = widget.session.driver;
+    final driver = _session.driver;
     String value(String key) {
       final result = driver[key]?.toString().trim();
       return result == null || result.isEmpty ? 'ثبت نشده' : result;
@@ -302,9 +330,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.fromLTRB(14, 16, 14, 32),
         children: [
           _ProfileHero(
-            name: widget.session.name,
+            name: _session.name,
             mobile: mobile,
-            companyName: widget.session.companyName,
+            companyName: _session.companyName,
           ),
           const SizedBox(height: 22),
           const _SectionTitle(title: 'ناوگان متصل'),
@@ -365,7 +393,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   title: 'اطلاعات راننده',
                   icon: Icons.badge_rounded,
                   rows: [
-                    ('نام و نام خانوادگی', widget.session.name),
+                    ('نام و نام خانوادگی', _session.name),
                     ('کد ملی', value('national_code')),
                     ('شماره موبایل', mobile),
                   ],
@@ -374,12 +402,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _SettingsTile(
                 icon: Icons.apartment_rounded,
                 title: 'شرکت متصل',
-                subtitle: widget.session.companyName,
+                subtitle: _session.companyName,
                 onTap: () => _showDetails(
                   title: 'اطلاعات شرکت',
                   icon: Icons.apartment_rounded,
                   rows: [
-                    ('نام شرکت', widget.session.companyName),
+                    ('نام شرکت', _session.companyName),
                     ('مدیرعامل', value('company_manager')),
                     ('تلفن', value('company_phone')),
                     ('نشانی', value('company_address')),
@@ -395,7 +423,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             children: [
               _SettingsTile(
                 icon: Icons.info_outline_rounded,
-                title: 'درباره دوزوله راننده',
+                title: 'درباره راه‌نامه',
                 subtitle: 'معرفی اپلیکیشن و خدمات همراه راننده',
                 onTap: _showAbout,
               ),
@@ -419,7 +447,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               children: [
                 Text(
-                  'دوزوله • همراه هوشمند رانندگان',
+                  'راه‌نامه • همراه هوشمند رانندگان',
                   style: TextStyle(color: Color(0xFF64748B), fontSize: 9),
                 ),
                 SizedBox(height: 4),

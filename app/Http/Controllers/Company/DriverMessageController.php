@@ -60,7 +60,7 @@ class DriverMessageController extends Controller
             return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
         }
 
-        $driversQuery = Driver::query()->where('current_company_id', $companyId);
+        $driversQuery = Driver::active()->where('current_company_id', $companyId);
 
         if ($request->scope === 'selected') {
             $driversQuery->whereIn('id', $request->input('driver_ids', []));
@@ -108,7 +108,7 @@ class DriverMessageController extends Controller
     {
         $companyId = auth()->user()->company->id ?? auth()->user()->company_id;
 
-        $driver = Driver::query()
+        $driver = Driver::active()
             ->where('current_company_id', $companyId)
             ->findOrFail($driverId);
 
@@ -161,7 +161,7 @@ class DriverMessageController extends Controller
             return response()->json(['success' => false, 'message' => $validator->errors()->first()], 422);
         }
 
-        $driver = Driver::query()
+        $driver = Driver::active()
             ->where('current_company_id', $companyId)
             ->findOrFail($driverId);
 
@@ -197,7 +197,7 @@ class DriverMessageController extends Controller
 
     private function messageOverview(int $companyId): array
     {
-        $drivers = Driver::query()
+        $drivers = Driver::active()
             ->where('current_company_id', $companyId)
             ->orderBy('last_name_fa')
             ->orderBy('first_name_fa')

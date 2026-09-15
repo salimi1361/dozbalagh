@@ -18,7 +18,7 @@ class TrackingController extends Controller
     {
         $request->validate([
             'dozbalagh_item_id' => 'required|integer',
-            'event_type' => 'required|string',
+            'event_type' => 'required|in:tracking_started,tracking_stopped',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
         ]);
@@ -41,7 +41,9 @@ class TrackingController extends Controller
             'longitude' => $request->longitude,
         ]);
 
-        $company = $dozbalaghItem->permitRequest->company ?? $dozbalaghItem->company;
+        // The warehouse item already carries the owning company. Resolving a
+        // permit by serial alone is ambiguous once scopes may reuse a number.
+        $company = $dozbalaghItem->company;
 
         if ($company) {
             $company->notify(new DriverEventNotification($driver, $event, $dozbalaghItem));
@@ -149,6 +151,10 @@ class TrackingController extends Controller
         $item = DozbalaghItem::where('id', $id)
             ->whereIn('lifecycle_status', ['issued', 'consumed'])
             ->whereNull('returned_at')
+            ->where(function ($query) {
+                $query->whereNull('fleet_id')
+                    ->orWhereHas('fleet', fn ($fleet) => $fleet->where('is_active', true));
+            })
             ->first();
 
         if ($item && (int) $item->driver_id === (int) $driver->id) {
@@ -159,8 +165,16 @@ class TrackingController extends Controller
             $ownsIssuedItem = DB::table('permit_request_items as pri')
                 ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
                 ->where('pri.d_serial_number', $item->serial_number)
+                ->where('pri.country_id', $item->country_id)
+                ->where('pri.permit_type', $item->permit_type)
                 ->where('pr.driver_id', $driver->id)
                 ->where('pr.status', 'issued')
+                ->where(function ($query) {
+                    $query->whereNull('pr.fleet_id')
+                        ->orWhereExists(function ($fleet) {
+                            $fleet->selectRaw('1')->from('fleets')->whereColumn('fleets.id', 'pr.fleet_id')->where('fleets.is_active', true);
+                        });
+                })
                 ->where(function ($query) {
                     $query->whereNull('pri.item_status')
                         ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived', 'cancelled']);
@@ -180,6 +194,10 @@ class TrackingController extends Controller
 
         $permit = PermitRequest::where('id', $id)
             ->where('status', 'issued')
+            ->where(function ($query) {
+                $query->whereNull('fleet_id')
+                    ->orWhereHas('fleet', fn ($fleet) => $fleet->where('is_active', true));
+            })
             ->where(function ($query) use ($driver) {
                 $query->where('driver_id', $driver->id);
 
@@ -193,9 +211,23 @@ class TrackingController extends Controller
             return null;
         }
 
-        return DozbalaghItem::where('serial_number', $permit->serial_number)
+        $permitItem = DB::table('permit_request_items')
+            ->where('permit_request_id', $permit->id)
+            ->whereNotNull('d_serial_number')
+            ->where('d_serial_number', $permit->serial_number)
+            ->first(['d_serial_number', 'country_id', 'permit_type']);
+
+        return DozbalaghItem::where('serial_number', $permitItem->d_serial_number ?? $permit->serial_number)
+            ->when($permitItem, function ($query) use ($permitItem) {
+                $query->where('country_id', $permitItem->country_id)
+                    ->where('permit_type', $permitItem->permit_type);
+            })
             ->whereIn('lifecycle_status', ['issued', 'consumed'])
             ->whereNull('returned_at')
+            ->where(function ($query) {
+                $query->whereNull('fleet_id')
+                    ->orWhereHas('fleet', fn ($fleet) => $fleet->where('is_active', true));
+            })
             ->where(function ($query) use ($permit, $driver) {
                 $query->where('driver_id', $driver->id)
                     ->orWhere('fleet_id', $permit->fleet_id)

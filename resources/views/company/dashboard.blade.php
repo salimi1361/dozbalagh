@@ -25,7 +25,7 @@
         ['title' => 'آماده صدور', 'count' => $approvedCount, 'tone' => 'emerald', 'hint' => 'تایید شده توسط انجمن', 'filter' => 'approved'],
         ['title' => 'صادر شده / معتبر', 'count' => $issuedCount, 'tone' => 'sky', 'hint' => 'پروانه‌های فعال', 'filter' => 'issued'],
         ['title' => 'رد درخواست', 'count' => $rejectedCount, 'tone' => 'rose', 'hint' => 'پرونده‌های رد شده', 'filter' => 'rejected'],
-        ['title' => 'لاشه تحویل شده', 'count' => $collectedCount, 'tone' => 'indigo', 'hint' => 'تحویل و ثبت نهایی', 'filter' => 'collected'],
+        ['title' => 'لاشه تحویل‌شده / بایگانی', 'count' => $collectedCount, 'tone' => 'indigo', 'hint' => 'تحویل و ثبت نهایی', 'filter' => 'archived'],
         ['title' => 'درخواست تمدید', 'count' => $renewalCount, 'tone' => 'teal', 'hint' => 'از کل درخواست‌ها', 'filter' => 'renewal'],
         ['title' => 'مفقودی', 'count' => $lostCount, 'tone' => 'slate', 'hint' => 'ثبت مفقودی', 'filter' => 'lost'],
     ];
@@ -41,6 +41,8 @@
     ];
 
     $maxStatusCount = max(1, ...array_map(fn ($item) => max(0, (int) $item['count']), $statusCards));
+    $expiringPermitsCount = ($expiringPermits ?? collect())->count();
+    $expiredPermitsCount = ($expiringPermits ?? collect())->filter(fn ($permit) => (int) $permit->expiry_days_remaining < 0)->count();
 @endphp
 
 <div class="space-y-5" dir="rtl">
@@ -256,9 +258,43 @@
                         </div>
                     </a>
                 @endforeach
+                <button type="button" onclick="document.getElementById('permitExpiryMonitor').classList.remove('hidden')" class="group rounded-lg border p-4 text-right transition hover:-translate-y-0.5 hover:shadow-md {{ $expiredPermitsCount > 0 ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-amber-200 bg-amber-50 text-amber-800' }}">
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-[11px] font-black leading-5">مهلت دوزوله‌های در گردش</span>
+                        <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $expiredPermitsCount > 0 ? 'bg-rose-500' : 'bg-amber-400' }}"></span>
+                    </div>
+                    <div class="mt-3 font-mono text-3xl font-black">{{ number_format($expiringPermitsCount) }}</div>
+                    <div class="mt-2 flex items-center justify-between gap-2">
+                        <p class="text-[10px] font-bold opacity-75">نزدیک پایان یا پایان‌یافته</p>
+                        <span class="shrink-0 text-[10px] font-black opacity-75">مشاهده جزئیات</span>
+                    </div>
+                </button>
             </div>
         </div>
     </section>
+
+    <div id="permitExpiryMonitor" class="fixed inset-0 z-[95] hidden bg-slate-950/65 p-4 backdrop-blur-sm" onclick="if(event.target===this)this.classList.add('hidden')">
+        <div class="mx-auto mt-6 flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div class="flex items-center justify-between gap-4 bg-gradient-to-l from-amber-500 to-orange-500 px-5 py-4 text-white">
+                <div><h2 class="text-lg font-black">دوزوله‌های نیازمند اقدام</h2><p class="mt-1 text-xs text-amber-50">موارد منقضی‌شده یا دارای حداکثر ۱۰ روز اعتبار</p></div>
+                <button type="button" onclick="document.getElementById('permitExpiryMonitor').classList.add('hidden')" class="rounded-xl bg-white/20 px-4 py-2 text-sm font-black">بستن</button>
+            </div>
+            <div class="overflow-y-auto p-4">
+                @forelse(($expiringPermits ?? collect()) as $expiringPermit)
+                    @php
+                        $remaining = (int) $expiringPermit->expiry_days_remaining;
+                    @endphp
+                    <a href="{{ route('company.dozbalagh.item.show', $expiringPermit->id) }}" class="mb-3 grid gap-3 rounded-xl border p-4 transition hover:shadow-md sm:grid-cols-[1fr_180px_150px] sm:items-center {{ $remaining < 0 ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50' }}">
+                        <div><strong class="block text-sm text-slate-900">دوزوله {{ $expiringPermit->d_serial_number ?: $expiringPermit->d_code.'-'.$expiringPermit->id }}</strong><span class="mt-1 block text-xs text-slate-600">کشور: {{ $expiringPermit->country_name }}</span></div>
+                        <div class="text-xs font-bold text-slate-600">تاریخ پایان: <b class="mt-1 block font-mono text-slate-900">{{ verta($expiringPermit->permit_valid_until)->format('Y/m/d') }}</b></div>
+                        <span class="w-fit rounded-full px-3 py-2 text-xs font-black {{ $remaining < 0 ? 'bg-rose-600 text-white' : 'bg-amber-500 text-white' }}">{{ $remaining < 0 ? abs($remaining).' روز گذشته' : ($remaining === 0 ? 'امروز پایان می‌یابد' : $remaining.' روز باقی مانده') }}</span>
+                    </a>
+                @empty
+                    <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-8 text-center font-black text-emerald-700">در حال حاضر دوزوله‌ای نزدیک پایان اعتبار نیست.</div>
+                @endforelse
+            </div>
+        </div>
+    </div>
 </div>
 @endsection
 

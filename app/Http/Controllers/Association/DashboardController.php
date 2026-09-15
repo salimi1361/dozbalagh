@@ -16,8 +16,8 @@ class DashboardController extends Controller
     public function index(): View
     {
         $companiesCount = Company::count();
-        $driversCount = Driver::count();
-        $fleetsCount = Fleet::count();
+        $driversCount = Driver::active()->count();
+        $fleetsCount = Fleet::active()->count();
         $pendingRequestsCount = PermitRequest::where('status', 'pending')->count();
 
         $weekStart = Carbon::now()->subDays(6)->startOfDay();
@@ -52,18 +52,16 @@ class DashboardController extends Controller
         $destinationChartData = $destinationRows->map(fn ($row) => (int) $row->total)->values();
         $destinationTotal = $destinationChartData->sum();
 
-        $availableStatuses = ['raw', 'in_stock', 'returned_unused'];
-        $usedStatuses = ['consumed', 'issued', 'collected', 'archived', 'lost', 'used', 'extended', 'cancelled'];
+        $availableStatuses = ['raw', 'in_stock'];
         $lowStockCountries = DB::table('dozbalagh_items as di')
             ->join('dozbalagh_batches as db', 'di.batch_id', '=', 'db.id')
             ->leftJoin('countries as c', 'db.country_id', '=', 'c.id')
-            ->where(function ($query) use ($availableStatuses, $usedStatuses) {
+            ->where(function ($query) use ($availableStatuses) {
                 $query->whereNull('di.lifecycle_status')
-                    ->orWhereIn('di.lifecycle_status', $availableStatuses)
-                    ->orWhereNotIn('di.lifecycle_status', $usedStatuses);
+                    ->orWhereIn('di.lifecycle_status', $availableStatuses);
             })
-            ->selectRaw("COALESCE(c.name, db.country_name, 'نامشخص') as country_name, COUNT(di.id) as available_count")
-            ->groupByRaw("COALESCE(c.name, db.country_name, 'نامشخص')")
+            ->selectRaw("COALESCE(c.name, db.country_name, 'نامشخص') as country_name, COALESCE(db.permit_type, 'unclassified') as permit_type, COUNT(di.id) as available_count")
+            ->groupByRaw("COALESCE(c.name, db.country_name, 'نامشخص'), COALESCE(db.permit_type, 'unclassified')")
             ->having('available_count', '<=', 50)
             ->orderBy('available_count')
             ->limit(4)

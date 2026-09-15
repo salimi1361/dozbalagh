@@ -1,5 +1,8 @@
 @extends('layouts.admin')
 
+@section('header_title', 'نقشه سامانه')
+@section('hero_subtitle', 'نمای ساختاری بخش‌ها، قابلیت‌ها و مسیرهای اصلی سامانه')
+
 @section('content')
 <div class="p-6 bg-slate-950 min-h-screen text-slate-100 rounded-3xl border border-slate-800 shadow-2xl">
     

@@ -15,22 +15,26 @@ use App\Http\Controllers\Company\{
 use App\Http\Controllers\TrackingMapController;
 use App\Http\Controllers\Company\CmrReportController;
 
-Route::middleware(['auth', 'role:company', 'panel.features'])->group(function () {
+Route::middleware(['auth', 'role:company'])->group(function () {
     Route::get('/web/company/profile', [ProfileController::class, 'edit'])->name('company.profile.edit');
+    Route::get('/web/company/profile/password', [ProfileController::class, 'passwordEdit'])->name('company.password.edit');
     Route::put('/web/company/profile', [ProfileController::class, 'update'])->name('company.profile.update');
     Route::put('/web/company/password', [ProfileController::class, 'updatePassword'])->name('company.password.update');
 
-    Route::middleware([\App\Http\Middleware\CheckCompanyApproval::class])->group(function () {
+    Route::middleware(['panel.features', \App\Http\Middleware\CheckCompanyApproval::class])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('/dozbalagh', [DozbalaghController::class, 'index'])->name('dozbalagh.index');
+        Route::get('/dozbalagh/items/{item}', [DozbalaghController::class, 'showItem'])->whereNumber('item')->name('company.dozbalagh.item.show');
+        Route::get('/dozbalagh-transfers', [DozbalaghController::class, 'transfers'])->name('company.dozbalagh.transfers');
         Route::get('/dozbalagh-issued', [\App\Http\Controllers\PermitCopyController::class, 'companyIndex'])->name('company.dozbalagh.issued');
+        Route::get('/dozbalagh-issued/export', [\App\Http\Controllers\PermitCopyController::class, 'companyExport'])->name('company.dozbalagh.issued.export');
         Route::get('/dozbalagh/create', [DozbalaghController::class, 'create'])->middleware(\App\Shahbaz\Http\Middleware\EnsureCompanyEligible::class)->name('dozbalagh.create');
         Route::get('/dozbalagh/renewable-list', [DozbalaghController::class, 'renewableList'])->name('dozbalagh.renewable_list');
         Route::post('/dozbalagh/store', [DozbalaghController::class, 'store'])->middleware([\App\Shahbaz\Http\Middleware\EnsureCompanyEligible::class, \App\Http\Middleware\EnsureRequestablePermitTypes::class])->name('dozbalagh.store');
         Route::get('/dozbalagh/{id}/edit', [DozbalaghController::class, 'edit'])->name('dozbalagh.edit');
         Route::get('/dozbalagh/items/{item}/copy', [\App\Http\Controllers\PermitCopyController::class, 'company'])->whereNumber('item')->name('company.dozbalagh.copy');
-        Route::put('/dozbalagh/{id}/update', [DozbalaghController::class, 'update'])->name('dozbalagh.update');
+        Route::put('/dozbalagh/{id}/update', [DozbalaghController::class, 'update'])->middleware(\App\Http\Middleware\EnsureRequestablePermitTypes::class)->name('dozbalagh.update');
         Route::post('/dozbalagh/check-fleet', [DozbalaghController::class, 'checkFleetStatus'])->name('dozbalagh.check_fleet');
 
         Route::get('/web/company/driver/index', [CompanyDriverController::class, 'index'])->name('web.company.driver.index');
@@ -61,6 +65,9 @@ Route::middleware(['auth', 'role:company', 'panel.features'])->group(function ()
         Route::post('/web/dozbalagh/{id}/renew', [DozbalaghController::class, 'renew'])->middleware(\App\Shahbaz\Http\Middleware\EnsureCompanyEligible::class)->name('web.dozbalagh.renew');
         Route::post('/web/company/dozbalagh/{id}/return-lash', [DozbalaghController::class, 'submitReturnLash'])->name('company.dozbalagh.return_lash');
         Route::post('/web/company/dozbalagh/{id}/report-lost', [DozbalaghController::class, 'reportLost'])->name('company.dozbalagh.report_lost');
+        Route::post('/web/company/dozbalagh/{id}/pickup-courier', [DozbalaghController::class, 'nominatePickupCourier'])->name('company.dozbalagh.pickup_courier');
+        Route::post('/web/company/dozbalagh/pickup-courier/{mission}/resend', [DozbalaghController::class, 'resendPickupCourierCode'])->name('company.dozbalagh.pickup_courier.resend');
+        Route::post('/web/company/dozbalagh/{id}/cits-response', [DozbalaghController::class, 'submitCitsResponse'])->name('company.dozbalagh.cits_response');
         Route::get('/web/company/report/index', [ReportController::class, 'index'])->name('report.index');
         Route::get('/web/company/report/export', [ReportController::class, 'exportExcel'])->name('report.export');
         Route::get('/web/company/cmr-reports', [CmrReportController::class, 'index'])->name('company.cmr-reports.index');

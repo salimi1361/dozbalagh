@@ -10,8 +10,16 @@ class SecurityService {
 
   Future<bool> isBiometricAvailable() async {
     try {
-      return await _localAuth.canCheckBiometrics &&
-          (await _localAuth.getAvailableBiometrics()).isNotEmpty;
+      final canCheckBiometrics = await _localAuth.canCheckBiometrics;
+      if (!canCheckBiometrics) return false;
+
+      final availableBiometrics = await _localAuth.getAvailableBiometrics();
+      if (availableBiometrics.isEmpty) return false;
+
+      // canCheckBiometrics only describes hardware capability. The extra
+      // device check prevents showing an enabled option when the OS cannot
+      // currently provide a secure authentication prompt.
+      return await _localAuth.isDeviceSupported();
     } catch (_) {
       return false;
     }
@@ -29,7 +37,7 @@ class SecurityService {
     try {
       return await _localAuth.authenticate(
         localizedReason:
-            'برای ورود به اپلیکیشن دوزوله اثر انگشت خود را تأیید کنید',
+            'برای ورود به اپلیکیشن راه‌نامه اثر انگشت خود را تأیید کنید',
         biometricOnly: true,
         persistAcrossBackgrounding: true,
       );
@@ -60,4 +68,9 @@ class SecurityService {
   Future<void> savePin(String pin) => _storage.write(key: _pinKey, value: pin);
 
   Future<void> removePin() => _storage.delete(key: _pinKey);
+
+  Future<void> clearLocalCredentials() async {
+    await _storage.delete(key: _pinKey);
+    await _storage.delete(key: _biometricKey);
+  }
 }

@@ -3,7 +3,7 @@
 @section('header_title',$titles[$type])
 @section('content')
 <div dir="rtl" class="mx-auto max-w-6xl space-y-5">
-    <div class="flex flex-wrap items-center justify-between gap-3 rounded-3xl border bg-white p-6"><div><h1 class="text-xl font-black">{{ $titles[$type] }}</h1><p class="mt-2 text-sm text-slate-500">{{ $editable?'پرونده باز است؛ امکان افزودن، ویرایش و بایگانی وجود دارد.':'پرونده بسته یا در حال بررسی است؛ اطلاعات فقط قابل مشاهده است.' }}</p></div><div class="flex gap-2"><a href="{{ route('company.shahbaz.dossier.show') }}" class="rounded-xl border px-5 py-3 font-bold">بازگشت به پرونده</a>@if($editable)<a href="{{ route('company.shahbaz.people.create',$type) }}" class="rounded-xl bg-emerald-600 px-5 py-3 font-black text-white">+ ایجاد</a>@endif</div></div>
+    <div class="company-page-header flex flex-wrap items-center justify-between gap-3 rounded-3xl border p-6"><div><h1 class="text-xl font-black">{{ $titles[$type] }}</h1><p class="mt-2 text-sm">{{ $editable?'پرونده باز است؛ امکان افزودن، ویرایش و بایگانی وجود دارد.':'پرونده بسته یا در حال بررسی است؛ اطلاعات فقط قابل مشاهده است.' }}</p></div><div class="flex flex-wrap gap-2"><a href="{{ route('company.shahbaz.dossier.show') }}" class="company-header-back-link">بازگشت به پرونده</a>@if($editable)<a href="{{ route('company.shahbaz.people.create',$type) }}" class="rounded-xl bg-white px-5 py-3 font-black text-blue-900">+ ایجاد</a>@endif</div></div>
     @if(session('success'))<div class="rounded-xl bg-emerald-50 p-4 font-bold text-emerald-800">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="rounded-xl bg-rose-50 p-4 font-bold text-rose-800">{{ $errors->first() }}</div>@endif
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

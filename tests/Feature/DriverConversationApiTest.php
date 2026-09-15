@@ -16,7 +16,7 @@ class DriverConversationApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_driver_messages_are_returned_as_separate_conversations_with_unread_counts(): void
+    public function test_driver_only_sees_live_conversations_for_current_company(): void
     {
         $companyRole = Role::firstOrCreate(['name' => 'company'], ['title_fa' => 'شرکت']);
         $driverRole = Role::firstOrCreate(['name' => 'driver'], ['title_fa' => 'راننده']);
@@ -44,14 +44,14 @@ class DriverConversationApiTest extends TestCase
 
         $this->message($firstCompany, $driver, 'پیام اول شرکت اول');
         $this->message($firstCompany, $driver, 'پاسخ راننده', 'driver');
-        $this->message($secondCompany, $driver, 'پیام شرکت دوم');
+        $oldCompanyMessage = $this->message($secondCompany, $driver, 'پیام شرکت دوم');
 
         Sanctum::actingAs($driver);
 
         $this->getJson('/api/v1/driver/company-messages/conversations')
             ->assertOk()
-            ->assertJsonPath('unread_count', 2)
-            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('unread_count', 1)
+            ->assertJsonCount(1, 'data')
             ->assertJsonStructure([
                 'data' => [[
                     'id',
@@ -61,12 +61,36 @@ class DriverConversationApiTest extends TestCase
                     'last_message',
                     'unread_count',
                 ]],
-            ]);
+            ])
+            ->assertJsonPath('data.0.participant_id', $firstCompany->id)
+            ->assertJsonMissing(['participant_id' => $secondCompany->id]);
 
-        $this->getJson('/api/v1/driver/company-messages?company_id='.$firstCompany->id)
+        $this->getJson('/api/v1/driver/company-messages')
             ->assertOk()
             ->assertJsonCount(2, 'data')
             ->assertJsonMissing(['company_id' => $secondCompany->id]);
+
+        $this->getJson('/api/v1/driver/company-messages?company_id='.$secondCompany->id)
+            ->assertOk()
+            ->assertJsonCount(0, 'data')
+            ->assertJsonPath('unread_count', 1);
+
+        $this->postJson('/api/v1/driver/company-messages/'.$oldCompanyMessage->id.'/read')
+            ->assertNotFound();
+
+        $this->postJson('/api/v1/driver/company-messages/reply', [
+            'message_id' => $oldCompanyMessage->id,
+            'message' => 'پاسخ نباید برای شرکت قبلی ارسال شود.',
+        ])->assertNotFound();
+
+        $driver->forceFill(['current_company_id' => $secondCompany->id])->save();
+
+        $this->getJson('/api/v1/driver/company-messages/conversations')
+            ->assertOk()
+            ->assertJsonPath('unread_count', 1)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.participant_id', $secondCompany->id)
+            ->assertJsonMissing(['participant_id' => $firstCompany->id]);
     }
 
     private function company(Role $role, string $username, string $code, string $name): Company

@@ -44,10 +44,7 @@ class AssociationUserManagementTest extends TestCase
         $admin = $this->user('admin', 'admin-test');
         $association = $this->user('association', 'association-test');
 
-        $this->actingAs($admin)->put(route('admin.association-users.update', $association), [
-            'username' => $association->username,
-            'mobile' => '09120000001',
-            'status' => 'active',
+        $this->actingAs($admin)->put(route('admin.association-users.features', $association), [
             'features' => ['shahbaz_company_review'],
         ])->assertRedirect();
 
@@ -55,6 +52,34 @@ class AssociationUserManagementTest extends TestCase
             ['shahbaz_company_review'],
             $association->fresh()->association_feature_keys,
         );
+    }
+
+    public function test_autofilled_password_is_ignored_when_only_feature_access_is_updated(): void
+    {
+        $admin = $this->user('admin', 'admin-autofill');
+        $association = $this->user('association', 'association-autofill');
+        $originalPassword = $association->password;
+
+        $this->actingAs($admin)->put(route('admin.association-users.features', $association), [
+            'password' => 'browser-autofilled-password',
+            'features' => ['shahbaz_company_review'],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame($originalPassword, $association->fresh()->password);
+    }
+
+    public function test_password_confirmation_is_required_only_when_password_change_is_selected(): void
+    {
+        $admin = $this->user('admin', 'admin-password');
+        $association = $this->user('association', 'association-password');
+
+        $this->actingAs($admin)->put(route('admin.association-users.password', $association), [
+            'password' => 'new-strong-password',
+            'password_confirmation' => 'new-strong-password',
+            'features' => ['shahbaz_company_review'],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertTrue(Hash::check('new-strong-password', $association->fresh()->password));
     }
 
     public function test_association_user_feature_access_blocks_other_direct_routes(): void
@@ -94,6 +119,29 @@ class AssociationUserManagementTest extends TestCase
         $this->assertSame(
             'association.shahbaz.companies.index',
             app(PanelFeatureService::class)->landingRoute('association', $association),
+        );
+    }
+
+    public function test_explicit_user_access_does_not_require_the_role_wide_dashboard_or_feature_toggle(): void
+    {
+        $association = $this->user('association', 'shahbaz-only');
+        $association->update(['association_feature_keys' => ['shahbaz_company_review']]);
+        SystemSetting::setValue('panel_features', [
+            'association' => [
+                'dashboard' => false,
+                'admin_dashboard' => false,
+                'shahbaz_company_review' => false,
+            ],
+        ]);
+
+        $features = app(PanelFeatureService::class);
+
+        $this->assertTrue($features->enabledForUser($association, 'shahbaz_company_review'));
+        $this->assertFalse($features->enabledForUser($association, 'dashboard'));
+        $this->assertFalse($features->enabledForUser($association, 'admin_dashboard'));
+        $this->assertSame(
+            'association.shahbaz.companies.index',
+            $features->landingRoute('association', $association),
         );
     }
 

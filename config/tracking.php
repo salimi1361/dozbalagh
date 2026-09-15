@@ -6,4 +6,5 @@ return [
     'tiles_enabled' => env('MAP_TILES_ENABLED', true),
     'online_tiles_enabled' => env('MAP_ONLINE_TILES_ENABLED', true),
     'online_timeout_minutes' => env('TRACKING_ONLINE_TIMEOUT_MINUTES', 15),
+    'recent_days' => env('TRACKING_RECENT_DAYS', 7),
 ];

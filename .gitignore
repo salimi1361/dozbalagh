@@ -36,3 +36,14 @@ Thumbs.db
 *.tar.gz
 patch_view.py
 update_view.py
+
+# Local Codex/SSH deployment credentials and scratch files
+/.codex_known_hosts
+/.codex_server_access
+/.codex_server_access.pub
+/.tmp-root-deploy-key
+/.tmp-root-deploy-key.pem
+/.tmp-performance-deploy/
+
+# Local UI deployment backups
+/storage/ui-backups/

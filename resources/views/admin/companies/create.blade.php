@@ -1,4 +1,6 @@
 @extends('layouts.admin')
+
+@section('header_title', 'افزودن شرکت جدید')
 <button type="submit" onclick="alert('دکمه کار می‌کند!');">تست دکمه</button>
 @section('content')
 <div class="p-6 max-w-2xl mx-auto bg-white rounded-lg shadow">

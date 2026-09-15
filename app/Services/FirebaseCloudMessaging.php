@@ -32,22 +32,27 @@ class FirebaseCloudMessaging
             fn ($value) => is_bool($value) ? ($value ? 'true' : 'false') : (string) $value,
             $data
         );
+        $silent = filter_var($data['silent'] ?? false, FILTER_VALIDATE_BOOL);
+        $message = [
+            'token' => $deviceToken,
+            'data' => $stringData,
+            'android' => [
+                'priority' => ($data['priority'] ?? null) === 'normal' ? 'NORMAL' : 'HIGH',
+            ],
+        ];
+
+        if (! $silent) {
+            $message['notification'] = [
+                'title' => $stringData['title'],
+                'body' => $stringData['body'],
+            ];
+            $message['android']['notification'] = ['sound' => 'default'];
+        }
 
         return Http::withToken($accessToken)
             ->acceptJson()
             ->post("https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send", [
-                'message' => [
-                    'token' => $deviceToken,
-                    'notification' => [
-                        'title' => $stringData['title'],
-                        'body' => $stringData['body'],
-                    ],
-                    'data' => $stringData,
-                    'android' => [
-                        'priority' => $data['priority'] === 'normal' ? 'NORMAL' : 'HIGH',
-                        'notification' => ['sound' => 'default'],
-                    ],
-                ],
+                'message' => $message,
             ]);
     }
 

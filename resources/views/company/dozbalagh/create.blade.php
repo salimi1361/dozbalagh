@@ -50,14 +50,14 @@
             'cargo_type' => $cargoTypeVal, 
             'loading_origin' => 'ایران', 
             'loading_destination' => $destCountryFa, 
-            'cits_code' => $permitRequest->tracking_code ?? $permitRequest->d_code ?? '', 
+            'cits_code' => $firstItemDb->cits_code ?? $permitRequest->tracking_code ?? $permitRequest->d_code ?? '',
             // 🟢 اضافه شدن پارامترهای فرم‌های داینامیک مدارک به آبجکت جاوااسکریپت
-            'trip_code' => $permitRequest->trip_code ?? '',
-            'cmr_date' => $permitRequest->cmr_date ?? '',
-            'tir_carnet_number' => $permitRequest->tir_carnet_number ?? '',
-            'tir_carnet_date' => $permitRequest->tir_carnet_date ?? '',
-            'receipt_code' => $permitRequest->receipt_code ?? '',
-            'receipt_amount' => $permitRequest->receipt_amount ?? '',
+            'trip_code' => $firstItemDb->trip_code ?? '',
+            'cmr_date' => $firstItemDb->cmr_date ?? '',
+            'tir_carnet_number' => $firstItemDb->tir_carnet_number ?? '',
+            'tir_carnet_date' => $firstItemDb->tir_carnet_date ?? '',
+            'receipt_code' => $firstItemDb->receipt_code ?? '',
+            'receipt_amount' => $firstItemDb->receipt_amount ?? '',
             'destinations' => $destinationsArray
         ];
     }
@@ -76,32 +76,66 @@
 @endsection
 
 @section('content')
-<div class="max-w-4xl mx-auto">
+<div class="mx-auto max-w-7xl space-y-5" dir="rtl">
+    <div class="space-y-0">
+        <section class="company-page-header rounded-t-2xl px-5 py-4 text-white shadow-lg sm:px-6 sm:py-5">
+            <div class="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="flex items-center gap-3.5">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white bg-opacity-15 ring-1 ring-white ring-opacity-20">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 3.75h7.5L19 8.25v12H7a2 2 0 0 1-2-2v-12.5a2 2 0 0 1 2-2Z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M14 3.75v4.5h4.5M12 11v6M9 14h6"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-black sm:text-2xl">{{ isset($permitRequest) ? 'اصلاح درخواست دوزوله' : 'ثبت درخواست دوزوله جدید' }}</h1>
+                        <p class="mt-1 text-xs font-semibold text-emerald-100">انتخاب راننده و ناوگان، تکمیل مقصد و مدارک، سپس بازبینی و پرداخت</p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="inline-flex items-center gap-2 rounded-xl border border-white border-opacity-10 bg-white bg-opacity-10 px-4 py-2 text-xs font-black text-emerald-50">
+                        <span class="flex h-6 w-6 items-center justify-center rounded-lg bg-white bg-opacity-15">۳</span>
+                        فرایند سه‌مرحله‌ای
+                    </span>
+                    <a href="{{ route('dozbalagh.index') }}" class="company-header-back-link gap-2">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 18 6-6-6-6"/></svg>
+                        بازگشت به پرونده‌ها
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        {{-- نوار پیشرفت مراحل --}}
+        <section class="relative overflow-hidden rounded-b-2xl border border-t-0 border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-8">
+            <div class="absolute left-8 right-8 top-9 h-1 rounded-full bg-slate-100">
+                <div id="progressBar" class="absolute right-0 top-0 h-1 w-0 rounded-full bg-emerald-500 transition-all duration-500"></div>
+            </div>
+            <div class="relative z-10 flex items-start justify-between">
+                @foreach([
+                    ['title' => 'راننده و ناوگان', 'subtitle' => 'انتخاب متقاضی'],
+                    ['title' => 'کشورها و مدارک', 'subtitle' => 'تکمیل مسیر و مستندات'],
+                    ['title' => 'تأیید و پرداخت', 'subtitle' => 'بازبینی و ثبت نهایی'],
+                ] as $index => $step)
+                    <div class="step-indicator flex flex-1 flex-col items-center gap-1.5 px-1 text-center" data-step="{{ $index + 1 }}">
+                        <div class="flex h-10 w-10 items-center justify-center rounded-full border-2 font-black transition-all duration-300 {{ $index === 0 ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-200 ring-4 ring-emerald-100' : 'border-slate-200 bg-white text-slate-400' }}" id="indicator-{{ $index + 1 }}">
+                            {{ $index + 1 }}
+                        </div>
+                        <span id="indicator-text-{{ $index + 1 }}" class="text-[10px] font-black transition-colors sm:text-xs {{ $index === 0 ? 'text-emerald-700' : 'text-slate-400' }}">{{ $step['title'] }}</span>
+                        <span class="hidden text-[10px] font-medium text-slate-400 sm:block">{{ $step['subtitle'] }}</span>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+    </div>
+
     @if(!$requestWindowStatus['allowed'])
-        <div class="mb-6 bg-rose-50 border border-rose-200 text-rose-700 rounded-2xl p-4 text-sm font-bold leading-7">
+        <div class="mx-auto max-w-5xl rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold leading-7 text-rose-700">
             {{ $requestWindowStatus['message'] }}
         </div>
     @endif
-    
-    {{-- نوار پیشرفت مراحل (Timeline) --}}
-    <div class="mb-8 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
-        <div class="flex items-center justify-between relative">
-            <div class="absolute left-0 top-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none"></div>
-            <div id="progressBar" class="absolute right-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-slate-100 -z-10 rounded-full"></div>
-            
-            @foreach(['راننده و ناوگان', 'کشورهای مقصد و مدارک', 'تایید و پرداخت'] as $index => $step)
-                <div class="step-indicator flex flex-col items-center gap-2 relative bg-white px-2" data-step="{{ $index + 1 }}">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold border-2 transition-colors duration-300 {{ $index === 0 ? 'border-emerald-500 bg-emerald-500 text-white shadow-lg' : 'border-slate-200 bg-white text-slate-400' }}" id="indicator-{{ $index + 1 }}">
-                        {{ $index + 1 }}
-                    </div>
-                    <span class="text-[10px] sm:text-xs font-bold {{ $index === 0 ? 'text-emerald-600' : 'text-slate-400' }}">{{ $step }}</span>
-                </div>
-            @endforeach
-        </div>
-    </div>
 
     {{-- هوشمندسازی اکشن فرم برای سوئیچ بین ذخیره جدید یا آپدیت اصلاحیه --}}
-    <form id="dozoulehForm" action="{{ isset($permitRequest) ? route('dozbalagh.update', $permitRequest->id) : route('dozbalagh.store') }}" method="POST" enctype="multipart/form-data" class="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden {{ !$requestWindowStatus['allowed'] && !isset($permitRequest) ? 'opacity-60 pointer-events-none' : '' }}">
+    <form id="dozoulehForm" action="{{ isset($permitRequest) ? route('dozbalagh.update', $permitRequest->id) : route('dozbalagh.store') }}" method="POST" enctype="multipart/form-data" class="mx-auto w-full max-w-5xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm {{ !$requestWindowStatus['allowed'] && !isset($permitRequest) ? 'opacity-60 pointer-events-none' : '' }}">
         @csrf
         @if(isset($permitRequest))
             @method('PUT')
@@ -148,6 +182,8 @@
         renewableListUrl: "{{ url('/dozbalagh/renewable-list') }}",
         csrfToken: "{{ csrf_token() }}", 
         countriesList: @json($countries), 
+        isAssociationMember: @json((bool) ($isAssociationMember ?? false)),
+        membershipLabel: @json(($isAssociationMember ?? false) ? 'عضو انجمن' : 'غیرعضو انجمن'),
         cargoRules: @json($cargoRules),
         isEditMode: @json(isset($permitRequest)),
         editData: @json($jsEditData)

@@ -627,7 +627,7 @@ function manualAssignAndPrint(id, dCode, nextSerial, validityDays, expireDateFa,
     const suggestedSerial = (nextSerial && nextSerial !== 'بدون موجودی') ? nextSerial : '';
     const modalTitle = isRenewal ? 'صدور تمدید دوزوله' : 'ثبت سریال دوزوله کشور';
     const serialLabel = isRenewal ? 'شماره دوزوله قبلی' : 'شماره سریال کشور';
-    const serialHelp = isRenewal ? 'در تمدید، شماره جدید از انبار مصرف نمی‌شود و همان شماره قبلی تمدید می‌گردد.' : 'سریال باید در انبار خام همان کشور موجود باشد.';
+    const serialHelp = isRenewal ? 'در تمدید، شماره جدید از انبار مصرف نمی‌شود و همان شماره قبلی تمدید می‌گردد.' : 'سریال باید در انبار خام همان کشور و نوع مجوز پرونده موجود باشد.';
     const confirmText = isRenewal ? 'صدور تمدید و چاپ پروانه' : 'ثبت سریال و چاپ پروانه';
     const readOnlyAttr = isRenewal ? 'readonly' : '';
     const inputValue = isRenewal ? suggestedSerial : suggestedSerial;

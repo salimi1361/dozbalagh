@@ -4,10 +4,13 @@ namespace App\CMR\Services;
 
 use App\CMR\Models\CmrDocument;
 use App\CMR\Models\CmrEvent;
+use App\CMR\Models\CmrCompanySetting;
 use App\CMR\Models\CmrSetting;
 use App\CMR\Models\CmrVersion;
 use App\CMR\Models\CmrWalletEntry;
 use App\Models\Wallet;
+use App\Models\Driver;
+use App\Models\Fleet;
 use App\Shahbaz\Services\CompanyEligibilityService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -30,6 +33,22 @@ class CmrIssuanceService
             }
             if ($document->status !== 'draft') {
                 throw new RuntimeException('فقط پیش‌نویس CMR قابل صدور است.');
+            }
+            if ($document->driver_id && ! Driver::active()->whereKey($document->driver_id)->exists()) {
+                throw new RuntimeException('راننده این CMR توسط انجمن غیرفعال شده است و صدور سند امکان‌پذیر نیست.');
+            }
+            if ($document->fleet_id && ! Fleet::active()->whereKey($document->fleet_id)->exists()) {
+                throw new RuntimeException('ناوگان این CMR توسط انجمن غیرفعال شده است و صدور سند امکان‌پذیر نیست.');
+            }
+
+            $assignmentPolicy = CmrCompanySetting::forCompany((int) $document->company_id)->assignment_policy;
+            if ($assignmentPolicy === 'same_company') {
+                if ($document->driver_id && (int) Driver::findOrFail($document->driver_id)->current_company_id !== (int) $document->company_id) {
+                    throw new RuntimeException('The selected driver is no longer assigned to this company.');
+                }
+                if ($document->fleet_id && (int) Fleet::findOrFail($document->fleet_id)->company_id !== (int) $document->company_id) {
+                    throw new RuntimeException('The selected fleet is no longer assigned to this company.');
+                }
             }
 
             $settings = CmrSetting::current();

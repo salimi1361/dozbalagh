@@ -3,6 +3,7 @@
 namespace App\Shahbaz\Services;
 
 use App\Models\Company;
+use App\Shahbaz\Models\CompanyVerificationHistory;
 use App\Models\SystemSetting;
 
 class ShahbazSectionService
@@ -23,11 +24,22 @@ class ShahbazSectionService
     {
         $rows = [];
         foreach ($this->definitions() as $key => $definition) {
+            // The central company profile is the non-optional identity record;
+            // it cannot be disabled accidentally from the optional section
+            // switches in the admin settings.
+            $required = $key === 'profile'
+                ? true
+                : (bool) data_get($this->settings(), "sections.$key.required", $definition['default_required'] ?? false);
             $rows[$key] = [
                 'key' => $key,
                 'label' => $definition['label'],
-                'visible' => (bool) data_get($this->settings(), "sections.$key.visible", $definition['default_visible'] ?? false),
-                'required' => (bool) data_get($this->settings(), "sections.$key.required", $definition['default_required'] ?? false),
+                // A mandatory section must always be visible to the company. This
+                // prevents an accidental "required + hidden" setting from making
+                // a company impossible to onboard.
+                'visible' => $key === 'profile'
+                    ? true
+                    : ($required || (bool) data_get($this->settings(), "sections.$key.visible", $definition['default_visible'] ?? false)),
+                'required' => $required,
                 'company_read_only' => (bool) ($definition['company_read_only'] ?? false),
                 'complete' => $company ? $this->isComplete($company, $key) : false,
             ];
@@ -41,9 +53,24 @@ class ShahbazSectionService
         return array_filter(array_map(function (array $row) use ($company, &$blocked) {
             if (! $row['visible']) return null;
             $row['locked'] = $blocked;
-            if ($row['required'] && ! $row['complete']) $blocked = true;
+            if ($row['required'] && ! $row['complete'] && ! $row['company_read_only']) $blocked = true;
             return $row;
         }, $this->rows($company)));
+    }
+
+    /**
+     * Return the mandatory dossier sections that are not complete yet.
+     *
+     * This is intentionally derived from the same settings used by the
+     * company wizard and the association review screen, so adding a new
+     * mandatory section later automatically affects the access gate.
+     */
+    public function incompleteRequiredRows(Company $company): array
+    {
+        return array_values(array_filter(
+            $this->rows($company),
+            static fn (array $row): bool => $row['required'] && ! $row['complete']
+        ));
     }
 
     public function isComplete(Company $company, string $key): bool
@@ -57,7 +84,7 @@ class ShahbazSectionService
                 && filled($company->activity_license_expires_on),
             'personnel', 'board', 'shareholders' => \App\Shahbaz\Models\CompanyPerson::where('company_id', $company->id)
                 ->where('relation_type', $key)->where('status', '!=', 'archived')->exists(),
-            'fleet' => \App\Models\Fleet::where('company_id', $company->id)->exists(),
+            'fleet' => \App\Models\Fleet::active()->where('company_id', $company->id)->exists(),
             'facilities' => \App\Shahbaz\Models\CompanyFacility::where('company_id', $company->id)->exists(),
             'gazettes' => \App\Shahbaz\Models\OfficialGazette::where('company_id', $company->id)->exists(),
             'registration' => \App\Shahbaz\Models\CompanyRegistration::where('company_id', $company->id)->exists(),
@@ -88,12 +115,54 @@ class ShahbazSectionService
             'panel_enabled' => (bool) ($input['panel_enabled'] ?? false),
         ]];
         foreach ($this->definitions() as $key => $definition) {
+            $required = $key === 'profile'
+                ? true
+                : (bool) data_get($input, "sections.$key.required", false);
             $settings['sections'][$key] = [
-                'visible' => (bool) data_get($input, "sections.$key.visible", false),
-                'required' => (bool) data_get($input, "sections.$key.required", false),
+                'visible' => $key === 'profile'
+                    ? true
+                    : ($required || (bool) data_get($input, "sections.$key.visible", false)),
+                'required' => $required,
             ];
         }
         SystemSetting::setValue('shahbaz_section_settings', $settings);
         $this->stored = $settings;
+        $this->reopenVerifiedCompaniesWithIncompleteRequirements();
+    }
+
+    /**
+     * If a new mandatory section is enabled, previously verified companies
+     * must re-enter the correction flow instead of remaining falsely eligible.
+     */
+    private function reopenVerifiedCompaniesWithIncompleteRequirements(): void
+    {
+        Company::query()
+            ->where('shahbaz_verification_status', 'verified')
+            ->chunkById(100, function ($companies): void {
+                foreach ($companies as $company) {
+                    $incomplete = $this->incompleteRequiredRows($company);
+                    if ($incomplete === []) continue;
+
+                    $from = $company->shahbaz_verification_status;
+                    $labels = collect($incomplete)->pluck('label')->implode('، ');
+                    $company->forceFill([
+                        'status' => 'shahbaz_correction',
+                        'shahbaz_verification_status' => 'correction_required',
+                        'shahbaz_review_note' => 'الزامات جدید پرونده نیازمند تکمیل است: '.$labels,
+                        'shahbaz_verified_by_user_id' => null,
+                        'shahbaz_verified_at' => null,
+                    ])->save();
+
+                    CompanyVerificationHistory::create([
+                        'company_id' => $company->id,
+                        'from_status' => $from,
+                        'to_status' => 'correction_required',
+                        'result' => 'new_required_section',
+                        'description' => 'به‌دلیل فعال‌شدن الزام جدید، پرونده برای تکمیل مجدد باز شد: '.$labels,
+                        'company_snapshot' => $company->fresh()->toArray(),
+                        'checked_at' => now(),
+                    ]);
+                }
+            });
     }
 }

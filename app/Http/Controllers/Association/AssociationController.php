@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 use Throwable;
 use App\Services\PermitPrintService;
+use App\Services\PermitItemAuditService;
+use App\Services\PermitItemFinancialService;
 
 class AssociationController
 {
@@ -172,9 +174,55 @@ class AssociationController
             $userId = auth()->id() ?? null;
             $status = $request->input('status');
 
+            if ($status === 'approved') {
+                $invalidDestination = DB::table('permit_request_items as pri')
+                    ->leftJoin('countries as c', 'c.id', '=', 'pri.country_id')
+                    ->where('pri.permit_request_id', $permit->id)
+                    ->get(['pri.country_id', 'pri.permit_type', 'c.name as country_name', 'c.allowed_permit_types']);
+
+                foreach ($invalidDestination as $destination) {
+                    $allowedPermitTypes = json_decode((string) ($destination->allowed_permit_types ?? ''), true);
+                    if (!is_array($allowedPermitTypes) || !in_array((string) $destination->permit_type, $allowedPermitTypes, true)) {
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'ترکیب کشور و نوع مجوز یکی از ردیف‌های این پرونده در مدیریت کشورها معتبر نیست.'
+                        ], 422);
+                    }
+                }
+            }
+
             // 🛑 بررسی امنیتی جدید: جلوگیری از ثبت وضعیت برگشت برای اصلاح
             if ($status === 'returned') {
                 return response()->json(['success' => false, 'message' => 'عملیات برگشت برای اصلاح از سیستم حذف شده است. لطفاً از گزینه رد کامل استفاده کنید.'], 422);
+            }
+
+            if ($status === 'approved' && $permit->driver_id) {
+                $driverIsActive = DB::table('drivers')
+                    ->where(function ($query) use ($permit) {
+                        $query->where('id', $permit->driver_id)
+                            ->orWhere('national_code', $permit->driver_id);
+                    })
+                    ->where('is_active', true)
+                    ->exists();
+                if (! $driverIsActive) {
+                    DB::rollBack();
+                    return response()->json(['success' => false, 'message' => 'راننده این پرونده توسط انجمن غیرفعال شده و امکان تأیید وجود ندارد.'], 422);
+                }
+            }
+
+            if ($status === 'approved' && $permit->fleet_id) {
+                $fleetIsActive = DB::table('fleets')
+                    ->where(function ($query) use ($permit) {
+                        $query->where('id', $permit->fleet_id)
+                            ->orWhere('smart_card_number', $permit->fleet_id);
+                    })
+                    ->where('is_active', true)
+                    ->exists();
+                if (! $fleetIsActive) {
+                    DB::rollBack();
+                    return response()->json(['success' => false, 'message' => 'ناوگان این پرونده توسط انجمن غیرفعال شده و امکان تأیید وجود ندارد.'], 422);
+                }
             }
 
             $updateData = [
@@ -263,15 +311,22 @@ class AssociationController
                 }
 
                 try {
-                    if (isset($permit->serial_number)) {
-                        DB::table('dozbalagh_items')
-                            ->where('serial_number', $permit->serial_number)
-                            ->update([
-                                'lifecycle_status' => $status,
-                                'returned_at'      => $now,
-                                'updated_at'       => $now
-                            ]);
-                    }
+                    // A parent request may contain several countries/types. Resolve
+                    // every warehouse item through its child row, never by serial alone.
+                    DB::table('dozbalagh_items as warehouse_item')
+                        ->whereExists(function ($query) use ($id) {
+                            $query->selectRaw('1')
+                                ->from('permit_request_items as request_item')
+                                ->where('request_item.permit_request_id', $id)
+                                ->whereColumn('request_item.d_serial_number', 'warehouse_item.serial_number')
+                                ->whereColumn('request_item.country_id', 'warehouse_item.country_id')
+                                ->whereColumn('request_item.permit_type', 'warehouse_item.permit_type');
+                        })
+                        ->update([
+                            'lifecycle_status' => $status,
+                            'returned_at'      => $now,
+                            'updated_at'       => $now,
+                        ]);
                 } catch (\Throwable $e) {
                     Log::warning('Dozbalagh Items Warehouse Update Bypassed: ' . $e->getMessage());
                 }
@@ -367,10 +422,12 @@ class AssociationController
                         $nextAvailableItem = DB::table('dozbalagh_items')
                             ->join('dozbalagh_batches', 'dozbalagh_items.batch_id', '=', 'dozbalagh_batches.id')
                             ->where('dozbalagh_batches.country_id', $req->item_country_id)
+                            ->whereNotNull('dozbalagh_batches.permit_type')
+                            ->where('dozbalagh_batches.permit_type', $req->item_permit_type)
                             ->where(function($query) {
                                 $query->whereNull('dozbalagh_items.lifecycle_status')
                                       ->orWhere('dozbalagh_items.lifecycle_status', 'raw')
-                                      ->orWhereNotIn('dozbalagh_items.lifecycle_status', ['consumed', 'issued', 'collected', 'archived', 'lost']);
+                                      ->orWhere('dozbalagh_items.lifecycle_status', 'in_stock');
                             })
                             ->orderBy('dozbalagh_items.serial_number', 'asc')
                             ->select('dozbalagh_items.serial_number')
@@ -423,12 +480,49 @@ class AssociationController
                 return response()->json(['success' => false, 'message' => 'درخواست یافت نشد.'], 404);
             }
 
-            if (($permit->status ?? null) !== 'approved') {
+            if (($destination->item_status ?? null) !== 'ready_to_issue'
+                || !in_array(($permit->status ?? null), ['approved', 'processing', 'partially_issued'], true)) {
                 DB::rollBack();
                 return response()->json(['success' => false, 'message' => 'این پرونده در وضعیت آماده صدور نیست.'], 422);
             }
 
+            if ($permit->driver_id) {
+                $driverIsActive = DB::table('drivers')
+                    ->where(function ($query) use ($permit) {
+                        $query->where('id', $permit->driver_id)
+                            ->orWhere('national_code', $permit->driver_id);
+                    })
+                    ->where('is_active', true)
+                    ->exists();
+                if (! $driverIsActive) {
+                    DB::rollBack();
+                    return response()->json(['success' => false, 'message' => 'راننده این پرونده توسط انجمن غیرفعال شده و صدور دوزوله متوقف شد.'], 422);
+                }
+            }
+
+            if ($permit->fleet_id) {
+                $fleetIsActive = DB::table('fleets')
+                    ->where(function ($query) use ($permit) {
+                        $query->where('id', $permit->fleet_id)
+                            ->orWhere('smart_card_number', $permit->fleet_id);
+                    })
+                    ->where('is_active', true)
+                    ->exists();
+                if (! $fleetIsActive) {
+                    DB::rollBack();
+                    return response()->json(['success' => false, 'message' => 'ناوگان این پرونده توسط انجمن غیرفعال شده و صدور دوزوله متوقف شد.'], 422);
+                }
+            }
+
             $countryInfo = DB::table('countries')->where('id', $destination->country_id)->first();
+            $permitType = trim((string) ($destination->permit_type ?? ''));
+            $allowedPermitTypes = $countryInfo
+                ? json_decode((string) ($countryInfo->allowed_permit_types ?? ''), true)
+                : null;
+            if (!$countryInfo || $permitType === '' || !is_array($allowedPermitTypes) || !in_array($permitType, $allowedPermitTypes, true)) {
+                DB::rollBack();
+                return response()->json(['success' => false, 'message' => 'کشور یا نوع مجوز این ردیف برای تخصیص دوزوله معتبر نیست.'], 422);
+            }
             $validityDaysInput = trim((string) $request->input('validity_days', ''));
             $validityDays = (!empty($validityDaysInput) && is_numeric($validityDaysInput))
                 ? (int) $validityDaysInput
@@ -476,16 +570,17 @@ class AssociationController
 
                 // درخواست جدید: بررسی موجودی انبار و مصرف برگه خام
                 $warehouseItem = DB::table('dozbalagh_items')
-                    ->whereIn('batch_id', function($q) use ($destination) {
-                        $q->select('id')->from('dozbalagh_batches')->where('country_id', $destination->country_id);
-                    })
-                    ->where('serial_number', $manualSerial)
+                    ->join('dozbalagh_batches', 'dozbalagh_items.batch_id', '=', 'dozbalagh_batches.id')
+                    ->where('dozbalagh_batches.country_id', $destination->country_id)
+                    ->whereNotNull('dozbalagh_batches.permit_type')
+                    ->where('dozbalagh_batches.permit_type', $permitType)
+                    ->where('dozbalagh_items.serial_number', $manualSerial)
                     ->where(function($query) {
                         $query->whereNull('lifecycle_status')
                               ->orWhere('lifecycle_status', 'raw')
-                              ->orWhereNotIn('lifecycle_status', ['consumed', 'issued', 'collected', 'archived', 'lost']);
+                              ->orWhere('lifecycle_status', 'in_stock');
                     })
-                    ->select('id', 'serial_number')
+                    ->select('dozbalagh_items.id', 'dozbalagh_items.serial_number')
                     ->lockForUpdate()
                     ->first();
 
@@ -493,7 +588,7 @@ class AssociationController
                     DB::rollBack();
                     return response()->json([
                         'success' => false,
-                        'message' => 'این شماره سریال برای کشور مقصد این پرونده در انبار خام موجود نیست، قبلاً مصرف شده یا متعلق به کشور دیگری است.'
+                        'message' => "این شماره سریال برای کشور «{$countryInfo->name}» و نوع مجوز «{$permitType}» در انبار خام موجود نیست، قبلاً مصرف شده یا متعلق به پارت دیگری است."
                     ], 422);
                 }
 
@@ -522,20 +617,50 @@ class AssociationController
                     'updated_at'          => $issuedAt,
                 ]);
 
+            if ($isRenewal && !empty($destination->renewed_from_item_id)) {
+                $sourceItem = DB::table('permit_request_items')->where('id', $destination->renewed_from_item_id)->first();
+                if ($sourceItem) {
+                    DB::table('permit_request_items')->where('id', $sourceItem->id)->update([
+                        'item_status' => 'extended',
+                        'closed_at' => $issuedAt,
+                        'updated_at' => $issuedAt,
+                    ]);
+                    app(PermitItemAuditService::class)->record(
+                        $sourceItem,
+                        'renewal_completed',
+                        "تمدید این دوزوله در پرونده {$permit->d_code} صادر شد.",
+                        [],
+                        ['renewal_item_id' => $destination->id],
+                        [],
+                        $sourceItem->item_status ?? null,
+                        'extended',
+                    );
+                }
+            }
+
+            app(PermitItemFinancialService::class)->settle(
+                $destination,
+                (int) $permit->company_id,
+                "کسر قطعی هزینه هنگام چاپ دوزوله {$permit->d_code} / ردیف {$destination->id}"
+            );
+            app(PermitItemAuditService::class)->record(
+                $destination,
+                'permit_issued',
+                'سریال تخصیص یافت، دوزوله چاپ شد و هزینه از مبلغ بلوکه‌شده کسر قطعی شد.',
+                ['financial_status' => $destination->financial_status ?? null],
+                ['serial_number' => $allocatedSerial, 'financial_status' => 'settled'],
+                [],
+                $destination->item_status ?? null,
+                'issued',
+            );
+
             $remainingPendingItems = DB::table('permit_request_items')
                 ->where('permit_request_id', $permit->id)
                 ->whereNull('d_serial_number')
+                ->whereNotIn('item_status', ['rejected', 'cancelled'])
                 ->count();
 
             if ($remainingPendingItems === 0) {
-                $wallet = DB::table('wallets')->where('company_id', $permit->company_id)->first();
-                if ($wallet) {
-                    DB::table('wallets')->where('id', $wallet->id)->update([
-                        'blocked_balance' => max(0, $wallet->blocked_balance - $permit->total_amount),
-                        'updated_at' => $issuedAt
-                    ]);
-                }
-
                 $firstSerial = DB::table('permit_request_items')
                     ->where('permit_request_id', $permit->id)
                     ->orderBy('id')
@@ -546,8 +671,12 @@ class AssociationController
                     'issued_at'           => $issuedAt,
                     'validity_days'       => $validityDays,
                     'permit_valid_until'  => $validUntil->toDateString(),
-                    'status'              => 'issued',
-                    'payment_status'      => 'settled',
+                    'status'              => DB::table('permit_request_items')->where('permit_request_id', $permit->id)->where('item_status', 'rejected')->exists()
+                        ? 'partially_issued'
+                        : 'issued',
+                    'payment_status'      => DB::table('permit_request_items')->where('permit_request_id', $permit->id)->where('financial_status', 'released')->exists()
+                        ? 'partially_settled'
+                        : 'settled',
                     'updated_at'          => $issuedAt
                 ];
 
@@ -595,6 +724,181 @@ class AssociationController
             DB::rollBack();
             Log::error('Assign Permit Serial Error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'خطای دیتابیس در صدور پروانه: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * اصلاح شماره دوزوله پس از صدور و پیش از تحویل به پیک.
+     * مبلغ پرونده دوباره محاسبه نمی‌شود؛ فقط مالکیت دو برگه انبار جابه‌جا می‌شود.
+     */
+    public function correctPermitSerial(Request $request, $id, PermitItemAuditService $audit)
+    {
+        $validated = $request->validate([
+            'serial_number' => ['required', 'string', 'max:255'],
+            'reason' => ['required', 'string', 'max:1000'],
+            'confirm_not_delivered' => ['accepted'],
+        ]);
+
+        $persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+        $englishDigits = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+        $normalizeSerial = static fn ($value): string => str_replace(
+            $persianDigits,
+            $englishDigits,
+            trim((string) $value),
+        );
+        $newSerial = $normalizeSerial($validated['serial_number']);
+
+        try {
+            $result = DB::transaction(function () use ($id, $validated, $audit, $normalizeSerial, $newSerial) {
+                $item = DB::table('permit_request_items as item')
+                    ->join('permit_requests as request', 'request.id', '=', 'item.permit_request_id')
+                    ->where('item.id', $id)
+                    ->select('item.*', 'request.company_id', 'request.driver_id', 'request.fleet_id', 'request.d_code', 'request.request_type')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$item) {
+                    throw new RuntimeException('آیتم دوزوله پیدا نشد.');
+                }
+                if (empty($item->d_serial_number)) {
+                    throw new RuntimeException('برای این پرونده هنوز شماره‌ای تخصیص داده نشده است.');
+                }
+                if (($item->item_status ?? null) !== 'issued') {
+                    throw new RuntimeException('اصلاح شماره فقط در وضعیت صادرشده امکان‌پذیر است.');
+                }
+                if (($item->request_type ?? null) === 'renewal') {
+                    throw new RuntimeException('شماره دوزوله تمدیدی از پرونده قبلی می‌آید و قابل تعویض نیست.');
+                }
+                if (!empty($item->company_return_submitted_at)
+                    || !empty($item->courier_received_at)
+                    || !empty($item->cits_attempted_at)
+                    || !empty($item->disposition_type)
+                    || !empty($item->closed_at)) {
+                    throw new RuntimeException('پس از شروع فرایند تحویل، برگشت لاشه یا تعیین تکلیف، اصلاح شماره مجاز نیست.');
+                }
+
+                $pickupActivityExists = DB::table('permit_courier_missions')
+                    ->where('permit_request_item_id', $item->id)
+                    ->where('direction', 'association_to_company')
+                    ->where('status', 'completed')
+                    ->exists();
+                if ($pickupActivityExists) {
+                    throw new RuntimeException('این دوزوله به پیک تحویل شده است و پس از تحویل امکان اصلاح شماره وجود ندارد.');
+                }
+
+                if ($newSerial === '' || !preg_match('/^[0-9]+$/', $newSerial)) {
+                    throw new RuntimeException('شماره جدید باید فقط شامل عدد باشد.');
+                }
+
+                $oldSerial = $normalizeSerial($item->d_serial_number);
+                if ($oldSerial === $newSerial) {
+                    throw new RuntimeException('شماره جدید با شماره فعلی یکسان است.');
+                }
+
+                $oldWarehouseItem = DB::table('dozbalagh_items')
+                    ->where('serial_number', $oldSerial)
+                    ->where('country_id', $item->country_id)
+                    ->where('permit_type', $item->permit_type)
+                    ->lockForUpdate()
+                    ->first();
+                if (!$oldWarehouseItem || !in_array($oldWarehouseItem->lifecycle_status, ['consumed', 'issued'], true)) {
+                    throw new RuntimeException('رکورد انبار شماره فعلی برای برگشت امن پیدا نشد.');
+                }
+                if ($oldWarehouseItem->company_id !== null && (int) $oldWarehouseItem->company_id !== (int) $item->company_id) {
+                    throw new RuntimeException('شماره فعلی به شرکت دیگری نسبت داده شده است و قابل اصلاح خودکار نیست.');
+                }
+
+                $newWarehouseItem = DB::table('dozbalagh_items as warehouse_item')
+                    ->join('dozbalagh_batches as batch', 'warehouse_item.batch_id', '=', 'batch.id')
+                    ->where('batch.country_id', $item->country_id)
+                    ->whereNotNull('batch.permit_type')
+                    ->where('batch.permit_type', $item->permit_type)
+                    ->where('warehouse_item.serial_number', $newSerial)
+                    ->where(function ($query) {
+                        $query->whereNull('warehouse_item.lifecycle_status')
+                            ->orWhereIn('warehouse_item.lifecycle_status', ['raw', 'in_stock']);
+                    })
+                    ->select('warehouse_item.*')
+                    ->lockForUpdate()
+                    ->first();
+                if (!$newWarehouseItem) {
+                    throw new RuntimeException('شماره جدید برای همین کشور و نوع مجوز در موجودی خام قابل تخصیص نیست.');
+                }
+
+                $now = now();
+                $issuedAt = $item->issued_at ?: $now;
+
+                DB::table('dozbalagh_items')->where('id', $oldWarehouseItem->id)->update([
+                    'lifecycle_status' => 'in_stock',
+                    'company_id' => null,
+                    'driver_id' => null,
+                    'fleet_id' => null,
+                    'issued_at' => null,
+                    'returned_at' => null,
+                    'updated_at' => $now,
+                ]);
+                DB::table('dozbalagh_items')->where('id', $newWarehouseItem->id)->update([
+                    'lifecycle_status' => 'consumed',
+                    'company_id' => $item->company_id,
+                    'driver_id' => $item->driver_id,
+                    'fleet_id' => $item->fleet_id,
+                    'issued_at' => $issuedAt,
+                    'returned_at' => null,
+                    'updated_at' => $now,
+                ]);
+                DB::table('permit_request_items')->where('id', $item->id)->update([
+                    'd_serial_number' => $newSerial,
+                    'updated_at' => $now,
+                ]);
+
+                $parent = DB::table('permit_requests')
+                    ->where('id', $item->permit_request_id)
+                    ->lockForUpdate()
+                    ->first();
+                $parentUpdate = ['updated_at' => $now];
+                if ($parent && (string) ($parent->serial_number ?? '') === $oldSerial) {
+                    $parentUpdate['serial_number'] = $newSerial;
+                }
+                if (Schema::hasColumn('permit_requests', 'd_serial_number')
+                    && $parent
+                    && (string) ($parent->d_serial_number ?? '') === $oldSerial) {
+                    $parentUpdate['d_serial_number'] = $newSerial;
+                }
+                if (count($parentUpdate) > 1) {
+                    DB::table('permit_requests')->where('id', $item->permit_request_id)->update($parentUpdate);
+                }
+
+                $audit->record(
+                    $item,
+                    'permit_serial_corrected',
+                    "شماره دوزوله از {$oldSerial} به {$newSerial} اصلاح شد. دلیل: {$validated['reason']}",
+                    [
+                        'serial_number' => $oldSerial,
+                        'warehouse_item_id' => $oldWarehouseItem->id,
+                    ],
+                    [
+                        'serial_number' => $newSerial,
+                        'warehouse_item_id' => $newWarehouseItem->id,
+                    ],
+                    ['reason' => $validated['reason'], 'confirmed_not_delivered' => true],
+                    'issued',
+                    'issued',
+                );
+
+                return ['old_serial' => $oldSerial, 'new_serial' => $newSerial];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => "شماره دوزوله از {$result['old_serial']} به {$result['new_serial']} اصلاح شد.",
+                'old_serial' => $result['old_serial'],
+                'serial' => $result['new_serial'],
+            ]);
+        } catch (RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        } catch (Throwable $e) {
+            Log::error('Correct Permit Serial Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'خطای دیتابیس در اصلاح شماره دوزوله.'], 500);
         }
     }
 
@@ -894,6 +1198,8 @@ class AssociationController
 
             DB::table('dozbalagh_items')
                 ->where('serial_number', $item->d_serial_number)
+                ->where('country_id', $item->country_id)
+                ->where('permit_type', $item->permit_type)
                 ->update([
                     'lifecycle_status' => $status,
                     'returned_at' => $now,

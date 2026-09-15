@@ -130,7 +130,7 @@ class DriverAnnouncementController extends Controller
 
     private function allowedDrivers(Request $request)
     {
-        $query = Driver::query();
+        $query = Driver::active();
         if ($request->user()->hasRole('company')) {
             $companyId = $request->user()->company?->id;
             abort_unless($companyId, 403);

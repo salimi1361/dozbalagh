@@ -12,6 +12,8 @@ class DozbalaghItem extends Model
     protected $fillable = [
         'batch_id',
         'association_id', // 👈 حتماً این را اضافه کن
+        'country_id',
+        'permit_type',
         'serial_number',
         'company_id',
         'driver_id',

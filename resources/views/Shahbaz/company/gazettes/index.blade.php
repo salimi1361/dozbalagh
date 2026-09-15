@@ -4,9 +4,20 @@
 <link rel="stylesheet" href="{{ asset('assets/css/persian-datepicker.vendor.min.css') }}">
 <style>.datepicker-plot-area{font-family:'Vazirmatn',Tahoma,sans-serif!important;z-index:99999!important}.jalali-picker{cursor:pointer}</style>
 <div dir="rtl" class="mx-auto max-w-6xl space-y-5">
-    <section class="flex flex-wrap items-center justify-between gap-4 rounded-3xl border bg-white p-6 shadow-sm"><div><h1 class="text-xl font-black">سوابق روزنامه رسمی {{ $company->name_fa }}</h1><p class="mt-2 text-sm text-slate-500">هر آگهی به‌صورت یک سابقه مستقل ثبت می‌شود و سوابق قبلی بازنویسی یا حذف نمی‌شوند.</p></div><a href="{{ route('company.shahbaz.dossier.show') }}" class="rounded-xl border px-5 py-3 font-bold">بازگشت به پرونده</a></section>
+    <section class="company-page-header flex flex-wrap items-center justify-between gap-4 rounded-3xl p-6"><div><h1 class="text-xl font-black">سوابق روزنامه رسمی {{ $company->name_fa }}</h1><p class="mt-2 text-sm">هر آگهی به‌صورت یک سابقه مستقل ثبت می‌شود و سوابق قبلی بازنویسی یا حذف نمی‌شوند.</p></div><a href="{{ route('company.shahbaz.dossier.show') }}" class="company-header-back-link">بازگشت به پرونده</a></section>
     @if(session('success'))<div class="rounded-xl bg-emerald-50 p-4 font-bold text-emerald-800">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="rounded-xl bg-rose-50 p-4 text-rose-800"><ul class="list-inside list-disc">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+
+    <form method="GET" action="{{ route('company.shahbaz.gazettes.index') }}" class="rounded-3xl border bg-white p-5 shadow-sm">
+        <div class="flex flex-wrap items-end gap-3">
+            <label class="min-w-52 flex-1 space-y-2"><span class="text-sm font-black text-slate-700">از تاریخ روزنامه رسمی (شمسی)</span><span class="relative block"><input type="text" readonly autocomplete="off" name="date_from_jalali" value="{{ $dateFromJalali }}" class="jalali-picker w-full rounded-xl border py-3 pl-11 pr-3 text-center" dir="ltr" placeholder="انتخاب تاریخ شروع"><span class="pointer-events-none absolute left-3 top-3 text-lg">🗓️</span></span></label>
+            <label class="min-w-52 flex-1 space-y-2"><span class="text-sm font-black text-slate-700">تا تاریخ روزنامه رسمی (شمسی)</span><span class="relative block"><input type="text" readonly autocomplete="off" name="date_to_jalali" value="{{ $dateToJalali }}" class="jalali-picker w-full rounded-xl border py-3 pl-11 pr-3 text-center" dir="ltr" placeholder="انتخاب تاریخ پایان"><span class="pointer-events-none absolute left-3 top-3 text-lg">🗓️</span></span></label>
+            <button class="rounded-xl bg-emerald-700 px-5 py-3 font-black text-white">اعمال بازه</button>
+            <a href="{{ route('company.shahbaz.gazettes.export', request()->only(['date_from_jalali','date_to_jalali'])) }}" class="rounded-xl bg-slate-800 px-5 py-3 text-center font-black text-white">خروجی کامل CSV</a>
+            @if($dateFromJalali || $dateToJalali)<a href="{{ route('company.shahbaz.gazettes.index') }}" class="rounded-xl border px-5 py-3 font-bold text-slate-600">پاک‌کردن بازه</a>@endif
+        </div>
+        <p class="mt-3 text-xs text-slate-500">{{ number_format($gazettes->count()) }} سابقه در بازه انتخاب‌شده نمایش داده می‌شود و همین موارد در خروجی قرار می‌گیرند.</p>
+    </form>
 
     @if($editable)
     <form method="POST" action="{{ route('company.shahbaz.gazettes.store') }}" class="rounded-3xl border bg-white p-6 shadow-sm">@csrf

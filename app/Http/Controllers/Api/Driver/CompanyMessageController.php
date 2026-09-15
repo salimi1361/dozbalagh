@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\Driver;
 
 use App\Http\Controllers\Controller;
 use App\Models\CompanyDriverMessage;
+use App\Models\Driver;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class CompanyMessageController extends Controller
@@ -16,9 +18,8 @@ class CompanyMessageController extends Controller
 
         $driver = $request->user();
 
-        $messages = CompanyDriverMessage::query()
+        $messages = $this->currentCompanyMessages($driver)
             ->with('company')
-            ->where('driver_id', $driver->id)
             ->when($request->filled('company_id'), fn ($query) => $query->where('company_id', $request->integer('company_id')))
             ->latest()
             ->limit(50)
@@ -39,8 +40,7 @@ class CompanyMessageController extends Controller
 
         return response()->json([
             'status' => 'success',
-            'unread_count' => CompanyDriverMessage::query()
-                ->where('driver_id', $driver->id)
+            'unread_count' => $this->currentCompanyMessages($driver)
                 ->where('sender', 'company')
                 ->whereNull('read_at')
                 ->count(),
@@ -52,8 +52,7 @@ class CompanyMessageController extends Controller
     {
         $driver = $request->user();
 
-        $summaries = CompanyDriverMessage::query()
-            ->where('driver_id', $driver->id)
+        $summaries = $this->currentCompanyMessages($driver)
             ->selectRaw('company_id, MAX(id) as last_message_id, MAX(created_at) as last_message_at')
             ->selectRaw("SUM(CASE WHEN sender = 'company' AND read_at IS NULL THEN 1 ELSE 0 END) as unread_count")
             ->groupBy('company_id')
@@ -102,8 +101,7 @@ class CompanyMessageController extends Controller
 
     public function markAsRead(Request $request, int $id)
     {
-        $message = CompanyDriverMessage::query()
-            ->where('driver_id', $request->user()->id)
+        $message = $this->currentCompanyMessages($request->user())
             ->findOrFail($id);
 
         if ($message->sender === 'company' && !$message->read_at) {
@@ -132,8 +130,7 @@ class CompanyMessageController extends Controller
 
         $driver = $request->user();
 
-        $companyMessage = CompanyDriverMessage::query()
-            ->where('driver_id', $driver->id)
+        $companyMessage = $this->currentCompanyMessages($driver)
             ->where('sender', 'company')
             ->findOrFail($request->message_id);
 
@@ -153,5 +150,21 @@ class CompanyMessageController extends Controller
             'status' => 'success',
             'message' => 'پاسخ شما برای شرکت ثبت شد.',
         ]);
+    }
+
+    /**
+     * A driver's inbox follows the company currently assigned to the driver.
+     * Historical rows are intentionally retained for a future history view,
+     * but are excluded from every live conversation endpoint.
+     */
+    private function currentCompanyMessages(Driver $driver): Builder
+    {
+        return CompanyDriverMessage::query()
+            ->where('driver_id', $driver->id)
+            ->when(
+                $driver->current_company_id,
+                fn (Builder $query) => $query->where('company_id', $driver->current_company_id),
+                fn (Builder $query) => $query->whereRaw('1 = 0'),
+            );
     }
 }

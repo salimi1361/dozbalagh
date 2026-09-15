@@ -1,16 +1,15 @@
 @extends('layouts.admin')
 
 @section('header_title', auth()->user()?->hasRole('association') ? 'داشبورد انجمن' : 'داشبورد کل سامانه')
+@section('hero_subtitle', 'خلاصه وضعیت درخواست‌ها، ناوگان، شرکت‌ها و منابع سامانه در یک نگاه')
 
 @section('content')
 <script src="{{ asset('assets/js/apexcharts.js') }}"></script>
+@php
+    $permitTypeLabels = config('permit_types.labels', []);
+@endphp
 
 <div class="space-y-8">
-    <div class="flex flex-col gap-1">
-        <h1 class="text-2xl font-black text-slate-900">{{ auth()->user()?->hasRole('association') ? 'داشبورد انجمن' : 'داشبورد کل سامانه' }}</h1>
-        <p class="text-sm text-slate-500 font-semibold">خلاصه وضعیت واقعی درخواست‌ها، ناوگان، شرکت‌ها و موجودی انبار</p>
-    </div>
-
     @if($lowStockCountries->isNotEmpty())
         <div class="bg-amber-50 border border-amber-100 border-r-4 border-r-amber-500 p-4 rounded-lg shadow-sm flex items-start gap-4">
             <svg class="w-6 h-6 text-amber-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -22,6 +21,7 @@
                     موجودی سریال‌های خام برای
                     @foreach($lowStockCountries as $country)
                         <strong>{{ $country->country_name }}</strong>
+                        <small class="font-bold text-amber-700">/ {{ $permitTypeLabels[$country->permit_type] ?? ($country->permit_type === 'unclassified' ? 'نوع مجوز نامشخص' : $country->permit_type) }}</small>
                         <span>({{ number_format($country->available_count) }} عدد)</span>@if(!$loop->last)،@endif
                     @endforeach
                     به آستانه هشدار رسیده است.

@@ -17,12 +17,17 @@ class Country extends Model
         'default_quota',
         'reject_message',
         'price',
+        'member_price',
+        'non_member_price',
         'validity_days', // 🟢 اجازه دسترسی و ذخیره داینامیک تعداد روزهای اعتبار در دیتابیس
         'allowed_permit_types',
         'requestable_permit_types',
     ];
 
     protected $casts = [
+        'price' => 'integer',
+        'member_price' => 'integer',
+        'non_member_price' => 'integer',
         'allowed_permit_types' => 'array',
         'requestable_permit_types' => 'array',
     ];

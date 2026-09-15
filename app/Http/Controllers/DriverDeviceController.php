@@ -44,6 +44,10 @@ class DriverDeviceController extends Controller
             $driver->appInstallations()->whereNull('revoked_at')->update([
                 'revoked_at' => now(),
                 'revoked_by_user_id' => $request->user()->getKey(),
+                'device_pin_hash' => null,
+                'device_pin_updated_at' => null,
+                'fcm_token' => null,
+                'fcm_token_updated_at' => null,
                 'updated_at' => now(),
             ]);
             $driver->tokens()->delete();

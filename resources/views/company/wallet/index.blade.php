@@ -115,7 +115,17 @@
                                         </td>
                                         <td class="p-4">
                                             <div class="font-bold text-slate-800">{{ $trx->description ?? 'بدون شرح' }}</div>
+                                            @if($trx->source_transfer_trace)
+                                                <div class="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-900">
+                                                    <strong class="block">پرداخت صدور — مختومه به علت انتقال توسط انجمن</strong>
+                                                    <span class="block">دوزوله شماره {{ $trx->source_transfer_trace->serial_number }} با حفظ شماره از مالکیت عملیاتی شرکت خارج شد.</span>
+                                                    <span class="block text-[10px] text-amber-700">رهگیری داخلی: {{ $trx->source_transfer_trace->tracking_code }} | تاریخ انتقال: {{ verta($trx->source_transfer_trace->created_at)->format('Y/m/d H:i') }}</span>
+                                                </div>
+                                            @endif
                                             <div class="text-xs text-slate-400 mt-1">
+                                                @if(($trx->business_event ?? null) === 'permit_transfer_fee') هزینه انتقال دوزوله
+                                                @elseif(($trx->business_event ?? null) === 'permit_transfer_refund') بازگشت وجه انتقال دوزوله
+                                                @else
                                                 @switch($trx->action_type)
                                                     @case('online_charge') شارژ آنلاین @break
                                                     @case('dozbalagh_reserve') مسدودی موقت @break
@@ -124,6 +134,7 @@
                                                     @case('dozbalagh_refund') برگشت وجه رد درخواست @break
                                                     @case('manual_adjustment') اصلاحیه سیستمی @break
                                                 @endswitch
+                                                @endif
                                             </div>
                                         </td>
                                         <td class="p-4 text-center font-mono font-bold" dir="ltr">
@@ -134,7 +145,9 @@
                                             @endif
                                         </td>
                                         <td class="p-4 text-center">
-                                            @if($trx->status === 'success' || $trx->type === 'credit')
+                                            @if($trx->action_type === 'dozbalagh_purchase' || ($trx->business_event ?? null) === 'permit_transfer_fee')
+                                                <span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-black">قطعی / پرداخت‌شده</span>
+                                            @elseif($trx->status === 'success' || $trx->type === 'credit')
                                                 <span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-[10px] font-black">موفق / بستانکار</span>
                                             @elseif($trx->status === 'failed')
                                                 <span class="bg-rose-100 text-rose-700 px-2 py-1 rounded text-[10px] font-black">ناموفق</span>

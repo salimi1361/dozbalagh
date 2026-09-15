@@ -9,9 +9,14 @@ if (root) {
     const tilesEnabled = root.dataset.tilesEnabled === '1';
     const outlineUrl = root.dataset.outline;
     const list = document.getElementById('tracking-list');
+    const listTitle = document.getElementById('tracking-list-title');
     const status = document.getElementById('tracking-refresh-status');
+    const modeButtons = Array.from(document.querySelectorAll('.tracking-mode'));
+    const recentDays = Number(root.dataset.recentDays || 7);
     const markers = new Map();
+    let currentMode = 'live';
     let firstFit = true;
+    let refreshSequence = 0;
 
     const mapSources = {};
     const mapLayers = [
@@ -117,6 +122,10 @@ if (root) {
                 </div>`);
         });
 
+        const emptyMessage = currentMode === 'live'
+            ? 'در حال حاضر راننده‌ای در حال طی مسیر نیست.'
+            : `در ${recentDays} روز گذشته بازدید آفلاینی ثبت نشده است.`;
+
         list.innerHTML = drivers.length ? drivers.map(driver => {
             const driverTracks = validTracks.filter(track => Number(track.driver_id) === Number(driver.id));
             const track = driverTracks.sort((a, b) => new Date(b.last_seen_at) - new Date(a.last_seen_at))[0];
@@ -128,7 +137,7 @@ if (root) {
                     <span><b>${escapeHtml(driver.name)}</b><small>${escapeHtml(driver.company_name || 'بدون شرکت')}</small></span>
                     <span><b>${escapeHtml(state)}</b><small>آخرین ارتباط: ${escapeHtml(faDate(driver.last_seen_at))}</small></span>
                 </button>`;
-        }).join('') : '<div class="rounded-xl bg-slate-50 p-8 text-center font-bold text-slate-400">راننده‌ای در این محدوده دسترسی ثبت نشده است.</div>';
+        }).join('') : `<div class="rounded-xl bg-slate-50 p-8 text-center font-bold text-slate-400">${emptyMessage}</div>`;
 
         list.querySelectorAll('.tracking-card').forEach(button => button.addEventListener('click', () => {
             if (button.dataset.lng && button.dataset.lat) {
@@ -154,8 +163,10 @@ if (root) {
     }
 
     async function refresh() {
+        const sequence = ++refreshSequence;
         try {
             const url = new URL(dataUrl, window.location.origin);
+            url.searchParams.set('mode', currentMode);
             url.searchParams.set('_', Date.now().toString());
             const response = await fetch(url, {
                 credentials: 'same-origin',
@@ -173,12 +184,14 @@ if (root) {
             }
 
             const payload = await response.json();
+            if (sequence !== refreshSequence) return;
             if (!Array.isArray(payload.tracks) || !Array.isArray(payload.drivers)) {
                 throw new Error('ساختار پاسخ سرور معتبر نیست');
             }
             renderTracks(payload.tracks || [], payload.drivers || []);
             status.textContent = `به‌روزرسانی: ${faDate(payload.generated_at)}`;
         } catch (error) {
+            if (sequence !== refreshSequence) return;
             status.textContent = `خطا در دریافت موقعیت‌ها (${error?.message || 'خطای ناشناخته'})`;
         }
     }
@@ -191,6 +204,26 @@ if (root) {
         }
         refresh();
     });
+
+    modeButtons.forEach(button => button.addEventListener('click', () => {
+        const nextMode = button.dataset.mode;
+        if (!['live', 'recent'].includes(nextMode) || nextMode === currentMode) return;
+
+        currentMode = nextMode;
+        firstFit = true;
+        modeButtons.forEach(candidate => {
+            const active = candidate.dataset.mode === currentMode;
+            candidate.classList.toggle('bg-emerald-600', active);
+            candidate.classList.toggle('text-white', active);
+            candidate.classList.toggle('shadow-sm', active);
+            candidate.classList.toggle('text-blue-100', !active);
+        });
+        listTitle.textContent = currentMode === 'live'
+            ? 'رانندگان در حال سفر'
+            : `آخرین بازدیدها (${recentDays} روز گذشته)`;
+        status.textContent = 'در حال دریافت...';
+        if (map.loaded()) refresh();
+    }));
     map.on('error', event => {
         if (event?.error?.message) status.textContent = `خطای نقشه: ${event.error.message}`;
     });

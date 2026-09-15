@@ -54,32 +54,37 @@ class PanelFeatureService
         $role = $user->role?->name;
 
         if ($role === 'admin') {
-            return true;
+            return $feature === 'assistant'
+                ? $this->enabledForRole($role, $feature)
+                : true;
         }
 
-        if (! $role || ! $this->enabledForRole($role, $feature)) {
+        if (! $role || ! isset($this->definitions()[$role][$feature])) {
             return false;
         }
 
-        if ($role !== 'association' || $user->association_feature_keys === null) {
-            return true;
+        if ($role === 'association' && $user->association_feature_keys !== null) {
+            return $this->enabledForRole($role, $feature)
+                && in_array($feature, $user->association_feature_keys, true);
         }
 
-        return in_array($feature, $user->association_feature_keys, true);
+        return $this->enabledForRole($role, $feature);
     }
 
     public function enabledForUserRoute(?User $user, ?string $routeName): bool
     {
         $role = $user?->role?->name;
 
-        if (! $routeName || ! $role || $role === 'admin' || ! isset($this->definitions()[$role])) {
+        if (! $routeName || ! $role || ! isset($this->definitions()[$role])) {
             return true;
         }
 
         foreach ($this->definitions()[$role] as $feature => $definition) {
             foreach ($definition['routes'] as $pattern) {
                 if (Str::is($pattern, $routeName)) {
-                    return $this->enabledForUser($user, $feature);
+                    return $role === 'admin'
+                        ? $this->enabledForRole($role, $feature)
+                        : $this->enabledForUser($user, $feature);
                 }
             }
         }
@@ -106,11 +111,13 @@ class PanelFeatureService
         $routes = [
             'association' => [
                 'dashboard' => 'association.dashboard',
+                'company_header_ticker' => 'association.company-header-ticker.edit',
                 'requests' => 'association.pending.index',
                 'issuance' => 'association.approved.index',
                 'transit' => 'association.transit.index',
                 'archive' => 'association.archive.index',
                 'reports' => 'association.reports.index',
+                'performance_reports' => 'association.performance-reports.index',
                 'financial' => 'association.issued-financial.index',
                 'tracking' => 'admin.tracking.index',
                 'crm' => 'admin.association_crm.index',
@@ -134,7 +141,9 @@ class PanelFeatureService
                 'fleets' => 'web.company.fleet.index',
                 'reports' => 'report.index',
                 'wallet' => 'company.wallet.index',
-                'profile' => 'company.profile.edit',
+                // Company identity data is maintained in the Shahbaz dossier;
+                // the legacy profile route remains only for compatibility.
+                'profile' => 'company.shahbaz.profile.edit',
                 'shahbaz_overview' => 'company.shahbaz.dossier.show',
                 'cmr_documents' => 'admin.cmr.index',
                 'cmr_issuance' => 'admin.cmr.create',

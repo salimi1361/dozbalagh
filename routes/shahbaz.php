@@ -31,6 +31,7 @@ Route::middleware(['auth', 'role:company', 'panel.features'])->prefix('company/s
     Route::get('/facilities', [CompanyFacilitiesController::class, 'edit'])->name('facilities.edit');
     Route::put('/facilities', [CompanyFacilitiesController::class, 'update'])->name('facilities.update');
     Route::get('/gazettes', [CompanyOfficialGazetteController::class, 'index'])->name('gazettes.index');
+    Route::get('/gazettes/export', [CompanyOfficialGazetteController::class, 'export'])->name('gazettes.export');
     Route::post('/gazettes', [CompanyOfficialGazetteController::class, 'store'])->name('gazettes.store');
     Route::get('/registration', [CompanyRegistrationController::class, 'edit'])->name('registration.edit');
     Route::put('/registration', [CompanyRegistrationController::class, 'update'])->name('registration.update');

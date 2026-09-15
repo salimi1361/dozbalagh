@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Services\DriverIdentityService;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+
 // کلاس پایه از Model به Authenticatable تغییر یافت تا قابلیت لاگین مستقل داشته باشد
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -24,9 +27,35 @@ class Driver extends Authenticatable
         'first_name_en',
         'last_name_en',
         'contract_status',
+        'is_active',
         'mobile',         // ضروری برای لاگین مستقل و ارسال پیامک راننده
         'bale_chat_id'    // احراز هویت و ارتباط از طریق بازوی پیام‌رسان بله
     ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+    ];
+
+    protected function mobile(): Attribute
+    {
+        return Attribute::make(
+            set: function (mixed $value): ?string {
+                $normalized = app(DriverIdentityService::class)->normalizeMobile($value);
+
+                return $normalized !== '' ? $normalized : null;
+            },
+        );
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    public function isActive(): bool
+    {
+        return (bool) ($this->is_active ?? true);
+    }
 
     // ==========================================
     // روابط پایه‌ای سیستم (Dozoole Base Relations)

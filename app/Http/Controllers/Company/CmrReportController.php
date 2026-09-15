@@ -16,7 +16,7 @@ class CmrReportController extends Controller
     {
         $companyId=$this->companyId();$query=$this->query($request,$companyId);
         $summary=['total'=>(clone $query)->count(),'issued'=>(clone $query)->where('status','issued')->count(),'active'=>(clone $query)->whereIn('status',['accepted','in_transit'])->count(),'delivered'=>(clone $query)->whereIn('status',['delivered','finalized'])->count(),'cancelled'=>(clone $query)->where('status','cancelled')->count(),'fees'=>(float)(clone $query)->sum('issuance_fee'),'exceptions'=>(clone $query)->whereHas('handovers',fn($q)=>$q->whereIn('outcome',['partial','damaged','refused']))->count()];
-        return view('company.cmr-report.index',['documents'=>$query->with(['driver','fleet','handovers'])->latest('issued_at')->paginate(25)->withQueryString(),'summary'=>$summary,'drivers'=>Driver::where('current_company_id',$companyId)->orderBy('last_name_fa')->get(),'fleets'=>Fleet::where('company_id',$companyId)->orderBy('transit_plate')->get(),'statuses'=>$this->statuses()]);
+        return view('company.cmr-report.index',['documents'=>$query->with(['driver','fleet','handovers'])->latest('issued_at')->paginate(25)->withQueryString(),'summary'=>$summary,'drivers'=>Driver::active()->where('current_company_id',$companyId)->orderBy('last_name_fa')->get(),'fleets'=>Fleet::active()->where('company_id',$companyId)->orderBy('transit_plate')->get(),'statuses'=>$this->statuses()]);
     }
 
     public function export(Request $request)

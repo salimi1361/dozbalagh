@@ -24,11 +24,9 @@ class CompanyAccountRoleTest extends TestCase
             'is_manual' => true,
         ]);
 
-        $this->actingAs($admin)->post(route('admin.companies.store'), [
+        $this->actingAs($admin)->post(route('admin.companies.store'), $this->companyPayload([
             'national_id' => '14001234567',
-            'name' => 'شرکت آزمایشی',
-            'ceo_mobile' => '09121234567',
-        ])->assertSessionHasNoErrors();
+        ]))->assertSessionHasNoErrors();
 
         $companyUser = User::where('username', '14001234567')->firstOrFail();
 
@@ -38,7 +36,7 @@ class CompanyAccountRoleTest extends TestCase
         $this->post(route('login.post'), [
             'username' => '14001234567',
             'password' => '12345678',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect(route('company.profile.edit'));
     }
 
     public function test_existing_admin_account_cannot_be_reused_as_a_company_account(): void
@@ -52,12 +50,10 @@ class CompanyAccountRoleTest extends TestCase
             'is_manual' => true,
         ]);
 
-        $this->actingAs($admin)->from(route('admin.companies.create'))->post(route('admin.companies.store'), [
+        $this->actingAs($admin)->from(route('admin.companies.create'))->post(route('admin.companies.store'), $this->companyPayload([
             'national_id' => '14007654321',
-            'name' => 'شرکت تکراری',
-            'ceo_mobile' => '09121111111',
-        ])->assertRedirect(route('admin.companies.create'))
-            ->assertSessionHas('error');
+        ]))->assertRedirect(route('admin.companies.create'))
+            ->assertSessionHasErrors('national_id');
 
         $this->assertDatabaseMissing('companies', ['national_id' => '14007654321']);
         $this->assertSame($adminRole->id, $admin->fresh()->role_id);
@@ -75,11 +71,9 @@ class CompanyAccountRoleTest extends TestCase
             'is_manual' => true,
         ]);
 
-        $this->actingAs($admin)->post(route('admin.companies.store'), [
+        $this->actingAs($admin)->post(route('admin.companies.store'), $this->companyPayload([
             'national_id' => '14009876543',
-            'name' => 'شرکت قدیمی',
-            'ceo_mobile' => '09123333333',
-        ])->assertSessionHasNoErrors();
+        ]))->assertSessionHasNoErrors();
 
         $companyUser = User::where('username', '14009876543')->firstOrFail();
         $companyUser->update(['role_id' => $adminRole->id]);
@@ -88,8 +82,29 @@ class CompanyAccountRoleTest extends TestCase
         $this->post(route('login.post'), [
             'username' => '14009876543',
             'password' => '12345678',
-        ])->assertRedirect(route('dashboard'));
+        ])->assertRedirect(route('company.profile.edit'));
 
         $this->assertSame('company', $companyUser->fresh()->role->name);
+    }
+
+    private function companyPayload(array $overrides = []): array
+    {
+        return array_replace([
+            'national_id' => '14001234567',
+            'name' => 'شرکت حمل و نقل بین المللی آزمایشی',
+            'name_en' => 'Test International Transport Company',
+            'registration_number' => '12345',
+            'ceo_name' => 'مدیر آزمایشی',
+            'ceo_national_code' => '0921234567',
+            'ceo_mobile' => '09121234567',
+            'phone' => '05137654321',
+            'postal_code' => '9187654321',
+            'province' => 'خراسان رضوی',
+            'city' => 'مشهد',
+            'activity_type' => 'حمل‌ونقل بین‌المللی کالا',
+            'address_fa' => 'مشهد، بلوار سجاد، پلاک ۱۰',
+            'address_en' => 'No. 10, Sajjad Blvd, Mashhad',
+            'is_association_member' => '1',
+        ], $overrides);
     }
 }

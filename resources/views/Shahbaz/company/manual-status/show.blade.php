@@ -7,7 +7,7 @@
     $active = $status === 'active';
 @endphp
 <div dir="rtl" class="mx-auto max-w-5xl space-y-6">
-<section class="rounded-3xl border bg-white p-6 shadow-sm"><div class="flex flex-wrap items-center justify-between gap-4"><div><h1 class="text-2xl font-black">فعال/غیرفعال دستی</h1><p class="mt-2 text-sm text-slate-500">این وضعیت فقط توسط انجمن تغییر می‌کند و شرکت امکان تغییر آن را ندارد.</p></div><a href="{{ route('company.shahbaz.dossier.show') }}" class="rounded-xl border px-5 py-3 font-black">بازگشت به پرونده</a></div></section>
+<section class="company-page-header rounded-3xl p-6"><div class="flex flex-wrap items-center justify-between gap-4"><div><h1 class="text-2xl font-black">فعال/غیرفعال دستی</h1><p class="mt-2 text-sm">این وضعیت فقط توسط انجمن تغییر می‌کند و شرکت امکان تغییر آن را ندارد.</p></div><a href="{{ route('company.shahbaz.dossier.show') }}" class="company-header-back-link">بازگشت به پرونده</a></div></section>
 <section class="rounded-3xl border p-6 {{ $active ? 'border-emerald-200 bg-emerald-50' : 'border-rose-200 bg-rose-50' }}">
 <div class="flex items-center gap-3"><span class="h-4 w-4 rounded-full {{ $active ? 'bg-emerald-500' : 'bg-rose-500' }}"></span><h2 class="text-xl font-black">وضعیت فعلی: {{ $labels[$status] ?? $status }}</h2></div>
 <div class="mt-5 grid gap-3 text-sm md:grid-cols-2"><div>شماره پروانه: <b>{{ $company->activity_license_number ?: 'ثبت نشده' }}</b></div><div>پایان اعتبار: <b>{{ $company->activity_license_expires_on ? verta($company->activity_license_expires_on)->format('Y/m/d') : 'ثبت نشده' }}</b></div></div>

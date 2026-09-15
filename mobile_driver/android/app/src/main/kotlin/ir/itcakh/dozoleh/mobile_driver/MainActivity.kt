@@ -8,9 +8,15 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.Geocoder
 import android.location.LocationManager
+import android.location.Location
+import android.location.LocationListener
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
 import android.provider.Settings
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -20,6 +26,8 @@ import android.os.Bundle
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.plugin.common.MethodChannel
+import androidx.core.content.FileProvider
+import java.io.File
 import java.util.Locale
 
 class MainActivity : FlutterFragmentActivity() {
@@ -29,6 +37,7 @@ class MainActivity : FlutterFragmentActivity() {
         private const val NOTIFICATION_PERMISSION_REQUEST = 2402
         private const val LOCATION_PERMISSION_REQUEST = 2403
         private const val SPEECH_PERMISSION_REQUEST = 2404
+        private const val CMR_PHOTO_REQUEST = 2405
     }
 
     private var pendingLocationPermissionResult: MethodChannel.Result? = null
@@ -38,6 +47,10 @@ class MainActivity : FlutterFragmentActivity() {
     private var ttsReady = false
     private var pendingTtsText: String? = null
     private var pendingTtsResult: MethodChannel.Result? = null
+    private var pendingCmrPhotoResult: MethodChannel.Result? = null
+    private var pendingCmrPhotoPath: String? = null
+    private var pendingCurrentLocationResult: MethodChannel.Result? = null
+    private var currentLocationListener: LocationListener? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -135,6 +148,16 @@ class MainActivity : FlutterFragmentActivity() {
                         "permission_granted" to hasPreciseLocationPermission(),
                     ),
                 )
+                "getLastKnownLocation" -> getLastKnownLocation(result)
+                "getCityName" -> {
+                    val latitude = call.argument<Double>("latitude")
+                    val longitude = call.argument<Double>("longitude")
+                    if (latitude == null || longitude == null) {
+                        result.error("invalid_coordinates", "مختصات نامعتبر است.", null)
+                    } else {
+                        getCityName(latitude, longitude, result)
+                    }
+                }
                 "requestPermission" -> requestLocationPermission(result)
                 "openLocationSettings" -> {
                     startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
@@ -149,6 +172,17 @@ class MainActivity : FlutterFragmentActivity() {
                     )
                     result.success(null)
                 }
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "ir.itcakh.dozoleh.mobile_driver/cmr_evidence",
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "capturePhoto" -> captureCmrEvidencePhoto(result)
+                "getCurrentLocation" -> getCurrentEvidenceLocation(result)
                 else -> result.notImplemented()
             }
         }
@@ -261,7 +295,31 @@ class MainActivity : FlutterFragmentActivity() {
         }
     }
 
+    @Deprecated("Deprecated in Android")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != CMR_PHOTO_REQUEST) return
+        val result = pendingCmrPhotoResult ?: return
+        val path = pendingCmrPhotoPath
+        pendingCmrPhotoResult = null
+        pendingCmrPhotoPath = null
+        if (resultCode == RESULT_OK && path != null && File(path).length() > 0) {
+            result.success(path)
+        } else {
+            path?.let { runCatching { File(it).delete() } }
+            result.success(null)
+        }
+    }
+
     override fun onDestroy() {
+        currentLocationListener?.let {
+            (getSystemService(Context.LOCATION_SERVICE) as LocationManager).removeUpdates(it)
+        }
+        currentLocationListener = null
+        pendingCurrentLocationResult?.error("location_cancelled", "دریافت موقعیت متوقف شد.", null)
+        pendingCurrentLocationResult = null
+        pendingCmrPhotoResult?.error("camera_cancelled", "دریافت تصویر متوقف شد.", null)
+        pendingCmrPhotoResult = null
         speechRecognizer?.destroy()
         speechRecognizer = null
         textToSpeech?.stop()
@@ -435,6 +493,148 @@ class MainActivity : FlutterFragmentActivity() {
             ),
             LOCATION_PERMISSION_REQUEST,
         )
+    }
+
+    private fun captureCmrEvidencePhoto(result: MethodChannel.Result) {
+        if (pendingCmrPhotoResult != null) {
+            result.error("camera_request_active", "دوربین در حال ثبت تصویر قبلی است.", null)
+            return
+        }
+        val photo = File.createTempFile("cmr_evidence_", ".jpg", cacheDir)
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", photo)
+        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
+            putExtra(MediaStore.EXTRA_OUTPUT, uri)
+            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        if (intent.resolveActivity(packageManager) == null) {
+            photo.delete()
+            result.error("camera_unavailable", "دوربین روی این دستگاه در دسترس نیست.", null)
+            return
+        }
+        pendingCmrPhotoResult = result
+        pendingCmrPhotoPath = photo.absolutePath
+        startActivityForResult(intent, CMR_PHOTO_REQUEST)
+    }
+
+    private fun getCurrentEvidenceLocation(result: MethodChannel.Result) {
+        if (!hasPreciseLocationPermission()) {
+            result.error("location_permission_missing", "دسترسی موقعیت مکانی دقیق فعال نیست.", null)
+            return
+        }
+        if (!isLocationServiceEnabled()) {
+            result.error("location_service_off", "GPS گوشی خاموش است.", null)
+            return
+        }
+        if (pendingCurrentLocationResult != null) {
+            result.error("location_request_active", "در حال دریافت موقعیت هستیم.", null)
+            return
+        }
+        val manager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val provider = if (manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            LocationManager.GPS_PROVIDER
+        } else {
+            LocationManager.NETWORK_PROVIDER
+        }
+        pendingCurrentLocationResult = result
+
+        fun complete(location: Location?) {
+            val current = pendingCurrentLocationResult ?: return
+            pendingCurrentLocationResult = null
+            currentLocationListener?.let { manager.removeUpdates(it) }
+            currentLocationListener = null
+            if (location == null) {
+                current.error("location_unavailable", "موقعیت دقیق دریافت نشد؛ دوباره تلاش کنید.", null)
+            } else {
+                current.success(
+                    mapOf(
+                        "latitude" to location.latitude,
+                        "longitude" to location.longitude,
+                        "accuracy" to location.accuracy.toDouble(),
+                        "recorded_at" to location.time,
+                    ),
+                )
+            }
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            manager.getCurrentLocation(provider, null, mainExecutor) { complete(it) }
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (pendingCurrentLocationResult != null) {
+                    @Suppress("MissingPermission")
+                    complete(manager.getLastKnownLocation(provider))
+                }
+            }, 15_000L)
+            return
+        }
+
+        val listener = object : LocationListener {
+            override fun onLocationChanged(location: Location) = complete(location)
+            @Deprecated("Deprecated in Android")
+            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
+            override fun onProviderEnabled(provider: String) = Unit
+            override fun onProviderDisabled(provider: String) = Unit
+        }
+        currentLocationListener = listener
+        @Suppress("MissingPermission")
+        manager.requestSingleUpdate(provider, listener, Looper.getMainLooper())
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (pendingCurrentLocationResult != null) {
+                @Suppress("MissingPermission")
+                complete(manager.getLastKnownLocation(provider))
+            }
+        }, 15_000L)
+    }
+
+    private fun getLastKnownLocation(result: MethodChannel.Result) {
+        if (!hasPreciseLocationPermission()) {
+            result.error("location_permission_missing", "دسترسی موقعیت مکانی دقیق فعال نیست.", null)
+            return
+        }
+        val manager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        var newest: Location? = null
+        @Suppress("MissingPermission")
+        manager.getProviders(true).forEach { provider ->
+            val candidate = runCatching {
+                manager.getLastKnownLocation(provider)
+            }.getOrNull()
+            if (candidate != null && (newest == null || candidate.time > newest!!.time)) {
+                newest = candidate
+            }
+        }
+        val location = newest
+        if (location == null) {
+            result.error("location_unavailable", "آخرین موقعیت گوشی موجود نیست.", null)
+            return
+        }
+        result.success(
+            mapOf(
+                "latitude" to location.latitude,
+                "longitude" to location.longitude,
+                "accuracy" to location.accuracy.toDouble(),
+                "recorded_at" to location.time,
+            ),
+        )
+    }
+
+    private fun getCityName(
+        latitude: Double,
+        longitude: Double,
+        result: MethodChannel.Result,
+    ) {
+        Thread {
+            val city = runCatching {
+                @Suppress("DEPRECATION")
+                Geocoder(this, Locale("fa", "IR"))
+                    .getFromLocation(latitude, longitude, 1)
+                    ?.firstOrNull()
+                    ?.let { address ->
+                        address.locality
+                            ?: address.subAdminArea
+                            ?: address.adminArea
+                    }
+            }.getOrNull()
+            runOnUiThread { result.success(city) }
+        }.start()
     }
 
     private fun createChatNotificationChannel() {

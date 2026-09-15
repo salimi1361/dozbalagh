@@ -11,7 +11,9 @@ return [
     'facilities' => ['label' => 'محل و امکانات', 'default_visible' => false, 'default_required' => false],
     'gazettes' => ['label' => 'روزنامه رسمی', 'default_visible' => false, 'default_required' => false],
     'registration' => ['label' => 'ثبت شرکت', 'default_visible' => false, 'default_required' => false],
-    'licenses' => ['label' => 'مجوزها', 'default_visible' => true, 'default_required' => true],
+    // The main licence is entered/verified by the association. It is required
+    // for final operation, but must not block the company's initial submission.
+    'licenses' => ['label' => 'مجوزها', 'default_visible' => true, 'default_required' => true, 'company_read_only' => true],
     'branches' => ['label' => 'مجوزهای نمایندگی و شعب', 'default_visible' => false, 'default_required' => false],
     'payments' => ['label' => 'پرداخت‌ها', 'default_visible' => false, 'default_required' => false],
     'manual_status' => ['label' => 'فعال/غیرفعال دستی', 'default_visible' => false, 'default_required' => false, 'company_read_only' => true],

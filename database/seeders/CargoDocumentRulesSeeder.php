@@ -12,9 +12,6 @@ class CargoDocumentRulesSeeder extends Seeder
      */
     public function run(): void
     {
-        // پاک کردن داده‌های قبلی جدول برای اعمال ساختار جدید
-        DB::table('cargo_document_rules')->truncate();
-
         // ۱. تنظیمات پیش‌فرض برای "صادرات"
         $exportConfig = [
             'receipt_code'     => 'required', // شماره فیش
@@ -57,25 +54,48 @@ class CargoDocumentRulesSeeder extends Seeder
             'declaration_file' => 'required',
         ];
 
-        DB::table('cargo_document_rules')->insert([
-            [
-                'cargo_type'   => 'صادرات',
-                'fields_config'=> json_encode($exportConfig),
-                'created_at'   => now(),
-                'updated_at'   => now(),
-            ],
-            [
-                'cargo_type'   => 'واردات',
-                'fields_config'=> json_encode($importConfig),
-                'created_at'   => now(),
-                'updated_at'   => now(),
-            ],
-            [
-                'cargo_type'   => 'ترانزیت',
-                'fields_config'=> json_encode($transitConfig),
-                'created_at'   => now(),
-                'updated_at'   => now(),
-            ],
-        ]);
+        $defaults = [
+            'صادرات' => $exportConfig,
+            'واردات' => $importConfig,
+            'ترانزیت' => $transitConfig,
+        ];
+
+        foreach ($defaults as $cargoType => $defaultConfig) {
+            $existing = DB::table('cargo_document_rules')
+                ->where('cargo_type', $cargoType)
+                ->first();
+
+            if (!$existing) {
+                DB::table('cargo_document_rules')->insert([
+                    'cargo_type' => $cargoType,
+                    'fields_config' => json_encode($defaultConfig, JSON_UNESCAPED_UNICODE),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                continue;
+            }
+
+            $currentConfig = json_decode((string) $existing->fields_config, true);
+            if (!is_array($currentConfig)) {
+                DB::table('cargo_document_rules')
+                    ->where('id', $existing->id)
+                    ->update([
+                        'fields_config' => json_encode($defaultConfig, JSON_UNESCAPED_UNICODE),
+                        'updated_at' => now(),
+                    ]);
+                continue;
+            }
+
+            // تنظیمات فعلی مدیر حفظ می‌شود؛ فقط کلیدهای جدید با مقدار پیش‌فرض اضافه می‌شوند.
+            $mergedConfig = array_replace($defaultConfig, array_intersect_key($currentConfig, $defaultConfig));
+            if ($mergedConfig !== $currentConfig) {
+                DB::table('cargo_document_rules')
+                    ->where('id', $existing->id)
+                    ->update([
+                        'fields_config' => json_encode($mergedConfig, JSON_UNESCAPED_UNICODE),
+                        'updated_at' => now(),
+                    ]);
+            }
+        }
     }
 }

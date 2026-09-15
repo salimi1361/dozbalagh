@@ -40,7 +40,21 @@ class DeviceRegistrationService {
       final response = await request.close().timeout(
         const Duration(seconds: 15),
       );
-      await response.drain<void>();
+      final body = await utf8.decoder.bind(response).join();
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        String? message;
+        String? errorCode;
+        try {
+          final json = jsonDecode(body) as Map;
+          message = json['message']?.toString();
+          errorCode = json['error_code']?.toString();
+        } catch (_) {}
+        throw DeviceRegistrationException(
+          message ?? 'ثبت دستگاه در سامانه انجام نشد.',
+          statusCode: response.statusCode,
+          errorCode: errorCode,
+        );
+      }
     } finally {
       client.close(force: true);
     }
@@ -87,8 +101,15 @@ class DeviceRegistrationService {
 }
 
 class DeviceRegistrationException implements Exception {
-  const DeviceRegistrationException(this.message);
+  const DeviceRegistrationException(
+    this.message, {
+    this.statusCode,
+    this.errorCode,
+  });
+
   final String message;
+  final int? statusCode;
+  final String? errorCode;
 
   @override
   String toString() => message;

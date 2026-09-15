@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Company;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ProfileController extends Controller
 {
@@ -14,41 +16,54 @@ class ProfileController extends Controller
         return view('company.profile.edit', compact('company'));
     }
 
+    public function passwordEdit()
+    {
+        return view('company.profile.password');
+    }
+
     // ذخیره اطلاعات و مدارک
     public function update(Request $request)
     {
         $company = auth()->user()->company;
 
-        // اعتبارسنجی اطلاعات دریافتی
-        $request->validate([
-            'name_fa' => 'required',
-            'name_en' => 'required',
-            'ceo_name' => 'required',
-            'ceo_mobile' => 'required',
-            'address_fa' => 'required',
-            'address_en' => 'required',
+        abort_unless(in_array($company->status, ['pending', 'profile_incomplete', 'correction_required'], true), 403);
+
+        $data = $request->validate([
+            'name_fa' => ['required', 'string', 'max:255'],
+            'name_en' => ['required', 'string', 'max:255', 'regex:/[A-Za-z]/'],
+            'registration_number' => ['required', 'string', 'max:100'],
+            'ceo_name' => ['required', 'string', 'max:255'],
+            'ceo_national_code' => ['required', 'digits:10'],
+            'ceo_mobile' => ['required', 'regex:/^09[0-9]{9}$/'],
+            'phone' => ['required', 'string', 'max:30', Rule::notIn(['000'])],
+            'postal_code' => ['required', 'digits:10'],
+            'province' => ['required', 'string', 'max:100'],
+            'city' => ['required', 'string', 'max:100'],
+            'activity_type' => ['required', 'string', 'max:255'],
+            'address_fa' => ['required', 'string', 'max:2000', Rule::notIn(['ثبت نشده'])],
+            'address_en' => ['required', 'string', 'max:2000', 'regex:/[A-Za-z]/', Rule::notIn(['N/A'])],
+        ], [
+            'name_en.regex' => 'نام لاتین باید با حروف انگلیسی وارد شود.',
+            'address_en.regex' => 'آدرس لاتین باید با حروف انگلیسی وارد شود.',
+            'ceo_national_code.digits' => 'کد ملی مدیرعامل باید ۱۰ رقم باشد.',
+            'ceo_mobile.regex' => 'شماره همراه مدیرعامل باید ۱۱ رقم و با 09 شروع شود.',
+            'postal_code.digits' => 'کدپستی باید ۱۰ رقم باشد.',
         ]);
 
-        // آپدیت تمام فیلدها در دیتابیس
-        $company->name_fa = $request->name_fa;
-        $company->name = $request->name_fa; // همگام‌سازی فیلد نام پایه
-        $company->name_en = $request->name_en;
-        $company->ceo_name = $request->ceo_name;
-        $company->ceo_mobile = $request->ceo_mobile;
-        $company->phone = $request->phone;
-        $company->address_fa = $request->address_fa;
-        $company->address_en = $request->address_en;
+        DB::transaction(function () use ($company, $data): void {
+            $company->fill($data + ['name' => $data['name_fa']]);
+            $company->forceFill([
+                'status' => 'pending_review',
+                'profile_submitted_at' => now(),
+                'profile_review_note' => null,
+                'profile_reviewed_by_user_id' => null,
+                'profile_reviewed_at' => null,
+            ])->save();
 
-        $company->save();
+            auth()->user()->update(['mobile' => $data['ceo_mobile']]);
+        });
 
-        // آپدیت شماره موبایل در جدول کاربران (در صورت تغییر)
-        $user = auth()->user();
-        if ($user->mobile !== $request->ceo_mobile) {
-            $user->mobile = $request->ceo_mobile;
-            $user->save();
-        }
-
-        return back()->with('success', 'اطلاعات شما با موفقیت به‌روزرسانی شد. لطفاً تا بررسی و تایید مدیریت شکیبا باشید.');
+        return back()->with('success', 'اطلاعات شرکت برای بررسی انجمن ارسال شد. پس از تأیید انجمن، دسترسی کامل سامانه فعال می‌شود.');
     }
 	// تغییر رمز عبور شرکت
     public function updatePassword(\Illuminate\Http\Request $request)
@@ -70,6 +85,8 @@ class ProfileController extends Controller
         $user->password = \Illuminate\Support\Facades\Hash::make($request->password);
         $user->save();
 
-        return back()->with('success', 'رمز عبور شما با موفقیت تغییر کرد.');
+        return redirect()
+            ->route('company.password.edit')
+            ->with('success', 'رمز عبور شما با موفقیت تغییر کرد.');
     }
 }

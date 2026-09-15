@@ -26,24 +26,27 @@ class DashboardController extends Controller
         $blockedBalance = $wallet ? ($wallet->blocked_balance ?? 0) : 0;
 
         // ۲. تعداد رانندگان و ناوگان
-        $driversCount = DB::table('drivers')->where('current_company_id', $companyId)->count();
-        $fleetsCount = DB::table('fleets')->where('company_id', $companyId)->count();
+        $driversCount = DB::table('drivers')->where('current_company_id', $companyId)->where('is_active', true)->count();
+        $fleetsCount = DB::table('fleets')->where('company_id', $companyId)->where('is_active', true)->count();
 
-        // ۳. آمار جامع وضعیت پروانه‌های دوزوله شرکت (اصلاح شده)
-        $permitStats = DB::table('permit_requests')
-            ->where('company_id', $companyId)
-            ->selectRaw("
-                COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_count,
-                COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved_count,
-                COUNT(CASE WHEN status = 'issued' THEN 1 END) as issued_count,
-                COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected_count,
-                COUNT(CASE WHEN status = 'returned' THEN 1 END) as returned_count,
-                COUNT(CASE WHEN status IN ('collected', 'archived') THEN 1 END) as collected_count,
-                COUNT(CASE WHEN request_type = 'renewal' THEN 1 END) as renewal_count,
-                COUNT(CASE WHEN (request_type IS NULL OR request_type = '' OR request_type = 'new') THEN 1 END) as new_count,
-                COUNT(CASE WHEN status = 'lost' THEN 1 END) as lost_count,
-                COUNT(*) as total_count
-            ")
+        // ۳. آمار جامع وضعیت پروانه‌های دوزوله شرکت.
+        // صفحه «پرونده‌های دوزوله» از وضعیت هر آیتم (نه وضعیت والد درخواست)
+        // استفاده می‌کند؛ بنابراین کارت‌های داشبورد هم باید دقیقاً از همان
+        // منبع و همان مجموعه وضعیت‌ها شمارش شوند تا لینک هر کارت نتیجهٔ
+        // متفاوتی نشان ندهد.
+        $permitStats = DB::table('permit_request_items as item')
+            ->join('permit_requests as permit', 'permit.id', '=', 'item.permit_request_id')
+            ->where('permit.company_id', $companyId)
+            ->selectRaw("COUNT(DISTINCT CASE WHEN item.item_status IN ('pending', 'under_review', 'approved', 'cits_processing', 'cits_company_error', 'cits_system_error', 'cits_other_error', 'ready_to_issue') THEN permit.id END) as pending_count")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN item.item_status = 'approved' THEN permit.id END) as approved_count")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN item.item_status = 'issued' THEN permit.id END) as issued_count")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN item.item_status = 'rejected' THEN permit.id END) as rejected_count")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN item.item_status IN ('company_returned', 'collected_for_renewal') THEN permit.id END) as returned_count")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN item.item_status IN ('archived', 'returned_unused', 'extended', 'cancelled') THEN permit.id END) as collected_count")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN permit.request_type = 'renewal' THEN permit.id END) as renewal_count")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN (permit.request_type IS NULL OR permit.request_type = '' OR permit.request_type = 'new') THEN permit.id END) as new_count")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN item.item_status IN ('lost_reported', 'lost') THEN permit.id END) as lost_count")
+            ->selectRaw("COUNT(DISTINCT permit.id) as total_count")
             ->first();
 
         // محاسبه نرخ موفقیت درخواست‌ها (پروانه‌های صادر شده به کل)
@@ -89,6 +92,29 @@ class DashboardController extends Controller
             ->latest()
             ->get();
 
+        $expiringPermits = DB::table('permit_request_items as item')
+            ->join('permit_requests as request', 'request.id', '=', 'item.permit_request_id')
+            ->leftJoin('countries as country', 'country.id', '=', 'item.country_id')
+            ->where('request.company_id', $companyId)
+            ->whereIn('item.item_status', ['issued', 'transferred_in'])
+            ->whereNotNull('item.permit_valid_until')
+            ->whereRaw('COALESCE(item.validity_days, country.validity_days, 0) > 0')
+            ->whereDate('item.permit_valid_until', '<=', today()->addDays(10))
+            ->whereExists(function ($mission) {
+                $mission->selectRaw('1')->from('permit_courier_missions as mission')
+                    ->whereColumn('mission.permit_request_item_id', 'item.id')
+                    ->where('mission.direction', 'association_to_company')
+                    ->where('mission.status', 'completed');
+            })
+            ->select([
+                'item.id', 'item.d_serial_number', 'item.permit_valid_until',
+                'request.d_code', 'country.name as country_name',
+                DB::raw('DATEDIFF(item.permit_valid_until, CURDATE()) as expiry_days_remaining'),
+            ])
+            ->orderBy('item.permit_valid_until')
+            ->limit(20)
+            ->get();
+
         return view('company.dashboard', compact(
             'company', 
             'user', 
@@ -99,7 +125,8 @@ class DashboardController extends Controller
             'permitStats', 
             'successRate',
             'recentRequests',
-            'pendingAssociationMessages'
+            'pendingAssociationMessages',
+            'expiringPermits'
         ));
     }
 }

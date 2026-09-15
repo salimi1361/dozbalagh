@@ -7,6 +7,7 @@
 <style>
     .datepicker-plot-area {
         font-family: 'Vazirmatn', Tahoma, sans-serif !important;
+        z-index: 99999 !important;
         border: 1px solid #dbe3ef !important;
         border-radius: 14px !important;
         box-shadow: 0 18px 45px rgba(15, 23, 42, .16) !important;
@@ -23,12 +24,25 @@
     ];
 @endphp
 <div class="space-y-6">
-    <div class="rounded-2xl bg-gradient-to-l from-emerald-900 via-teal-950 to-slate-900 p-6 text-white shadow-xl">
-        <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div><h2 class="text-xl font-black">گزارش جامع دوزوله‌ها</h2><p class="mt-2 text-xs text-emerald-100">مشاهده، فیلتر و دریافت خروجی اکسل از پرونده‌ها در همه وضعیت‌ها</p></div>
-            <div class="rounded-xl border border-emerald-300/20 bg-white/5 px-5 py-3 text-center"><span class="block text-[10px] text-emerald-100">تعداد نتیجه</span><strong class="text-2xl">{{ number_format($permits->total()) }}</strong></div>
+    <section class="relative overflow-hidden rounded-2xl px-5 py-4 text-white shadow-lg sm:px-6 sm:py-5" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0369a1 100%);">
+        <div class="pointer-events-none absolute -left-12 -top-16 h-40 w-40 rounded-full bg-white opacity-10"></div>
+        <div class="pointer-events-none absolute -bottom-20 right-1/3 h-36 w-36 rounded-full bg-cyan-300 opacity-10"></div>
+        <div class="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex items-center gap-3.5">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white bg-opacity-15 ring-1 ring-white ring-opacity-20">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h15M7.5 13.5l3-3 2.25 2.25L16.5 9l2.25 2.25"/></svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black sm:text-2xl">گزارش جامع دوزوله‌ها</h1>
+                    <p class="mt-1 text-xs font-semibold text-blue-100">مشاهده، فیلتر و دریافت خروجی اکسل از پرونده‌ها در همه وضعیت‌ها</p>
+                </div>
+            </div>
+            <div class="flex min-w-28 items-center justify-between gap-4 rounded-xl border border-white border-opacity-10 bg-white bg-opacity-10 px-4 py-2.5 sm:block sm:text-center">
+                <span class="text-[10px] font-bold text-blue-100">تعداد نتایج</span>
+                <strong class="block text-xl font-black sm:mt-0.5">{{ number_format($permits->total()) }}</strong>
+            </div>
         </div>
-    </div>
+    </section>
 
     <form method="GET" action="{{ route('association.reports.index') }}" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -39,12 +53,12 @@
             <div><label class="mb-2 block text-xs font-black text-slate-600">نوع درخواست</label><select name="request_type" class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs"><option value="">همه انواع</option><option value="new" @selected(request('request_type') === 'new')>جدید</option><option value="renewal" @selected(request('request_type') === 'renewal')>تمدید</option></select></div>
             <div class="relative">
                 <label class="mb-2 block text-xs font-black text-slate-600">از تاریخ صدور (شمسی)</label>
-                <div class="relative"><input type="text" id="report_date_from_view" name="date_from_view" value="{{ request('date_from_view') }}" readonly class="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-10 pl-3 text-xs font-bold text-slate-700 outline-none focus:border-emerald-600" placeholder="انتخاب تاریخ شروع"><span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">📅</span></div>
+                <div class="relative"><input type="text" id="report_date_from_view" name="date_from_view" value="{{ request('date_from_view') }}" readonly class="jalali-picker w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-10 pl-3 text-xs font-bold text-slate-700 outline-none focus:border-emerald-600" placeholder="انتخاب تاریخ شروع"><span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">📅</span></div>
                 <input type="hidden" id="report_date_from" name="date_from" value="{{ request('date_from') }}">
             </div>
             <div class="relative">
                 <label class="mb-2 block text-xs font-black text-slate-600">تا تاریخ صدور (شمسی)</label>
-                <div class="relative"><input type="text" id="report_date_to_view" name="date_to_view" value="{{ request('date_to_view') }}" readonly class="w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-10 pl-3 text-xs font-bold text-slate-700 outline-none focus:border-emerald-600" placeholder="انتخاب تاریخ پایان"><span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">📅</span></div>
+                <div class="relative"><input type="text" id="report_date_to_view" name="date_to_view" value="{{ request('date_to_view') }}" readonly class="jalali-picker w-full cursor-pointer rounded-xl border border-slate-200 bg-slate-50 py-2.5 pr-10 pl-3 text-xs font-bold text-slate-700 outline-none focus:border-emerald-600" placeholder="انتخاب تاریخ پایان"><span class="pointer-events-none absolute inset-y-0 right-3 flex items-center">📅</span></div>
                 <input type="hidden" id="report_date_to" name="date_to" value="{{ request('date_to') }}">
             </div>
             <div class="flex items-end gap-2"><button class="flex-1 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-black text-white">اعمال فیلتر</button><a href="{{ route('association.reports.index') }}" class="rounded-xl border border-slate-200 px-4 py-2.5 text-xs font-black text-slate-600">پاک‌کردن</a></div>
@@ -63,26 +77,70 @@
 <script src="{{ asset('assets/js/persian-date.vendor.min.js') }}"></script>
 <script src="{{ asset('assets/js/persian-datepicker.vendor.min.js') }}"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        if (typeof window.jQuery === 'undefined' || typeof jQuery.fn.persianDatepicker === 'undefined') return;
+const reportDatepickerJQuery = window.jQuery;
 
-        jQuery('#report_date_from_view').persianDatepicker({
-            format: 'YYYY/MM/DD',
-            altField: '#report_date_from',
-            altFormat: 'YYYY-MM-DD',
-            initialValue: false,
-            autoClose: true,
-            observer: true
-        });
+document.addEventListener('DOMContentLoaded', function () {
+    if (!reportDatepickerJQuery || typeof reportDatepickerJQuery.fn.pDatepicker !== 'function') return;
 
-        jQuery('#report_date_to_view').persianDatepicker({
-            format: 'YYYY/MM/DD',
-            altField: '#report_date_to',
-            altFormat: 'YYYY-MM-DD',
-            initialValue: false,
-            autoClose: true,
-            observer: true
-        });
+    const pickerJQuery = reportDatepickerJQuery;
+
+    const placePicker = model => requestAnimationFrame(() => {
+        const box = model.view.$container;
+        const inputRect = model.inputElement.getBoundingClientRect();
+        const plot = box.find('.datepicker-plot-area')[0];
+        if (!plot) return;
+
+        const plotRect = plot.getBoundingClientRect();
+        const above = window.innerHeight - inputRect.bottom < plotRect.height && inputRect.top > plotRect.height;
+        const currentTop = parseFloat(box.css('top')) || 0;
+        const delta = above
+            ? inputRect.top - 4 - plotRect.bottom
+            : inputRect.bottom + 4 - plotRect.top;
+
+        box.css('top', (currentTop + delta) + 'px');
     });
+
+    const pickerOptions = {
+        format: 'YYYY/MM/DD',
+        initialValue: false,
+        initialValueType: 'persian',
+        autoClose: true,
+        responsive: true,
+        onlySelectOnDate: true,
+        calendarType: 'persian',
+        calendar: {
+            persian: { locale: 'fa', showHint: false, leapYearMode: 'algorithmic' },
+            gregorian: { showHint: false }
+        },
+        navigator: { enabled: true, scroll: { enabled: true } },
+        toolbox: { enabled: true, calendarSwitch: { enabled: false }, todayButton: { enabled: true }, submitButton: { enabled: false } },
+        timePicker: { enabled: false },
+        onShow: placePicker
+    };
+
+    pickerJQuery('.jalali-picker').each(function () {
+        const input = pickerJQuery(this);
+        input.pDatepicker(Object.assign({}, pickerOptions, {
+            onSelect: function (unixTimestamp) {
+                const date = new Date(unixTimestamp);
+                const gregorian = date.getFullYear() + '-'
+                    + String(date.getMonth() + 1).padStart(2, '0') + '-'
+                    + String(date.getDate()).padStart(2, '0');
+                pickerJQuery(input.attr('id') === 'report_date_from_view' ? '#report_date_from' : '#report_date_to').val(gregorian);
+            }
+        }));
+    });
+
+    const closeOnOutsideMove = event => {
+        if (event.target instanceof Element && event.target.closest('.datepicker-container, .datepicker-plot-area')) return;
+        pickerJQuery('.jalali-picker').each(function () {
+            const picker = pickerJQuery(this).data('datepicker');
+            if (picker) picker.hide();
+        });
+    };
+
+    window.addEventListener('wheel', closeOnOutsideMove, { passive: true, capture: true });
+    window.addEventListener('touchmove', closeOnOutsideMove, { passive: true, capture: true });
+});
 </script>
 @endsection

@@ -4,6 +4,7 @@ namespace App\CMR\Services;
 
 use App\CMR\Models\CmrDocument;
 use App\CMR\Models\CmrNotification;
+use App\Jobs\SendCmrDriverPush;
 use App\Models\MobileAppVersion;
 use App\Services\SmsService;
 use Illuminate\Support\Facades\Log;
@@ -15,6 +16,7 @@ class CmrDriverNotificationService
     public function sendIssued(int $documentId): void
     {
         try {
+            SendCmrDriverPush::dispatch($documentId);
             $cmr=CmrDocument::with(['driver','company'])->findOrFail($documentId);
             $mobile=trim((string)$cmr->driver?->mobile);
             if($mobile===''){Log::warning("CMR {$cmr->id} issuance SMS skipped: driver mobile is empty.");return;}

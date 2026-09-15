@@ -5,6 +5,13 @@
 let mohammadWizardStep = 1;
 const totalWizardSteps = 3;
 
+function getWizardCountryPrice(country) {
+    const isAssociationMember = Boolean(window.DozoulehConfig && window.DozoulehConfig.isAssociationMember);
+    const configuredPrice = isAssociationMember ? country.member_price : country.non_member_price;
+
+    return Number(configuredPrice ?? country.price ?? 0);
+}
+
 window.navigateWizard = function(direction) {
     if (direction === 1) {
         if (mohammadWizardStep === 1) {
@@ -83,7 +90,7 @@ window.navigateWizard = function(direction) {
                     return;
                 }
 
-                if (window.renewalReference && (window.renewalReference.d_code == prevDozouleh || window.renewalReference.serial_number == prevDozouleh)) {
+                if (window.renewalReference && (window.renewalReference.lookup_code == prevDozouleh || window.renewalReference.d_code == prevDozouleh || window.renewalReference.serial_number == prevDozouleh)) {
                     transitionToStep2();
                     return;
                 }
@@ -150,7 +157,16 @@ window.navigateWizard = function(direction) {
         }
         
         if (mohammadWizardStep === 3) {
-            jQuery('#dozoulehForm').find(':input').prop('disabled', false);
+            jQuery('#dozoulehForm').find(':input').each(function() {
+                const input = jQuery(this);
+                const field = input.closest('.dynamic-field');
+                const card = input.closest('.dynamic-doc');
+                const isHiddenByRule = field.hasClass('rule-hidden') || card.hasClass('rule-empty');
+
+                if (!isHiddenByRule) {
+                    input.prop('disabled', false);
+                }
+            });
             jQuery('#dozoulehForm').submit();
             return;
         }
@@ -259,7 +275,7 @@ function populateStep2FromRenewal(item) {
 
             if (window.DozoulehConfig && window.DozoulehConfig.countriesList) {
                 window.DozoulehConfig.countriesList.forEach(function(country) {
-                    let price = country.price ?? 0;
+                    let price = getWizardCountryPrice(country);
                     let selected = String(country.id) === String(dest.country_id) ? 'selected' : '';
                     countryOptions += `<option value="${country.id}" data-price="${price}" ${selected}>${country.name}</option>`;
                 });
@@ -364,12 +380,13 @@ function validateStep2() {
     for (let inputObj of targetInputs) {
         let el = fixedBox.find(`input[name="${inputObj.name}"]`);
         if (el.length > 0) {
-            let container = el.closest('.dynamic-doc');
+            let container = el.closest('.dynamic-field');
+            if (container.length === 0) container = el.closest('.dynamic-doc');
             
-            if (container.css('display') !== 'none' && el.prop('required') && (!el.val() || el.val() === "")) {
+            if (!container.hasClass('rule-hidden') && container.css('display') !== 'none' && el.prop('required') && (!el.val() || el.val() === "")) {
                 return { status: false, message: `تکمیل فیلد "${inputObj.label}" الزامی است.` };
             }
-            if (inputObj.checkJ && container.css('display') !== 'none' && el.prop('required') && !el.val().toLowerCase().startsWith('j')) {
+            if (inputObj.checkJ && !container.hasClass('rule-hidden') && container.css('display') !== 'none' && el.prop('required') && !el.val().toLowerCase().startsWith('j')) {
                 return { status: false, message: `کد سفر حتماً باید با حرف J شروع شود.` };
             }
         }
@@ -385,9 +402,10 @@ function validateStep2() {
     for (let fileObj of targetFiles) {
         let fileInput = fixedBox.find(`input[name="${fileObj.name}"]`);
         if (fileInput.length > 0) {
-            let container = fileInput.closest('.dynamic-doc');
+            let container = fileInput.closest('.dynamic-field');
+            if (container.length === 0) container = fileInput.closest('.dynamic-doc');
             
-            if (container.css('display') !== 'none' && fileInput.prop('required') && (!fileInput[0].files || fileInput[0].files.length === 0)) {
+            if (!container.hasClass('rule-hidden') && container.css('display') !== 'none' && fileInput.prop('required') && (!fileInput[0].files || fileInput[0].files.length === 0)) {
                 return { status: false, message: `آپلود مدرک "${fileObj.label}" الزامی است.` };
             }
         }
@@ -439,24 +457,47 @@ function applyDynamicRules(cargoType) {
         let input = parentBox.find(`[name="${field}"]`);
         if (input.length === 0) return;
 
-        let container = input.closest('.dynamic-doc');
-        let star = container.find('.text-rose-500'); 
+        let card = input.closest('.dynamic-doc');
+        let container = input.closest('.dynamic-field');
+        if (container.length === 0) container = card;
+        let star = container.find('.text-rose-500');
         let state = config[field] || 'hidden'; 
 
         if (state === 'hidden') {
-            container.attr('style', 'display: none !important'); 
+            container
+                .addClass('rule-hidden')
+                .attr('aria-hidden', 'true')
+                .attr('style', 'display: none !important');
             input.prop('required', false).prop('disabled', true).val(''); 
         } 
         else if (state === 'required') {
-            container.attr('style', 'display: flex !important');
+            container
+                .removeClass('rule-hidden')
+                .attr('aria-hidden', 'false')
+                .attr('style', 'display: block !important');
             star.removeClass('hidden').show();
             input.prop('required', true).prop('disabled', false);
         } 
         else if (state === 'optional') {
-            container.attr('style', 'display: flex !important');
+            container
+                .removeClass('rule-hidden')
+                .attr('aria-hidden', 'false')
+                .attr('style', 'display: block !important');
             star.addClass('hidden').hide();
             input.prop('required', false).prop('disabled', false);
         }
+
+        let dynamicFields = card.find('.dynamic-field');
+        let hasVisibleField = dynamicFields.length === 0
+            ? !container.hasClass('rule-hidden')
+            : dynamicFields.toArray().some(function(fieldElement) {
+                return !jQuery(fieldElement).hasClass('rule-hidden');
+            });
+
+        card
+            .toggleClass('rule-empty', !hasVisibleField)
+            .attr('aria-hidden', hasVisibleField ? 'false' : 'true')
+            .attr('style', hasVisibleField ? 'display: flex !important' : 'display: none !important');
     });
     
     validateStep2Directly();
@@ -468,6 +509,10 @@ function applyDynamicRules(cargoType) {
 function proceedToStep3() {
     let totalPrice = 0;
     let countriesHtml = "";
+    let isRenewal = jQuery('input[name="request_type"]:checked').val() === 'renewal'
+        || jQuery('#final_request_type').val() === 'renewal';
+    let isAssociationMember = Boolean(window.DozoulehConfig && window.DozoulehConfig.isAssociationMember);
+    let isFreeRenewal = isRenewal && isAssociationMember;
 
     let cargoType = jQuery('#main_cargo_type').val();
     let origin = jQuery('#loading_origin').val();
@@ -518,7 +563,7 @@ function proceedToStep3() {
         let readablePermit = permitLabels[permitType] || permitType;
         
         let countryPrice = Number(countrySelected.attr('data-price')) || 0; 
-        totalPrice += countryPrice;
+        totalPrice += isFreeRenewal ? 0 : countryPrice;
 
         countriesHtml += `
         <div class="border border-slate-200 rounded-2xl overflow-hidden bg-white shadow-sm mb-3">
@@ -531,7 +576,7 @@ function proceedToStep3() {
                     </div>
                 </div>
                 <div class="text-left">
-                    <span class="font-mono text-sm font-black text-blue-700">${countryPrice.toLocaleString()} <small class="font-sans text-[10px]">ریال</small></span>
+                    <span class="font-mono text-sm font-black text-blue-700">${isFreeRenewal ? 'رایگان (تمدید عضو)' : countryPrice.toLocaleString() + ' ریال'}</span>
                 </div>
             </div>
         </div>`;
@@ -542,7 +587,8 @@ function proceedToStep3() {
         <div class="flex flex-col md:flex-row gap-4 justify-between">
             <div><strong class="text-rose-600 block mb-1">مسیر سفر:</strong> از ${origin} ⬅️ به ${dest}</div>
             <div><strong class="text-rose-600 block mb-1">عملیات حمل:</strong> ${cargoType}</div>
-            <div><strong class="text-rose-600 block mb-1">کد CITS:</strong> <span class="font-mono">${cits}</span></div>
+             <div><strong class="text-rose-600 block mb-1">کد CITS:</strong> <span class="font-mono">${cits}</span></div>
+             <div><strong class="text-rose-600 block mb-1">تعرفه:</strong> ${window.DozoulehConfig.membershipLabel || 'تعرفه شرکت'}</div>
         </div>
     </div>
     `;
@@ -562,11 +608,26 @@ function proceedToStep3() {
 window.renderWalletSection = function(totalPrice) {
     let walletBalance = Number(window.DozoulehConfig.walletBalance) || 0;
     let container = jQuery('#wallet-checkout-container');
+    let isRenewal = jQuery('input[name="request_type"]:checked').val() === 'renewal'
+        || jQuery('#final_request_type').val() === 'renewal';
+    let isAssociationMember = Boolean(window.DozoulehConfig && window.DozoulehConfig.isAssociationMember);
+    let isFreeRenewal = isRenewal && isAssociationMember;
+
+    if (isFreeRenewal) {
+        container.html(`
+            <div class="bg-emerald-50 border border-emerald-200 rounded-3xl p-6 shadow-sm mb-4 text-emerald-900">
+                <h4 class="font-black text-base mb-2">✅ تمدید بدون دریافت هزینه</h4>
+                <p class="text-sm font-bold">این دوزوله قبلاً خریداری شده است؛ برای درخواست تمدید هیچ مبلغی از کیف پول رزرو یا کسر نمی‌شود.</p>
+                <div class="mt-3 text-xl font-mono font-black text-emerald-700">مبلغ قابل پرداخت: ۰ ریال</div>
+            </div>`);
+        jQuery('#nextBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed').text('تایید نهایی و ثبت تمدید رایگان');
+        return;
+    }
     
     let html = `
     <div class="bg-slate-800 rounded-3xl p-6 shadow-xl mb-4 flex justify-between items-center text-white">
         <div>
-            <h4 class="text-slate-300 text-xs font-bold mb-1">موجودی کیف پول</h4>
+            <h4 class="text-slate-300 text-xs font-bold mb-1">${isRenewal ? 'تمدید دوزوله با تعرفه غیرعضو' : 'موجودی کیف پول'} — ${window.DozoulehConfig.membershipLabel || 'تعرفه شرکت'}</h4>
             <p class="text-xl font-mono font-black">${walletBalance.toLocaleString()} ریال</p>
         </div>
         <div class="text-right">
@@ -577,7 +638,7 @@ window.renderWalletSection = function(totalPrice) {
 
     if (walletBalance >= totalPrice) {
         html += `<div class="bg-emerald-50 text-emerald-800 p-4 rounded-xl font-bold">✅ تاییدیه مالی صادر شد. موجودی کافی است.</div>`;
-        jQuery('#nextBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed').text('تایید نهایی و صدور درخواست');
+        jQuery('#nextBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed').text(isRenewal ? 'تایید نهایی و ثبت تمدید' : 'تایید نهایی و صدور درخواست');
     } else {
         let deficit = totalPrice - walletBalance;
         html += `
@@ -595,6 +656,20 @@ function updateWizardUI() {
     jQuery('#nextBtn').text(mohammadWizardStep === 3 ? 'تایید نهایی و ارسال' : 'مرحله بعد');
     jQuery('#progressBar').css('width', ((mohammadWizardStep - 1) / (totalWizardSteps - 1)) * 100 + '%');
 
+    for (let step = 1; step <= totalWizardSteps; step++) {
+        const indicator = jQuery('#indicator-' + step);
+        const label = jQuery('#indicator-text-' + step);
+        const isReached = step <= mohammadWizardStep;
+        const isCurrent = step === mohammadWizardStep;
+
+        indicator.toggleClass('border-emerald-500 bg-emerald-500 text-white shadow-lg shadow-emerald-200', isReached);
+        indicator.toggleClass('border-slate-200 bg-white text-slate-400', !isReached);
+        indicator.toggleClass('ring-4 ring-emerald-100', isCurrent);
+        label.toggleClass('text-emerald-700', isReached);
+        label.toggleClass('text-slate-400', !isReached);
+        jQuery('.step-indicator[data-step="' + step + '"]').attr('aria-current', isCurrent ? 'step' : null);
+    }
+
     if (mohammadWizardStep === 1) {
         jQuery('#nextBtn').prop('disabled', false).removeClass('opacity-50 cursor-not-allowed');
     }
@@ -604,6 +679,179 @@ function updateWizardUI() {
 // رویدادها (Event Listeners)
 // ========================================================
 jQuery(document).ready(function() {
+    const maxImageSize = 500 * 1024;
+    const compressionTargetSize = 490 * 1024;
+    const allowedImageTypes = ['image/jpeg', 'image/png'];
+
+    function canvasToBlob(canvas, type, quality) {
+        return new Promise((resolve, reject) => {
+            canvas.toBlob(blob => {
+                if (blob) {
+                    resolve(blob);
+                } else {
+                    reject(new Error('IMAGE_COMPRESSION_FAILED'));
+                }
+            }, type, quality);
+        });
+    }
+
+    function loadLocalImage(file) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            const objectUrl = URL.createObjectURL(file);
+
+            image.onload = function() {
+                URL.revokeObjectURL(objectUrl);
+                resolve(image);
+            };
+            image.onerror = function() {
+                URL.revokeObjectURL(objectUrl);
+                reject(new Error('IMAGE_LOAD_FAILED'));
+            };
+            image.src = objectUrl;
+        });
+    }
+
+    async function compressImageFile(file) {
+        const image = await loadLocalImage(file);
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        const maxInitialDimension = 2200;
+        let scale = Math.min(1, maxInitialDimension / Math.max(image.naturalWidth, image.naturalHeight));
+        let quality = file.type === 'image/jpeg' ? 0.86 : undefined;
+        let blob = file;
+
+        for (let attempt = 0; attempt < 12; attempt++) {
+            canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+            canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+            blob = await canvasToBlob(canvas, file.type, quality);
+            if (blob.size <= compressionTargetSize) break;
+
+            if (file.type === 'image/jpeg' && quality > 0.55) {
+                quality = Math.max(0.55, quality - 0.1);
+            } else {
+                scale *= 0.82;
+            }
+        }
+
+        if (blob.size > maxImageSize) {
+            throw new Error('IMAGE_STILL_TOO_LARGE');
+        }
+
+        return new File([blob], file.name, {
+            type: file.type,
+            lastModified: Date.now()
+        });
+    }
+
+    function replaceInputFile(input, file) {
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        input.files = transfer.files;
+    }
+
+    jQuery(document).on('change', '.js-image-upload', async function() {
+        const input = this;
+        let file = input.files && input.files[0];
+        const preview = jQuery(input).siblings('.js-image-preview');
+        const previewName = preview.find('.js-image-preview-name');
+        const previousUrl = preview.data('object-url');
+
+        if (previousUrl) {
+            URL.revokeObjectURL(previousUrl);
+            preview.removeData('object-url');
+        }
+
+        preview.addClass('hidden');
+        previewName.text('');
+
+        if (!file) return;
+
+        const extension = (file.name.split('.').pop() || '').toLowerCase();
+        const hasAllowedExtension = extension === 'jpg' || extension === 'png';
+
+        if (!allowedImageTypes.includes(file.type) || !hasAllowedExtension) {
+            input.value = '';
+            Swal.fire({
+                icon: 'error',
+                title: 'فرمت تصویر مجاز نیست',
+                text: 'فقط تصویر با فرمت JPG یا PNG قابل بارگذاری است.'
+            });
+            return;
+        }
+
+        if (file.size > maxImageSize) {
+            const originalSize = Math.ceil(file.size / 1024);
+
+            Swal.fire({
+                title: 'در حال کاهش حجم تصویر',
+                text: 'لطفاً چند لحظه صبر کنید...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            try {
+                file = await compressImageFile(file);
+                replaceInputFile(input, file);
+                Swal.close();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'حجم تصویر کاهش یافت',
+                    text: `حجم فایل از ${originalSize} به ${Math.ceil(file.size / 1024)} کیلوبایت رسید.`,
+                    timer: 2200,
+                    showConfirmButton: false
+                });
+            } catch (error) {
+                input.value = '';
+                Swal.fire({
+                    icon: 'error',
+                    title: 'کاهش حجم انجام نشد',
+                    text: 'این تصویر قابل فشرده‌سازی تا ۵۰۰ کیلوبایت نیست. لطفاً تصویر دیگری انتخاب کنید.'
+                });
+                return;
+            }
+        }
+
+        const objectUrl = URL.createObjectURL(file);
+        preview.data('object-url', objectUrl);
+        previewName.text(`${file.name} — ${Math.ceil(file.size / 1024)} کیلوبایت`);
+        preview.removeClass('hidden');
+        validateStep2Directly();
+    });
+
+    jQuery(document).on('click', '.js-image-preview-open', function() {
+        const preview = jQuery(this).closest('.js-image-preview');
+        const objectUrl = preview.data('object-url');
+
+        if (!objectUrl) return;
+
+        jQuery('#image_preview_modal_img').attr('src', objectUrl);
+        jQuery('#image_preview_modal_name').text(preview.find('.js-image-preview-name').text());
+        jQuery('#image_preview_modal').removeClass('hidden');
+        jQuery('body').addClass('overflow-hidden');
+    });
+
+    function closeImagePreviewModal() {
+        jQuery('#image_preview_modal').addClass('hidden');
+        jQuery('#image_preview_modal_img').removeAttr('src');
+        jQuery('#image_preview_modal_name').text('');
+        jQuery('body').removeClass('overflow-hidden');
+    }
+
+    jQuery(document).on('click', '.js-image-preview-close', closeImagePreviewModal);
+
+    jQuery(document).on('click', '#image_preview_modal', function(event) {
+        if (event.target === this) closeImagePreviewModal();
+    });
+
+    jQuery(document).on('keydown', function(event) {
+        if (event.key === 'Escape' && !jQuery('#image_preview_modal').hasClass('hidden')) {
+            closeImagePreviewModal();
+        }
+    });
     
     jQuery(document).on('change', '#main_cargo_type', function() {
         let cargoType = jQuery(this).val();
@@ -614,7 +862,12 @@ jQuery(document).ready(function() {
         }
     });
 
-    jQuery('.dynamic-doc').attr('style', 'display: none !important');
+    let initialCargoType = jQuery('#main_cargo_type').val();
+    if (initialCargoType) {
+        applyDynamicRules(initialCargoType);
+    } else {
+        jQuery('.dynamic-doc').attr('style', 'display: none !important');
+    }
 
     jQuery(document).on('change', '.country-select', function() {
         let row = jQuery(this).closest('.country-row');
@@ -672,7 +925,7 @@ jQuery(document).ready(function() {
         let countryOptions = '<option value="">انتخاب کشور...</option>';
         if (window.DozoulehConfig && window.DozoulehConfig.countriesList) {
             window.DozoulehConfig.countriesList.forEach(function(country) {
-                let price = country.price ?? 0;
+                let price = getWizardCountryPrice(country);
                 countryOptions += `<option value="${country.id}" data-price="${price}">${country.name}</option>`;
             });
         }

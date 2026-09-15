@@ -20,7 +20,20 @@ class CompanyEligibilityService
 
     public function missingFields(Company $company): array
     {
-        return array_values(array_filter(self::REQUIRED_FIELDS, fn (string $field) => blank($company->{$field})));
+        return array_values(array_filter(self::REQUIRED_FIELDS, function (string $field) use ($company): bool {
+            $value = trim((string) ($company->{$field} ?? ''));
+
+            // Imported companies used these placeholders for unknown values.
+            // They must not count as a completed profile.
+            return $value === '' || in_array(mb_strtolower($value), [
+                '000', 'ثبت نشده', 'ثبت نشده است', 'n/a', 'na', '-', '—', 'نامشخص', 'نامعلوم',
+            ], true);
+        }));
+    }
+
+    public function incompleteRequiredSections(Company $company): array
+    {
+        return app(ShahbazSectionService::class)->incompleteRequiredRows($company);
     }
 
     public function canOperate(Company $company): bool
@@ -28,11 +41,8 @@ class CompanyEligibilityService
         return match ($this->gateMode()) {
             self::GATE_DISABLED => true,
             self::GATE_FULL => $this->missingFields($company) === []
-                && $company->shahbaz_verification_status === 'verified'
-                && $company->activity_license_status === 'active'
-                && filled($company->activity_license_number)
-                && $company->activity_license_expires_on
-                && ! $company->activity_license_expires_on->isBefore(today()),
+                && $this->incompleteRequiredSections($company) === []
+                && $company->shahbaz_verification_status === 'verified',
         };
     }
 
@@ -41,11 +51,21 @@ class CompanyEligibilityService
         if ($this->gateMode() === self::GATE_DISABLED) return [];
 
         $reasons = [];
-        if ($this->missingFields($company) !== []) $reasons[] = 'اطلاعات الزامی شرکت کامل نشده است.';
+        if ($this->missingFields($company) !== []) $reasons[] = 'اطلاعات پایه الزامی شرکت کامل نشده است.';
+        foreach ($this->incompleteRequiredSections($company) as $section) {
+            if ($section['key'] === 'profile' && $this->missingFields($company) !== []) continue;
+            $reasons[] = 'بخش «'.$section['label'].'» هنوز تکمیل نشده است.';
+        }
         if ($company->shahbaz_verification_status !== 'verified') $reasons[] = 'اطلاعات شرکت هنوز توسط انجمن و کنترل دستی شحباز تأیید نشده است.';
-        if ($company->activity_license_status !== 'active') $reasons[] = 'پروانه فعالیت شرکت فعال نیست.';
-        if (!$company->activity_license_expires_on || $company->activity_license_expires_on->isBefore(today())) $reasons[] = 'پروانه فعالیت معتبر نیست یا تاریخ اعتبار آن پایان یافته است.';
         return array_values(array_unique($reasons));
+    }
+
+    public function onboardingRoute(Company $company): string
+    {
+        return $this->missingFields($company) !== []
+            || collect($this->incompleteRequiredSections($company))->contains('key', 'profile')
+            ? 'company.shahbaz.profile.edit'
+            : 'company.shahbaz.dossier.show';
     }
 
     public function gateMode(): string

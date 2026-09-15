@@ -12,7 +12,7 @@ class CompanyFleetDossierController extends Controller
     public function index(Request $request): View
     {
         $company = $request->user()->company;
-        $fleets = Fleet::where('company_id', $company->id)->latest()->get();
+        $fleets = Fleet::active()->where('company_id', $company->id)->latest()->get();
 
         return view('Shahbaz.company.fleet.index', [
             'company' => $company,

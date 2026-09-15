@@ -2,7 +2,7 @@
 @section('header_title', $item->exists ? 'ویرایش درخواست پروانه' : 'ثبت درخواست پروانه')
 @section('content')
 <div dir="rtl" class="mx-auto max-w-3xl rounded-2xl border bg-white p-6 shadow-sm">
-    <h1 class="mb-5 text-xl font-black">{{ $item->exists ? 'ویرایش درخواست '.$item->tracking_code : 'درخواست جدید پروانه فعالیت' }}</h1>
+    <div class="company-page-header -mx-6 -mt-6 mb-6 rounded-t-2xl px-6 py-5"><h1 class="text-xl font-black">{{ $item->exists ? 'ویرایش درخواست '.$item->tracking_code : 'درخواست جدید پروانه فعالیت' }}</h1></div>
     @if($errors->any())<div class="mb-5 rounded-xl bg-rose-50 p-4 text-rose-800"><ul class="list-inside list-disc">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
     <form method="POST" action="{{ $item->exists ? route('company.shahbaz.requests.update',$item) : route('company.shahbaz.requests.store') }}" class="grid gap-5 md:grid-cols-2">@csrf @if($item->exists)@method('PUT')@endif
         <label class="space-y-2"><span class="font-bold">نوع درخواست</span><select name="request_type" required class="w-full rounded-xl border p-3"><option value="">انتخاب کنید</option>@foreach($types as $value=>$label)<option value="{{ $value }}" @selected(old('request_type',$item->request_type ?: request('type'))===$value) @disabled($value==='renewal' && !$company->activity_license_number)>{{ $label }}{{ $value==='renewal' && !$company->activity_license_number ? ' (نیازمند پروانه قبلی)' : '' }}</option>@endforeach</select></label>

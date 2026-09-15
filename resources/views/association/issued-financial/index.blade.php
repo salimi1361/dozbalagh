@@ -10,10 +10,31 @@
     .jalali-picker { cursor: pointer; background-image: none; }
 </style>
 <div class="space-y-5">
-    <div class="rounded-2xl bg-gradient-to-l from-emerald-900 to-slate-900 p-6 text-white shadow-xl">
-        <h2 class="text-xl font-black">گزارش مبلغ دوزوله‌های صادرشده</h2>
-        <p class="mt-2 text-xs text-emerald-100">فقط مبلغ دوزوله‌هایی که سریال گرفته و صادر شده‌اند؛ بدون نمایش موجودی یا مبالغ بلوکه‌شده.</p>
-    </div>
+    <section class="relative overflow-hidden rounded-2xl px-5 py-4 text-white shadow-lg sm:px-6 sm:py-5" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0369a1 100%);">
+        <div class="pointer-events-none absolute -left-12 -top-16 h-40 w-40 rounded-full bg-white opacity-10"></div>
+        <div class="pointer-events-none absolute -bottom-20 right-1/3 h-36 w-36 rounded-full bg-cyan-300 opacity-10"></div>
+        <div class="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div class="flex items-center gap-3.5">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white bg-opacity-15 ring-1 ring-white ring-opacity-20">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.173 1.453-.342 1.453-1.09V5.239c0-.748-.726-1.263-1.453-1.09A60.057 60.057 0 0 0 2.25 6.25v12.5ZM12 9v6m3-3H9"/></svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black sm:text-2xl">گزارش مالی دوزوله‌های صادرشده</h1>
+                    <p class="mt-1 text-xs font-semibold text-blue-100">مبالغ قطعی دوزوله‌های سریال‌دار و صادرشده، بدون موجودی یا مبالغ بلوکه‌شده</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 lg:min-w-[390px]">
+                <div class="flex items-center justify-between gap-3 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2 lg:block lg:text-center">
+                    <span class="text-[10px] font-bold text-blue-100">تعداد صادرشده</span>
+                    <strong class="text-lg font-black lg:mt-0.5 lg:block">{{ number_format($totalCount) }}</strong>
+                </div>
+                <div class="flex items-center justify-between gap-3 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2 lg:block lg:text-center">
+                    <span class="text-[10px] font-bold text-blue-100">جمع مبلغ</span>
+                    <strong class="text-sm font-black text-emerald-300 lg:mt-0.5 lg:block">{{ number_format($totalAmount) }} <small class="text-[9px]">ریال</small></strong>
+                </div>
+            </div>
+        </div>
+    </section>
 
     @if(session('success'))<div class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{{ $errors->first() }}</div>@endif
@@ -26,11 +47,6 @@
             <div class="flex items-end gap-2"><button class="flex-1 rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-black text-white">نمایش گزارش</button><a href="{{ route('association.issued-financial.export', request()->query()) }}" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white">خروجی Excel</a></div>
         </div>
     </form>
-
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div class="rounded-2xl border border-slate-200 bg-white p-5"><span class="text-xs font-bold text-slate-500">تعداد صادرشده در بازه</span><strong class="mt-2 block text-2xl text-slate-800">{{ number_format($totalCount) }}</strong></div>
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><span class="text-xs font-bold text-emerald-700">جمع مبلغ دوزوله‌های صادرشده</span><strong class="mt-2 block text-2xl text-emerald-800">{{ number_format($totalAmount) }} <small class="text-xs">ریال</small></strong></div>
-    </div>
 
     <div class="rounded-2xl border {{ $settlementWindowOpen ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-white' }} p-5 shadow-sm">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -51,6 +67,16 @@
         <div class="overflow-x-auto"><table class="w-full text-right text-xs"><thead class="whitespace-nowrap bg-slate-100 text-slate-600"><tr><th class="p-4">کد رهگیری</th><th class="p-4">شماره دوزوله</th><th class="p-4">شرکت</th><th class="p-4">مقصد</th><th class="p-4">مبلغ دوزوله</th><th class="p-4">تاریخ صدور شمسی</th></tr></thead>
         <tbody class="divide-y divide-slate-100">@forelse($rows as $row)<tr class="hover:bg-slate-50"><td class="p-4 font-mono font-bold">{{ $row->tracking_code }}</td><td class="p-4 font-mono">{{ $row->serial_number }}</td><td class="p-4 font-bold">{{ $row->company_name_fa ?: $row->company_name ?: 'نامشخص' }}</td><td class="p-4"><span class="block">{{ $row->country_name ?: 'نامشخص' }}</span><span class="text-[10px] text-slate-400">{{ $row->loading_destination ?: '---' }}</span></td><td class="p-4 font-mono font-black text-emerald-700">{{ number_format($row->deducted_amount) }} ریال</td><td class="p-4 whitespace-nowrap">{{ \Morilog\Jalali\Jalalian::fromCarbon(\Illuminate\Support\Carbon::parse($row->issued_at))->format('Y/m/d H:i') }}</td></tr>@empty<tr><td colspan="6" class="p-12 text-center font-bold text-slate-400">در این بازه دوزوله صادرشده‌ای وجود ندارد.</td></tr>@endforelse</tbody></table></div>
         @if($rows->hasPages())<div class="border-t border-slate-100 p-4">{{ $rows->links() }}</div>@endif
+    </div>
+
+    <div class="overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm">
+        <div class="flex flex-col justify-between gap-3 border-b border-violet-100 bg-violet-50 p-5 md:flex-row md:items-center">
+            <div><h3 class="font-black text-violet-950">هزینه‌های انتقال دوزوله برگشتی بدون استفاده</h3><p class="mt-1 text-xs text-violet-700">هزینه انتقال و وجه برگشتی شرکت مبدأ به‌صورت مستقل گزارش می‌شود.</p></div>
+            <div class="flex gap-2 text-xs font-black"><span class="rounded-xl bg-rose-100 px-3 py-2 text-rose-700">هزینه: {{ number_format($totalTransferFees) }} ریال</span><span class="rounded-xl bg-emerald-100 px-3 py-2 text-emerald-700">برگشتی: {{ number_format($totalTransferRefunds) }} ریال</span></div>
+        </div>
+        <div class="overflow-x-auto"><table class="w-full text-right text-xs"><thead class="bg-slate-100 text-slate-600"><tr><th class="p-4">شماره دوزوله</th><th class="p-4">شرکت مبدأ</th><th class="p-4">شرکت مقصد</th><th class="p-4">هزینه انتقال</th><th class="p-4">وجه برگشتی</th><th class="p-4">تاریخ</th></tr></thead>
+        <tbody class="divide-y divide-slate-100">@forelse($transferRows as $transfer)<tr><td class="p-4 font-mono font-bold">{{ $transfer->serial_number }}</td><td class="p-4">{{ $transfer->source_company_name }}</td><td class="p-4">{{ $transfer->destination_company_name }}</td><td class="p-4 font-black text-rose-600">{{ number_format($transfer->transfer_fee) }} ریال</td><td class="p-4 font-black text-emerald-700">{{ number_format($transfer->source_refund) }} ریال</td><td class="p-4 whitespace-nowrap">{{ \Morilog\Jalali\Jalalian::fromCarbon(\Illuminate\Support\Carbon::parse($transfer->created_at))->format('Y/m/d H:i') }}</td></tr>@empty<tr><td colspan="6" class="p-10 text-center font-bold text-slate-400">در این بازه انتقال مالی ثبت نشده است.</td></tr>@endforelse</tbody></table></div>
+        @if($transferRows->hasPages())<div class="border-t border-slate-100 p-4">{{ $transferRows->links() }}</div>@endif
     </div>
 
     <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -85,10 +111,31 @@
 <script src="{{ asset('assets/js/persian-date.vendor.min.js') }}"></script>
 <script src="{{ asset('assets/js/persian-datepicker.vendor.min.js') }}"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    if (!window.jQuery || typeof window.jQuery.fn.pDatepicker !== 'function') return;
+const issuedFinancialDatepickerJQuery = window.jQuery;
 
-    $('#issued_date_from, #issued_date_to').pDatepicker({
+document.addEventListener('DOMContentLoaded', function () {
+    if (!issuedFinancialDatepickerJQuery || typeof issuedFinancialDatepickerJQuery.fn.pDatepicker !== 'function') return;
+
+    const pickerJQuery = issuedFinancialDatepickerJQuery;
+
+    const placePicker = model => requestAnimationFrame(() => {
+        const box = model.view.$container;
+        const inputRect = model.inputElement.getBoundingClientRect();
+        const plot = box.find('.datepicker-plot-area')[0];
+        if (!plot) return;
+
+        const plotRect = plot.getBoundingClientRect();
+        const above = window.innerHeight - inputRect.bottom < plotRect.height && inputRect.top > plotRect.height;
+        const currentTop = parseFloat(box.css('top')) || 0;
+        const delta = above
+            ? inputRect.top - 4 - plotRect.bottom
+            : inputRect.bottom + 4 - plotRect.top;
+
+        box.css('top', (currentTop + delta) + 'px');
+    });
+
+    pickerJQuery('#issued_date_from, #issued_date_to').each(function () {
+        pickerJQuery(this).pDatepicker({
         format: 'YYYY/MM/DD',
         initialValue: true,
         initialValueType: 'persian',
@@ -102,8 +149,21 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         navigator: { enabled: true, scroll: { enabled: true } },
         toolbox: { enabled: true, calendarSwitch: { enabled: false }, todayButton: { enabled: true }, submitButton: { enabled: false } },
-        timePicker: { enabled: false }
+        timePicker: { enabled: false },
+        onShow: placePicker
+        });
     });
+
+    const closeOnOutsideMove = event => {
+        if (event.target instanceof Element && event.target.closest('.datepicker-container, .datepicker-plot-area')) return;
+        pickerJQuery('.jalali-picker').each(function () {
+            const picker = pickerJQuery(this).data('datepicker');
+            if (picker) picker.hide();
+        });
+    };
+
+    window.addEventListener('wheel', closeOnOutsideMove, { passive: true, capture: true });
+    window.addEventListener('touchmove', closeOnOutsideMove, { passive: true, capture: true });
 });
 </script>
 @endsection

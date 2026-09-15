@@ -35,7 +35,7 @@ class DriverService
                 // شرط مهم دوزبلاغ: بررسی وجود برگه فعال و عودت‌نشده دست راننده
                 $hasActiveDozbalagh = DB::table('dozbalagh_items')
                     ->where('driver_id', $driverId)
-                    ->where('lifecycle_status', 'issued') // وضعیت صادر شده دست راننده
+                    ->whereIn('lifecycle_status', ['issued', 'consumed']) // صادرشده یا تخصیص‌یافته و فعال دست راننده
                     ->exists();
 
                 if ($hasActiveDozbalagh) {
@@ -66,6 +66,10 @@ class DriverService
             
             if (!$driver) {
                 throw new \Exception("راننده مورد نظر در سامانه دوزبلاغ یافت نشد.");
+            }
+
+            if (! (bool) ($driver->is_active ?? true)) {
+                throw new \Exception("این راننده توسط انجمن غیرفعال شده است و امکان اتصال به شرکت ندارد.");
             }
 
             // بررسی آزاد بودن راننده

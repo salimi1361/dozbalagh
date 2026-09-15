@@ -20,6 +20,15 @@ class IssuedDozbalaghFinancialReportController extends Controller
         $query = $this->reportQuery($from, $to, $companyId);
         $period = $this->settlementTargetPeriod();
         $currentSettlement = IssuedDozbalaghSettlementRequest::where('period_key', $period['key'])->first();
+        $transferRows = DB::table('permit_item_transfers as transfer')
+            ->join('companies as source', 'source.id', '=', 'transfer.source_company_id')
+            ->join('companies as destination', 'destination.id', '=', 'transfer.destination_company_id')
+            ->whereBetween('transfer.created_at', ["{$from} 00:00:00", "{$to} 23:59:59"])
+            ->when($companyId, fn (Builder $query) => $query->where(function ($query) use ($companyId) {
+                $query->where('transfer.source_company_id', $companyId)->orWhere('transfer.destination_company_id', $companyId);
+            }))
+            ->select('transfer.*', 'source.name_fa as source_company_name', 'destination.name_fa as destination_company_name')
+            ->orderByDesc('transfer.id');
 
         return view('association.issued-financial.index', [
             'rows' => (clone $query)->paginate(25)->withQueryString(),
@@ -34,6 +43,9 @@ class IssuedDozbalaghFinancialReportController extends Controller
             'settlementWindowOpen' => (int) Jalalian::now()->getDay() <= 5,
             'currentPeriod' => $period,
             'isAdmin' => auth()->user()?->role?->name === 'admin',
+            'transferRows' => (clone $transferRows)->paginate(20, ['*'], 'transfers_page')->withQueryString(),
+            'totalTransferFees' => (clone $transferRows)->sum('transfer.transfer_fee'),
+            'totalTransferRefunds' => (clone $transferRows)->sum('transfer.source_refund'),
         ]);
     }
 
@@ -215,11 +227,11 @@ class IssuedDozbalaghFinancialReportController extends Controller
     {
         return DB::table('permit_request_items as item')
             ->join('permit_requests as permit', 'permit.id', '=', 'item.permit_request_id')
-            ->join('companies as company', 'company.id', '=', 'permit.company_id')
+            ->join('companies as company', 'company.id', '=', DB::raw('COALESCE(item.issued_company_id, permit.company_id)'))
             ->leftJoin('countries as country', 'country.id', '=', 'item.country_id')
             ->whereNotNull('item.d_serial_number')->whereNotNull('item.issued_at')
             ->whereBetween('item.issued_at', ["{$from} 00:00:00", "{$to} 23:59:59"])
-            ->when($companyId, fn (Builder $query) => $query->where('permit.company_id', $companyId))
+            ->when($companyId, fn (Builder $query) => $query->whereRaw('COALESCE(item.issued_company_id, permit.company_id) = ?', [$companyId]))
             ->orderByDesc('item.issued_at')->orderByDesc('item.id')
             ->select(['item.id as item_id', 'permit.d_code as tracking_code', 'item.d_serial_number as serial_number',
                 'company.name as company_name', 'company.name_fa as company_name_fa', 'country.name as country_name',

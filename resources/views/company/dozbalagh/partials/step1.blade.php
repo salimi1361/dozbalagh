@@ -143,6 +143,7 @@
             <p class="text-xs text-blue-800/90 mb-3 font-medium">
                 فقط کد رهگیری پرونده قبلی یا شماره دوزوله را وارد کنید. بعد از تأیید، اطلاعات پرونده قبلی در مرحله بعد برای ویرایش بارگذاری می‌شود.
             </p>
+            <p id="renewal_fee_notice" class="mb-3 rounded-lg border border-blue-100 bg-white/70 px-3 py-2 text-[11px] font-black text-blue-800"></p>
 
             <div class="p-3 bg-white rounded-xl border border-blue-100">
                 <label class="block text-[10px] font-bold text-slate-500 mb-1">
@@ -169,6 +170,11 @@
 
                 <div id="renewal_empty" class="hidden mt-3 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
                     در حال حاضر امکان ثبت درخواست تمدید برای این دوزبلاغ وجود ندارد.
+                </div>
+
+                <div id="renewal_candidates" class="hidden mt-3">
+                    <div class="mb-2 text-xs font-black text-blue-900">ردیف موردنظر برای تمدید را انتخاب کنید:</div>
+                    <div id="renewal_candidates_list" class="grid gap-2 sm:grid-cols-2"></div>
                 </div>
 
                 <div id="renewal_preview" class="hidden mt-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-900 space-y-1">
@@ -210,7 +216,7 @@
                         </div>
                         <div class="bg-white border border-slate-100 rounded-xl p-2">
                             <span class="text-slate-400 font-bold">کد CITS:</span>
-                            <span id="renewal_detail_cits" class="font-mono font-black text-slate-900"></span>
+                            <span id="renewal_detail_cits" class="cursor-pointer select-all font-mono font-black text-slate-900 transition-colors hover:text-slate-700" title="کلیک برای کپی" data-copy-dynamic></span>
                         </div>
                         <div class="bg-white border border-slate-100 rounded-xl p-2">
                             <span class="text-slate-400 font-bold">مبدا:</span>
@@ -274,10 +280,15 @@
         let requestType = $jq('input[name="request_type"]:checked').val();
 
         if (requestType === 'renewal') {
+            let isAssociationMember = Boolean(window.DozoulehConfig && window.DozoulehConfig.isAssociationMember);
+            $jq('#renewal_fee_notice').text(isAssociationMember
+                ? 'تمدید برای شرکت عضو انجمن بدون دریافت هزینه انجام می‌شود.'
+                : 'تمدید برای شرکت غیرعضو با تعرفه غیرعضو کشور مقصد محاسبه و از کیف پول کسر می‌شود.');
             $jq('#driver_fleet_selection_box').slideUp(200);
             $jq('#driver_id, #fleet_id').prop('required', false);
             $jq('#renewal_smart_box').slideDown(250);
         } else {
+            $jq('#renewal_fee_notice').text('');
             $jq('#driver_fleet_selection_box').slideDown(200);
             $jq('#driver_id, #fleet_id').prop('required', true);
             $jq('#renewal_smart_box').slideUp(200);
@@ -285,7 +296,10 @@
             $jq('#renewal_preview').addClass('hidden');
             $jq('#renewal_empty').addClass('hidden');
             $jq('#renewal_detail_box').addClass('hidden');
+            $jq('#renewal_candidates').addClass('hidden');
+            $jq('#renewal_candidates_list').empty();
             window.renewalReference = null;
+            window.renewalCandidates = [];
             window.renewalPreviousDestinations = null;
         }
     }
@@ -329,7 +343,7 @@
     function fillRenewalReference(item, $jq) {
         if (!item) return false;
 
-        $jq('#previous_dozouleh_number').val(item.d_code || item.serial_number || '').removeClass('border-rose-500 ring-1 ring-rose-500');
+        $jq('#previous_dozouleh_number').val(item.lookup_code || item.d_code || item.serial_number || '').removeClass('border-rose-500 ring-1 ring-rose-500');
 
         window.isApplyingRenewalReference = true;
         // در تمدید فقط مقدار پشت‌صحنه ست می‌شود؛ change نمی‌زنیم تا هشدار ناوگان فعال اجرا نشود
@@ -337,7 +351,7 @@
         if (item.fleet_id) $jq('#fleet_id').val(item.fleet_id);
         setTimeout(function() { window.isApplyingRenewalReference = false; }, 500);
 
-        $jq('#renewal_selected_code').text(item.d_code || item.serial_number || '');
+        $jq('#renewal_selected_code').text(item.lookup_code || item.d_code || item.serial_number || '');
         $jq('#renewal_selected_driver').text(item.driver_name || item.driver || '---');
         $jq('#renewal_selected_fleet').text(item.fleet_plate || item.fleet || '---');
         $jq('#renewal_selected_countries').text(item.countries_text || '---');
@@ -346,7 +360,7 @@
         $jq('#renewal_preview').removeClass('hidden');
         $jq('#renewal_empty').addClass('hidden');
 
-        $jq('#renewal_detail_code').text(item.d_code || item.serial_number || '---');
+        $jq('#renewal_detail_code').text(item.lookup_code || item.d_code || item.serial_number || '---');
         $jq('#renewal_detail_status').text(item.status || '---');
         $jq('#renewal_detail_driver').text(item.driver_name || item.driver || '---');
         $jq('#renewal_detail_fleet').text(item.fleet_plate || item.fleet || '---');
@@ -365,7 +379,7 @@
         let finalType = document.getElementById('final_request_type');
         let finalPrevious = document.getElementById('final_previous_dozouleh_number');
         if (finalType) finalType.value = 'renewal';
-        if (finalPrevious) finalPrevious.value = item.d_code || item.serial_number || '';
+        if (finalPrevious) finalPrevious.value = item.lookup_code || item.d_code || item.serial_number || '';
 
         if (typeof window.syncRenewalFinalFields === 'function') {
             window.syncRenewalFinalFields();
@@ -376,6 +390,7 @@
 
     function lookupRenewalByCode($jq, goNextAfterSuccess) {
         let code = ($jq('#previous_dozouleh_number').val() || '').trim();
+        let $button = $jq('#check_renewal_code_btn');
 
         if (!code) {
             $jq('#previous_dozouleh_number').addClass('border-rose-500 ring-1 ring-rose-500');
@@ -391,6 +406,7 @@
 
         $jq('#renewal_loading').removeClass('hidden');
         $jq('#renewal_empty').addClass('hidden');
+        $button.prop('disabled', true).addClass('opacity-60 cursor-wait').text('در حال بررسی...');
 
         $jq.ajax({
             url: (window.DozoulehConfig && window.DozoulehConfig.renewableListUrl) ? window.DozoulehConfig.renewableListUrl : "{{ route('dozbalagh.renewable_list') }}",
@@ -398,12 +414,16 @@
             data: { d_code: code },
             success: function(res) {
                 $jq('#renewal_loading').addClass('hidden');
+                $button.prop('disabled', false).removeClass('opacity-60 cursor-wait').text('بررسی پرونده');
 
                 if (!res.success || !res.items || res.items.length === 0) {
                     let msg = res.message || 'در حال حاضر امکان ثبت درخواست تمدید برای این دوزبلاغ وجود ندارد.';
                     $jq('#renewal_empty').text(msg).removeClass('hidden');
                     $jq('#renewal_preview').addClass('hidden');
+                    $jq('#renewal_candidates').addClass('hidden');
+                    $jq('#renewal_candidates_list').empty();
                     window.renewalReference = null;
+                    window.renewalCandidates = [];
                     window.renewalPreviousDestinations = null;
                     $jq('#renewal_detail_box').addClass('hidden');
 
@@ -412,22 +432,71 @@
                     if (finalType) finalType.value = 'new';
                     if (finalPrevious) finalPrevious.value = '';
 
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'امکان تمدید وجود ندارد',
+                        text: msg,
+                        confirmButtonText: 'متوجه شدم',
+                        confirmButtonColor: '#1e40af'
+                    });
+
                     return;
                 }
 
                 let item = res.items[0];
+                window.renewalCandidates = res.items;
+                let $candidateBox = $jq('#renewal_candidates');
+                let $candidateList = $jq('#renewal_candidates_list').empty();
+
+                if (res.items.length > 1) {
+                    res.items.forEach(function(candidate, index) {
+                        let code = candidate.lookup_code || candidate.d_code || '---';
+                        let serial = candidate.serial_number || 'بدون سریال';
+                        let country = candidate.countries_text || 'کشور نامشخص';
+                        let permitType = candidate.permit_type || '';
+                        $candidateList.append(
+                            $jq('<button type="button"></button>')
+                                .addClass('renewal-candidate-btn rounded-xl border border-blue-200 bg-white p-3 text-right text-xs transition hover:border-blue-500 hover:bg-blue-50')
+                                .attr('data-index', index)
+                                .append($jq('<strong></strong>').addClass('block font-mono text-blue-900').text(code))
+                                .append($jq('<span></span>').addClass('mt-1 block text-slate-600').text('سریال: ' + serial))
+                                .append($jq('<span></span>').addClass('mt-1 block font-bold text-slate-800').text(country + (permitType ? ' — ' + permitType : '')))
+                        );
+                    });
+                    $candidateBox.removeClass('hidden');
+                    $jq('#renewal_preview, #renewal_detail_box').addClass('hidden');
+                    window.renewalReference = null;
+                    Swal.fire({
+                        icon: 'info',
+                        title: res.items.length + ' ردیف پیدا شد',
+                        text: 'ردیف موردنظر برای تمدید را از فهرست انتخاب کنید.',
+                        confirmButtonText: 'انتخاب می‌کنم',
+                        confirmButtonColor: '#1e40af'
+                    });
+                    return;
+                }
+
+                $candidateBox.addClass('hidden');
                 fillRenewalReference(item, $jq);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'پرونده قابل تمدید است',
+                    text: 'اطلاعات ردیف قبلی بارگذاری شد.',
+                    timer: 1800,
+                    showConfirmButton: false
+                });
 
                 if (goNextAfterSuccess && typeof window.transitionToStep2 === 'function') {
                     window.transitionToStep2();
                 }
             },
-            error: function() {
+            error: function(xhr) {
                 $jq('#renewal_loading').addClass('hidden');
+                $button.prop('disabled', false).removeClass('opacity-60 cursor-wait').text('بررسی پرونده');
                 Swal.fire({
                     icon: 'error',
                     title: 'خطای استعلام',
-                    text: 'ارتباط با سرور برای بررسی پرونده تمدید برقرار نشد.',
+                    text: xhr.responseJSON?.message || 'ارتباط با سرور برای بررسی پرونده تمدید برقرار نشد.',
                     confirmButtonText: 'متوجه شدم',
                     confirmButtonColor: '#1e293b'
                 });
@@ -500,6 +569,14 @@
 
         $jq('#check_renewal_code_btn').on('click', function() {
             lookupRenewalByCode($jq, false);
+        });
+
+        $jq(document).on('click', '.renewal-candidate-btn', function() {
+            let item = (window.renewalCandidates || [])[Number($jq(this).attr('data-index'))];
+            if (!item) return;
+            $jq('.renewal-candidate-btn').removeClass('border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100');
+            $jq(this).addClass('border-emerald-500 bg-emerald-50 ring-2 ring-emerald-100');
+            fillRenewalReference(item, $jq);
         });
 
         $jq('#previous_dozouleh_number').on('keyup', function(e) {

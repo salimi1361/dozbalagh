@@ -35,6 +35,15 @@ class PushNotificationService {
         playSound: true,
         enableVibration: true,
       );
+  static const AndroidNotificationChannel cmrDocumentsChannel =
+      AndroidNotificationChannel(
+        'cmr_documents',
+        'اسناد CMR',
+        description: 'صدور، تغییر وضعیت و اقدامات لازم اسناد CMR راننده',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+      );
 
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
@@ -46,19 +55,31 @@ class PushNotificationService {
       StreamController<void>.broadcast();
   final StreamController<void> _announcementRequests =
       StreamController<void>.broadcast();
+  final StreamController<int> _cmrNavigation =
+      StreamController<int>.broadcast();
+  final StreamController<void> _profileRefreshRequests =
+      StreamController<void>.broadcast();
 
   Stream<int> get companyNavigation => _companyNavigation.stream;
   Stream<void> get appUpdateRequests => _appUpdateRequests.stream;
   Stream<void> get announcementRequests => _announcementRequests.stream;
+  Stream<int> get cmrNavigation => _cmrNavigation.stream;
+  Stream<void> get profileRefreshRequests => _profileRefreshRequests.stream;
 
   bool _initialized = false;
+  Future<void>? _initialization;
   String? _apiToken;
   int? _pendingCompanyId;
   bool _pendingAppUpdate = false;
   bool _pendingAnnouncement = false;
+  int? _pendingCmrId;
 
-  Future<void> initialize() async {
-    if (_initialized) return;
+  Future<void> initialize() {
+    if (_initialized) return Future<void>.value();
+    return _initialization ??= _initialize();
+  }
+
+  Future<void> _initialize() async {
     await Firebase.initializeApp();
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
@@ -91,6 +112,11 @@ class PushNotificationService {
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.createNotificationChannel(driverAlertsChannel);
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >()
+        ?.createNotificationChannel(cmrDocumentsChannel);
 
     FirebaseMessaging.onMessage.listen(_showForegroundMessage);
     FirebaseMessaging.onMessageOpenedApp.listen(
@@ -106,6 +132,7 @@ class PushNotificationService {
   }
 
   Future<void> activateSession(String apiToken) async {
+    await initialize();
     _apiToken = apiToken;
     final permission = await FirebaseMessaging.instance.requestPermission(
       alert: true,
@@ -124,6 +151,7 @@ class PushNotificationService {
   }
 
   Future<void> deactivateSession() async {
+    await initialize();
     final apiToken = _apiToken;
     _apiToken = null;
     if (apiToken == null) return;
@@ -157,6 +185,12 @@ class PushNotificationService {
     return value;
   }
 
+  int? takePendingCmrId() {
+    final value = _pendingCmrId;
+    _pendingCmrId = null;
+    return value;
+  }
+
   Future<void> _registerRefreshedToken(String fcmToken) async {
     final apiToken = _apiToken;
     if (apiToken == null) return;
@@ -173,10 +207,17 @@ class PushNotificationService {
 
   Future<void> _showForegroundMessage(RemoteMessage message) async {
     final data = message.data;
+    if (data['type'] == 'company_profile_updated') {
+      _handleNavigation(data);
+      return;
+    }
     if (!const {
       'company_message',
       'app_update',
       'driver_announcement',
+      'cmr_issued',
+      'cmr_updated',
+      'cmr_action_required',
     }.contains(data['type'])) {
       return;
     }
@@ -189,16 +230,27 @@ class PushNotificationService {
         data['body']?.toString() ??
         'یک پیام جدید برای شما ارسال شده است.';
     final isAnnouncement = data['type']?.toString() == 'driver_announcement';
+    final isCmr = data['type']?.toString().startsWith('cmr_') == true;
     await _localNotifications.show(
       id: message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch,
       title: title,
       body: body,
       notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
-          isAnnouncement ? 'driver_alerts' : 'company_messages',
-          isAnnouncement ? 'اطلاعیه‌های رانندگان' : 'پیام‌های شرکت',
+          isAnnouncement
+              ? 'driver_alerts'
+              : isCmr
+              ? 'cmr_documents'
+              : 'company_messages',
+          isAnnouncement
+              ? 'اطلاعیه‌های رانندگان'
+              : isCmr
+              ? 'اسناد CMR'
+              : 'پیام‌های شرکت',
           channelDescription: isAnnouncement
               ? 'پیام‌های فوری و اطلاعیه‌های مهم سامانه'
+              : isCmr
+              ? 'صدور، تغییر وضعیت و اقدامات لازم اسناد CMR راننده'
               : 'پیام‌های جدید شرکت برای راننده',
           importance: Importance.high,
           priority: Priority.high,
@@ -211,13 +263,31 @@ class PushNotificationService {
     if (const {
       'app_update',
       'driver_announcement',
+      'cmr_issued',
+      'cmr_updated',
+      'cmr_action_required',
     }.contains(data['type']?.toString())) {
       _handleNavigation(data);
     }
   }
 
   void _handleNavigation(Map<String, dynamic> data) {
-    if (data['type']?.toString() == 'driver_announcement') {
+    final type = data['type']?.toString() ?? '';
+    if (type == 'company_profile_updated') {
+      _profileRefreshRequests.add(null);
+      return;
+    }
+    if (type.startsWith('cmr_')) {
+      final cmrId = int.tryParse(data['cmr_id']?.toString() ?? '');
+      if (cmrId == null || cmrId <= 0) return;
+      if (_cmrNavigation.hasListener) {
+        _cmrNavigation.add(cmrId);
+      } else {
+        _pendingCmrId = cmrId;
+      }
+      return;
+    }
+    if (type == 'driver_announcement') {
       if (_announcementRequests.hasListener) {
         _announcementRequests.add(null);
       } else {
@@ -225,7 +295,7 @@ class PushNotificationService {
       }
       return;
     }
-    if (data['type']?.toString() == 'app_update') {
+    if (type == 'app_update') {
       if (_appUpdateRequests.hasListener) {
         _appUpdateRequests.add(null);
       } else {
@@ -233,7 +303,7 @@ class PushNotificationService {
       }
       return;
     }
-    if (data['type']?.toString() != 'company_message') return;
+    if (type != 'company_message') return;
     var companyId = int.tryParse(data['company_id']?.toString() ?? '');
     if (companyId == null || companyId <= 0) {
       final conversationId = data['conversation_id']?.toString() ?? '';

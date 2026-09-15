@@ -11,13 +11,18 @@ use App\Models\PermitRequest;
 use App\Models\CompanyQuota;
 use App\Models\CargoDocumentRule; 
 use App\Models\WorldCountry; 
+use App\Services\CargoDocumentRuleService;
 use App\Services\PermitRequestWindowService;
+use App\Services\PermitItemAuditService;
+use App\Services\PermitItemFinancialService;
+use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
 class DozbalaghController extends Controller
@@ -52,6 +57,35 @@ class DozbalaghController extends Controller
         return ['draft', 'pending', 'under_review', 'returned', 'approved', 'issued'];
     }
 
+    /**
+     * تعرفهٔ کشور را بر اساس عضویت شرکت برمی‌گرداند.
+     * ستون price برای سازگاری با داده‌ها و نسخه‌های قدیمی به‌عنوان fallback نگه داشته شده است.
+     */
+    private function countryPriceForCompany(Country $country, bool $isAssociationMember): float
+    {
+        $membershipPrice = $isAssociationMember ? $country->member_price : $country->non_member_price;
+
+        return (float) ($membershipPrice ?? $country->price ?? 0);
+    }
+
+    private function destinationPermitTypeError(array $destinations): ?string
+    {
+        $permitTypeLabels = config('permit_types.labels', []);
+
+        foreach ($destinations as $destination) {
+            $country = Country::find($destination['country_id'] ?? null);
+            $permitType = trim((string) ($destination['permit_type'] ?? ''));
+            if (!$country || !in_array($permitType, $country->allowed_permit_types ?? [], true)) {
+                $countryName = $country?->name ?? 'انتخاب‌شده';
+                $permitLabel = $permitTypeLabels[$permitType] ?? ($permitType ?: 'نامشخص');
+
+                return "نوع مجوز «{$permitLabel}» برای کشور «{$countryName}» در مدیریت کشورها تعریف نشده است.";
+            }
+        }
+
+        return null;
+    }
+
     public function index(Request $request)
     {
         $user = auth()->user();
@@ -61,68 +95,300 @@ class DozbalaghController extends Controller
             return redirect()->route('dashboard')->with('error', 'حساب کاربری شما به شرکتی متصل نیست.');
         }
 
-        $query = PermitRequest::where('company_id', $companyId)->with(['driver', 'fleet']);
-
-        // در پنل شرکت هر زنجیره صدور/تمدید یک پرونده محسوب می‌شود. وقتی یک
-        // تمدید فعال وجود دارد، ردیف مرجع قدیمی جداگانه نمایش داده نمی‌شود.
-        $query->whereNotExists(function ($renewals) {
-            $renewals->selectRaw('1')
-                ->from('permit_requests as active_renewals')
-                ->whereColumn('active_renewals.previous_request_id', 'permit_requests.id')
-                ->where('active_renewals.request_type', 'renewal')
-                ->whereIn('active_renewals.status', $this->activePermitStatuses());
-        });
+        $query = $this->baseIndexQuery($companyId);
 
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = trim((string) $request->search);
             $query->where(function($q) use ($search) {
-                $q->where('d_code', 'like', "%{$search}%")
-                  ->orWhere('previous_d_code', 'like', "%{$search}%")
-                  ->orWhereHas('driver', function($d) use ($search) {
-                      $d->where('first_name_fa', 'like', "%{$search}%")
-                        ->orWhere('last_name_fa', 'like', "%{$search}%")
-                        ->orWhere('national_code', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('fleet', function($f) use ($search) {
-                      $f->where('transit_plate', 'like', "%{$search}%")
-                        ->orWhere('smart_card_number', 'like', "%{$search}%");
-                  });
+                $q->where('permit.d_code', 'like', "%{$search}%")
+                    ->orWhere('permit.previous_d_code', 'like', "%{$search}%")
+                    ->orWhere('item.d_serial_number', 'like', "%{$search}%")
+                    ->orWhere('driver.first_name_fa', 'like', "%{$search}%")
+                    ->orWhere('driver.last_name_fa', 'like', "%{$search}%")
+                    ->orWhere('driver.national_code', 'like', "%{$search}%")
+                    ->orWhere('fleet.transit_plate', 'like', "%{$search}%")
+                    ->orWhere('fleet.smart_card_number', 'like', "%{$search}%")
+                    ->orWhere('country.name', 'like', "%{$search}%");
             });
         }
 
         if ($request->filled('status')) {
             $statusFilter = $request->status;
-
-            // استانداردسازی: تمدید ماهیت درخواست است، نه وضعیت چرخه کار.
-            // برای سازگاری با لینک قدیمی status=renewed هم همین فیلتر تمدید اعمال می‌شود.
             if (in_array($statusFilter, ['renewal', 'renewed'], true)) {
-                $query->where('request_type', 'renewal');
+                $query->where('permit.request_type', 'renewal');
             } elseif ($statusFilter === 'new') {
                 $query->where(function ($q) {
-                    $q->whereNull('request_type')
-                      ->orWhere('request_type', 'new')
-                      ->orWhere('request_type', '');
+                    $q->whereNull('permit.request_type')
+                      ->orWhere('permit.request_type', 'new')
+                      ->orWhere('permit.request_type', '');
                 });
             } elseif ($statusFilter === 'active') {
-                $query->whereIn('status', $this->activePermitStatuses());
+                $this->applyActiveListScope($query);
             } elseif ($statusFilter === 'collected') {
-                $query->whereIn('status', ['collected', 'archived']);
+                $query->whereIn('item.item_status', ['company_returned', 'collected_for_renewal']);
+            } elseif ($statusFilter === 'archived') {
+                $query->whereIn('item.item_status', ['archived', 'returned_unused', 'extended', 'cancelled']);
+            } elseif ($statusFilter === 'pending') {
+                $query->whereIn('item.item_status', ['pending', 'under_review', 'approved', 'cits_processing', 'cits_company_error', 'cits_system_error', 'cits_other_error', 'ready_to_issue']);
+            } elseif ($statusFilter === 'lost') {
+                $query->whereIn('item.item_status', ['lost_reported', 'lost']);
             } else {
-                $query->where('status', $statusFilter);
+                $query->where('item.item_status', $statusFilter);
             }
         } else {
-            $query->orderByRaw("FIELD(status, 'pending', 'approved', 'issued', 'rejected', 'returned', 'collected', 'archived', 'lost') ASC");
+            $this->applyActiveListScope($query);
         }
 
-        $query->orderBy('id', 'desc');
-        $requests = $query->paginate(10)->withQueryString();
+        $items = $this->groupedParentPage($query, $companyId, 15);
 
-        $correctionCount = PermitRequest::where('company_id', $companyId)
-            ->where('status', 'returned')
-            ->count();
         $requestWindowStatus = app(PermitRequestWindowService::class)->status();
+        $latestCompanyItemUpdate = DB::table('permit_request_items as item')
+            ->join('permit_requests as permit', 'permit.id', '=', 'item.permit_request_id')
+            ->where('permit.company_id', $companyId)
+            ->max('item.updated_at');
 
-        return view('company.dozbalagh.index', compact('requests', 'correctionCount', 'requestWindowStatus'));
+        $companyPermitStats = DB::table('permit_request_items as item')
+            ->join('permit_requests as permit', 'permit.id', '=', 'item.permit_request_id')
+            ->where('permit.company_id', $companyId)
+            ->selectRaw('COUNT(DISTINCT permit.id) as total')
+            ->selectRaw("COUNT(DISTINCT CASE WHEN item.item_status IN ('pending', 'under_review', 'approved', 'cits_processing', 'cits_company_error', 'cits_system_error', 'cits_other_error', 'ready_to_issue') THEN permit.id END) as in_progress")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN item.item_status = 'issued' THEN permit.id END) as issued")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN permit.request_type = 'renewal' THEN permit.id END) as renewals")
+            ->first();
+
+        return view('company.dozbalagh.items-index', compact(
+            'items',
+            'requestWindowStatus',
+            'latestCompanyItemUpdate',
+            'companyPermitStats',
+        ));
+    }
+
+    private function baseIndexQuery(int $companyId)
+    {
+        return DB::table('permit_request_items as item')
+            ->join('permit_requests as permit', 'permit.id', '=', 'item.permit_request_id')
+            ->leftJoin('drivers as driver', 'driver.id', '=', 'permit.driver_id')
+            ->leftJoin('fleets as fleet', 'fleet.id', '=', 'permit.fleet_id')
+            ->leftJoin('countries as country', 'country.id', '=', 'item.country_id')
+            ->where('permit.company_id', $companyId)
+            ->select([
+                'item.*',
+                'permit.d_code',
+                'permit.request_type',
+                'permit.previous_d_code',
+                'permit.status as parent_status',
+                'permit.payment_status as parent_payment_status',
+                'permit.created_at as request_created_at',
+                'driver.first_name_fa',
+                'driver.last_name_fa',
+                'driver.national_code as driver_national_code',
+                'fleet.transit_plate',
+                'fleet.transit_horse',
+                'fleet.transit_trailer',
+                'fleet.smart_card_number',
+                'country.name as country_name',
+                DB::raw("(SELECT pcm.completed_at FROM permit_courier_missions pcm WHERE pcm.permit_request_item_id = item.id AND pcm.direction = 'association_to_company' AND pcm.status = 'completed' ORDER BY pcm.id DESC LIMIT 1) as pickup_completed_at"),
+                DB::raw("(SELECT pcm.courier_name FROM permit_courier_missions pcm WHERE pcm.permit_request_item_id = item.id AND pcm.direction = 'association_to_company' AND pcm.status = 'completed' ORDER BY pcm.id DESC LIMIT 1) as pickup_completed_courier_name"),
+                DB::raw("(SELECT pcm.courier_mobile FROM permit_courier_missions pcm WHERE pcm.permit_request_item_id = item.id AND pcm.direction = 'association_to_company' AND pcm.status = 'completed' ORDER BY pcm.id DESC LIMIT 1) as pickup_completed_courier_mobile"),
+             ]);
+    }
+
+    /**
+     * مسیرهای نیازمند اقدام شرکت را از وضعیت‌های صادرشده، لاشه/تمدید و مفقودی
+     * جدا می‌کند. دوزولهٔ issued فقط تا قبل از تحویل موفق پیک در اقدام می‌ماند.
+     */
+    private function applyActiveListScope($query)
+    {
+        return $query->where(function ($active) {
+            $active->whereNotIn('item.item_status', [
+                'rejected', 'archived', 'returned_unused', 'extended', 'lost', 'cancelled', 'transferred_in',
+                'issued', 'company_returned', 'collected_for_renewal', 'lost_reported',
+            ])->orWhere(function ($issued) {
+                $issued->where('item.item_status', 'issued')
+                    ->whereNotExists(function ($mission) {
+                        $mission->selectRaw('1')
+                            ->from('permit_courier_missions as completed_pickup')
+                            ->whereColumn('completed_pickup.permit_request_item_id', 'item.id')
+                            ->where('completed_pickup.direction', 'association_to_company')
+                            ->where('completed_pickup.status', 'completed');
+                    });
+            });
+        });
+    }
+
+    private function groupedParentPage($query, int $companyId, int $perPage)
+    {
+        $parentPage = (clone $query)
+            ->select('permit.id as parent_request_id')
+            ->selectRaw('MAX(item.updated_at) as parent_updated_at')
+            ->selectRaw("MIN(FIELD(item.item_status, 'pending', 'under_review', 'approved', 'cits_processing', 'cits_company_error', 'cits_system_error', 'cits_other_error', 'ready_to_issue', 'issued', 'company_returned', 'collected_for_renewal', 'rejected', 'archived', 'returned_unused', 'extended', 'lost_reported', 'lost', 'cancelled')) as parent_status_order")
+            ->groupBy('permit.id')
+            ->orderBy('parent_status_order')
+            ->orderByDesc('parent_updated_at')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $parentIds = collect($parentPage->items())
+            ->pluck('parent_request_id')
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
+        // Reuse the scoped query so a rejected/issued path cannot leak into
+        // another company tab when the parent has multiple routes.
+        $children = $parentIds->isEmpty()
+            ? collect()
+            : (clone $query)
+                ->whereIn('permit.id', $parentIds->all())
+                ->orderBy('item.id')
+                ->get();
+
+        $childrenByParent = $children->groupBy('permit_request_id');
+        $groups = $parentIds->map(function (int $parentId) use ($childrenByParent) {
+            $parentChildren = $childrenByParent->get($parentId, collect())->values();
+
+            if ($parentChildren->isEmpty()) {
+                return null;
+            }
+
+            return (object) [
+                'parent_id' => $parentId,
+                'parent' => $parentChildren->first(),
+                'children' => $parentChildren,
+            ];
+        })->filter()->values();
+
+        $parentPage->setCollection($groups);
+
+        return $parentPage;
+    }
+
+    public function transfers(Request $request)
+    {
+        $user = $request->user();
+        $companyId = optional($user->company)->id ?? $user->company_id ?? null;
+        abort_unless($companyId, 403);
+
+        $query = DB::table('permit_item_transfers as transfer')
+            ->join('permit_request_items as item', 'item.id', '=', 'transfer.permit_request_item_id')
+            ->leftJoin('permit_requests as destination_request', 'destination_request.id', '=', 'transfer.destination_permit_request_id')
+            ->leftJoin('companies as source_company', 'source_company.id', '=', 'transfer.source_company_id')
+            ->leftJoin('companies as destination_company', 'destination_company.id', '=', 'transfer.destination_company_id')
+            ->leftJoin('drivers as source_driver', 'source_driver.id', '=', 'transfer.source_driver_id')
+            ->leftJoin('drivers as destination_driver', 'destination_driver.id', '=', 'transfer.destination_driver_id')
+            ->leftJoin('fleets as source_fleet', 'source_fleet.id', '=', 'transfer.source_fleet_id')
+            ->leftJoin('fleets as destination_fleet', 'destination_fleet.id', '=', 'transfer.destination_fleet_id')
+            ->where('transfer.destination_company_id', $companyId)
+            ->select([
+                'transfer.*', 'item.item_status', 'destination_request.d_code as destination_d_code',
+                'source_company.name_fa as source_company_name', 'destination_company.name_fa as destination_company_name',
+                'source_driver.first_name_fa as source_driver_first_name', 'source_driver.last_name_fa as source_driver_last_name',
+                'destination_driver.first_name_fa as destination_driver_first_name', 'destination_driver.last_name_fa as destination_driver_last_name',
+                'source_fleet.transit_plate as source_fleet_plate', 'destination_fleet.transit_plate as destination_fleet_plate',
+            ]);
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->search);
+            $query->where(function ($scope) use ($search) {
+                $scope->where('transfer.serial_number', 'like', "%{$search}%")
+                    ->orWhere('destination_request.d_code', 'like', "%{$search}%")
+                    ->orWhere('destination_company.name_fa', 'like', "%{$search}%");
+            });
+        }
+
+        $transfers = $query->orderByDesc('transfer.id')->paginate(20)->withQueryString();
+
+        return view('company.dozbalagh.transfers', compact('transfers', 'companyId'));
+    }
+
+    public function showItem(int $item)
+    {
+        $user = auth()->user();
+        $companyId = optional($user->company)->id ?? $user->company_id ?? null;
+        $permit = DB::table('permit_request_items as item')
+            ->join('permit_requests as permit', 'permit.id', '=', 'item.permit_request_id')
+            ->leftJoin('drivers as driver', 'driver.id', '=', 'permit.driver_id')
+            ->leftJoin('fleets as fleet', 'fleet.id', '=', 'permit.fleet_id')
+            ->leftJoin('countries as country', 'country.id', '=', 'item.country_id')
+            ->where('item.id', $item)
+            ->where('permit.company_id', $companyId)
+            ->select([
+                'item.*', 'permit.d_code', 'permit.request_type', 'permit.previous_d_code',
+                'permit.status as parent_status', 'permit.payment_status as parent_payment_status',
+                'permit.created_at as request_created_at',
+                'driver.first_name_fa', 'driver.last_name_fa', 'driver.national_code as driver_national_code',
+                'fleet.transit_plate', 'fleet.smart_card_number', 'country.name as country_name',
+                'fleet.transit_horse', 'fleet.transit_trailer',
+                DB::raw("(SELECT pcm.courier_name FROM permit_courier_missions pcm WHERE pcm.permit_request_item_id = item.id AND pcm.direction = 'association_to_company' AND pcm.status = 'completed' ORDER BY pcm.id DESC LIMIT 1) as pickup_completed_courier_name"),
+                DB::raw("(SELECT pcm.courier_mobile FROM permit_courier_missions pcm WHERE pcm.permit_request_item_id = item.id AND pcm.direction = 'association_to_company' AND pcm.status = 'completed' ORDER BY pcm.id DESC LIMIT 1) as pickup_completed_courier_mobile"),
+            ])
+            ->firstOrFail();
+        $events = DB::table('permit_item_events')
+            ->where('permit_request_item_id', $item)
+            ->where('permit_request_id', $permit->permit_request_id)
+            ->where('created_at', '>=', $permit->created_at)
+            ->orderByDesc('id')
+            ->get();
+        $missions = DB::table('permit_courier_missions')
+            ->where('permit_request_item_id', $item)
+            ->where('company_id', $companyId)
+            ->where('created_at', '>=', $permit->created_at)
+            ->orderByDesc('id')
+            ->get();
+
+        return view('company.dozbalagh.show-item', compact('permit', 'events', 'missions'));
+    }
+
+    public function submitCitsResponse(
+        Request $request,
+        int $id,
+        PermitItemAuditService $audit,
+    ) {
+        $validated = $request->validate([
+            'message' => 'required|string|max:2000',
+            'response_file' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+        ]);
+        $user = auth()->user();
+        $companyId = optional($user->company)->id ?? $user->company_id ?? null;
+
+        DB::transaction(function () use ($request, $id, $validated, $companyId, $audit) {
+            $item = DB::table('permit_request_items as item')
+                ->join('permit_requests as permit', 'permit.id', '=', 'item.permit_request_id')
+                ->where('item.id', $id)
+                ->where('permit.company_id', $companyId)
+                ->whereIn('item.cits_status', ['company_error', 'system_error', 'other_error'])
+                ->select('item.*')
+                ->lockForUpdate()
+                ->first();
+            abort_if(!$item, 404);
+
+            $file = $request->hasFile('response_file')
+                ? $request->file('response_file')->store('permits/cits-company-responses', 'public')
+                : null;
+
+            DB::table('permit_request_items')->where('id', $item->id)->update([
+                'company_cits_response' => $validated['message'],
+                'company_cits_response_file' => $file,
+                'company_cits_responded_by_user_id' => auth()->id(),
+                'company_cits_responded_at' => now(),
+                'cits_status' => 'recheck_requested',
+                'item_status' => 'cits_processing',
+                'updated_at' => now(),
+            ]);
+
+            $audit->record(
+                $item,
+                'company_cits_response',
+                $validated['message'],
+                ['cits_status' => $item->cits_status],
+                ['cits_status' => 'recheck_requested', 'response_file' => $file],
+                [],
+                $item->item_status,
+                'cits_processing',
+            );
+        });
+
+        return back()->with('success', 'پاسخ شما برای انجمن ارسال شد و پرونده در انتظار بررسی مجدد CITS قرار گرفت.');
     }
 
     public function create()
@@ -141,12 +407,14 @@ class DozbalaghController extends Controller
                 'wallet' => null,
                 'newDCode' => '',
                 'allWorldCountries' => $allWorldCountries,
+                'isAssociationMember' => false,
             ])->with('error', 'حساب کاربری شما به هیچ شرکتی متصل نیست.');
         }
 
-        $drivers = \App\Models\Driver::where('current_company_id', $companyId)->get();
+        $drivers = \App\Models\Driver::active()->where('current_company_id', $companyId)->get();
         foreach ($drivers as $driver) {
             $activeDriverPermit = \App\Models\PermitRequest::where('driver_id', $driver->id)
+                ->where('company_id', $companyId)
                 ->whereIn('status', $this->activePermitStatuses())
                 ->orderBy('id', 'desc')
                 ->first();
@@ -154,9 +422,10 @@ class DozbalaghController extends Controller
             $driver->last_active_number = $activeDriverPermit ? $activeDriverPermit->d_code : '';
         }
 
-        $fleets = \App\Models\Fleet::where('company_id', $companyId)->get();
+        $fleets = \App\Models\Fleet::active()->where('company_id', $companyId)->get();
         foreach ($fleets as $fleet) {
             $activeFleetPermit = \App\Models\PermitRequest::where('fleet_id', $fleet->id)
+                ->where('company_id', $companyId)
                 ->whereIn('status', $this->activePermitStatuses())
                 ->orderBy('id', 'desc')
                 ->first();
@@ -165,18 +434,22 @@ class DozbalaghController extends Controller
         }
 
         $countries = \App\Models\Country::where('is_active', 1)->get(); 
-        $cargoRules = \App\Models\CargoDocumentRule::all()->keyBy('cargo_type');
+        $cargoRules = app(CargoDocumentRuleService::class)->frontendRules();
         
         $wallet = \App\Models\Wallet::firstOrCreate(
             ['company_id' => $companyId],
             ['balance' => 50000000, 'blocked_balance' => 0] 
         );
+
+        $isAssociationMember = (bool) DB::table('companies')
+            ->where('id', $companyId)
+            ->value('is_association_member');
         
         $newDCode = $this->generateDCode(); 
         $balance = $wallet->balance;
         $requestWindowStatus = app(PermitRequestWindowService::class)->status();
 
-        return view('company.dozbalagh.create', compact('drivers', 'fleets', 'countries', 'cargoRules', 'wallet', 'newDCode', 'balance', 'allWorldCountries', 'requestWindowStatus'));
+        return view('company.dozbalagh.create', compact('drivers', 'fleets', 'countries', 'cargoRules', 'wallet', 'newDCode', 'balance', 'allWorldCountries', 'requestWindowStatus', 'isAssociationMember'));
     }
 
     public function renewableList(Request $request)
@@ -193,7 +466,7 @@ class DozbalaghController extends Controller
                 ], 200);
             }
 
-            $dCode = trim((string) $request->input('d_code', ''));
+            $dCode = $this->normalizeRenewalLookupCode((string) $request->input('d_code', ''));
             $fleetId = $request->input('fleet_id');
             $driverId = $request->input('driver_id');
 
@@ -208,88 +481,85 @@ class DozbalaghController extends Controller
                 $permit = $this->findRenewalSource($dCode, (int) $companyId);
 
                 if (!$permit) {
+                    $candidate = DB::table('permit_request_items as pri')
+                        ->join('permit_requests as pr', 'pri.permit_request_id', '=', 'pr.id')
+                        ->leftJoin('countries as country', 'country.id', '=', 'pri.country_id')
+                        ->where('pr.company_id', $companyId)
+                        ->where(function ($query) use ($dCode) {
+                            $query->where('pr.d_code', $dCode)
+                                ->orWhere('pr.serial_number', $dCode)
+                                ->orWhere('pri.d_serial_number', $dCode);
+                        })
+                        ->select([
+                            'pri.item_status', 'pri.disposition_type', 'pri.d_serial_number',
+                            'pri.permit_valid_until', 'pr.permit_valid_until as parent_valid_until',
+                            'pr.status', 'pr.payment_status', 'country.validity_days',
+                        ])
+                        ->orderByDesc('pri.id')
+                        ->first();
+
+                    $message = match (true) {
+                        !$candidate => 'پرونده‌ای با این کد رهگیری یا سریال در همین شرکت پیدا نشد.',
+                        $candidate->disposition_type === 'return_archive' =>
+                            'این دوزوله با گزینه «ثبت لاشه و پایان فرایند» بایگانی شده است و به‌عنوان «تمدید با لاشه» ثبت نشده است.',
+                        $candidate->disposition_type === 'unused' =>
+                            'این دوزوله با وضعیت «برگشت بدون استفاده» پایان یافته و درخواست تمدید با لاشه برای آن ثبت نشده است.',
+                        !in_array($candidate->payment_status, ['settled', 'partially_settled'], true) =>
+                            'وضعیت مالی این دوزوله هنوز قطعی و تسویه‌شده نیست.',
+                        !in_array($candidate->item_status, ['issued', 'archived', 'returned_unused', 'collected_for_renewal'], true) =>
+                            'فرایند این دوزوله هنوز نهایی نشده است و فعلاً امکان ثبت تمدید وجود ندارد.',
+                        !empty($candidate->permit_valid_until ?? $candidate->parent_valid_until)
+                            && \Carbon\Carbon::parse($candidate->permit_valid_until ?? $candidate->parent_valid_until)->isFuture() =>
+                            'اعتبار این دوزوله هنوز به پایان نرسیده است؛ تاریخ پایان اعتبار: '
+                                .\Morilog\Jalali\Jalalian::fromCarbon(\Carbon\Carbon::parse($candidate->permit_valid_until ?? $candidate->parent_valid_until))->format('Y/m/d'),
+                        default => 'این پرونده شرایط لازم برای ثبت تمدید را ندارد.',
+                    };
+
                     return response()->json([
                         'success' => true,
                         'items' => [],
-                        'message' => 'دوزوله‌ای با این شماره برای تمدید یافت نشد یا هنوز منقضی نشده است.'
+                        'message' => $message,
                     ], 200);
                 }
 
-                $openRenewalExists = DB::table('permit_request_items as pri')
-                    ->join('permit_requests as pr', 'pri.permit_request_id', '=', 'pr.id')
-                    ->where('pr.company_id', $companyId)
-                    ->where('pr.request_type', 'renewal')
-                    ->where('pri.renewed_from_item_id', $permit->previous_item_id)
-                    ->whereIn('pr.status', ['pending', 'approved', 'returned', 'under_review'])
-                    ->exists();
+                $sourcePermits = collect([$permit]);
+                [$parentCode, $selectedItemId] = $this->parseRenewalLookupCode($dCode);
+                if (!$selectedItemId && strcasecmp((string) $permit->d_code, $parentCode) === 0) {
+                    $sourcePermits = DB::table('permit_request_items')
+                        ->where('permit_request_id', $permit->id)
+                        ->orderBy('id')
+                        ->pluck('id')
+                        ->map(fn ($sourceItemId) => $this->findRenewalSource($permit->d_code.'-'.$sourceItemId, (int) $companyId))
+                        ->filter()
+                        ->values();
+                }
 
-                if ($openRenewalExists) {
+                $sourcePermits = $sourcePermits->reject(function ($source) use ($companyId) {
+                    return DB::table('permit_request_items as pri')
+                        ->join('permit_requests as pr', 'pri.permit_request_id', '=', 'pr.id')
+                        ->where('pr.company_id', $companyId)
+                        ->where('pr.request_type', 'renewal')
+                        ->where('pri.renewed_from_item_id', $source->previous_item_id)
+                        ->whereIn('pr.status', ['pending', 'approved', 'returned', 'under_review'])
+                        ->exists();
+                })->values();
+
+                if ($sourcePermits->isEmpty()) {
                     return response()->json([
                         'success' => true,
                         'items' => [],
-                        'message' => 'برای همین دوزوله قبلاً درخواست تمدید ثبت شده و هنوز در حال رسیدگی است.'
+                        'message' => 'برای ردیف‌های قابل تمدید این پرونده قبلاً درخواست ثبت شده یا هیچ ردیف آماده تمدیدی باقی نمانده است.'
                     ], 200);
                 }
 
-                $destinations = DB::table('permit_request_items as pri')
-                    ->leftJoin('countries as c', 'pri.country_id', '=', 'c.id')
-                    ->where('pri.id', $permit->previous_item_id)
-                    ->select(
-                        'pri.id',
-                        'pri.country_id',
-                        'c.name as country_name',
-                        'c.validity_days as country_validity_days',
-                        'pri.permit_type',
-                        'pri.operation_type',
-                        'pri.loading_origin',
-                        'pri.loading_destination',
-                        'pri.cits_code',
-                        'pri.trip_code',
-                        'pri.cmr_date',
-                        'pri.receipt_code',
-                        'pri.receipt_amount',
-                        'pri.tir_carnet_number',
-                        'pri.tir_carnet_date',
-                        'pri.d_serial_number'
-                    )
-                    ->get();
-
-                $firstDetail = $destinations->first();
-
-                $item = [
-                    'id' => $permit->id,
-                    'previous_item_id' => $permit->previous_item_id,
-                    'd_code' => $permit->d_code,
-                    'serial_number' => $permit->previous_item_serial_number,
-                    'status' => $permit->status,
-                    'payment_status' => $permit->payment_status,
-                    'issued_at' => $permit->previous_item_issued_at,
-                    'permit_valid_until' => $permit->previous_item_valid_until,
-                    'validity_days' => (int) ($firstDetail->country_validity_days ?? 30),
-                    'driver_id' => $permit->driver_id,
-                    'fleet_id' => $permit->fleet_id,
-
-                    'cargo_type' => $firstDetail->operation_type ?? '',
-                    'loading_origin' => $firstDetail->loading_origin ?? '',
-                    'loading_destination' => $firstDetail->loading_destination ?? '',
-                    'cits_code' => $firstDetail->cits_code ?? '',
-                    'trip_code' => $firstDetail->trip_code ?? '',
-                    'cmr_date' => $firstDetail->cmr_date ?? '',
-                    'receipt_code' => $firstDetail->receipt_code ?? '',
-                    'receipt_amount' => $firstDetail->receipt_amount ?? '',
-                    'tir_carnet_number' => $firstDetail->tir_carnet_number ?? '',
-                    'tir_carnet_date' => $firstDetail->tir_carnet_date ?? '',
-
-                    'driver_name' => trim(($permit->first_name_fa ?? '') . ' ' . ($permit->last_name_fa ?? '')),
-                    'fleet_plate' => $permit->transit_plate ?: 'ناوگان نامشخص',
-                    'countries_text' => $destinations->pluck('country_name')->implode('، '),
-                    'destinations' => $destinations,
-                ];
+                $items = $sourcePermits->map(fn ($source) => $this->renewalSourcePayload($source))->values();
 
                 return response()->json([
                     'success' => true,
-                    'items' => [$item],
-                    'message' => 'پرونده قابل تمدید است.'
+                    'items' => $items,
+                    'message' => $items->count() > 1
+                        ? $items->count().' ردیف قابل تمدید پیدا شد؛ ردیف موردنظر را انتخاب کنید.'
+                        : 'پرونده قابل تمدید است.'
                 ], 200);
             }
 
@@ -315,10 +585,7 @@ class DozbalaghController extends Controller
                 ->where('pr.serial_number', '<>', '')
                 ->whereNotNull('pr.issued_at')
                 ->whereNotNull('pr.permit_valid_until')
-                ->where(function ($renewable) {
-                    $renewable->where('renewal_country.validity_days', 0)
-                        ->orWhereDate('pr.permit_valid_until', '<=', now()->toDateString());
-                });
+                ->whereDate('pr.permit_valid_until', '<=', now()->toDateString());
 
             if (!empty($fleetId)) {
                 $query->where('pr.fleet_id', $fleetId);
@@ -413,7 +680,7 @@ class DozbalaghController extends Controller
      */
     private function findRenewalSource(string $code, int $companyId)
     {
-        $code = trim($code);
+        [$code, $selectedItemId] = $this->parseRenewalLookupCode($code);
 
         return DB::table('permit_request_items as pri')
             ->join('permit_requests as pr', 'pri.permit_request_id', '=', 'pr.id')
@@ -421,13 +688,14 @@ class DozbalaghController extends Controller
             ->leftJoin('fleets as f', 'pr.fleet_id', '=', 'f.id')
             ->leftJoin('countries as renewal_country', 'pri.country_id', '=', 'renewal_country.id')
             ->where('pr.company_id', $companyId)
-            ->where('pr.status', 'issued')
-            ->where('pr.payment_status', 'settled')
+            ->whereIn('pr.status', ['issued', 'partially_issued', 'archived', 'processing'])
+            ->whereIn('pr.payment_status', ['settled', 'partially_settled'])
             ->whereNotNull('pri.d_serial_number')
             ->where('pri.d_serial_number', '<>', '')
             ->whereNotNull('pri.issued_at')
+            ->whereIn('pri.item_status', ['issued', 'archived', 'returned_unused', 'collected_for_renewal'])
             ->where(function ($renewable) {
-                $renewable->where('renewal_country.validity_days', 0)
+                $renewable->whereRaw('COALESCE(pri.permit_valid_until, pr.permit_valid_until) IS NULL')
                     ->orWhereDate(DB::raw('COALESCE(pri.permit_valid_until, pr.permit_valid_until)'), '<=', now()->toDateString());
             })
             ->where(function ($q) use ($code) {
@@ -435,6 +703,7 @@ class DozbalaghController extends Controller
                   ->orWhere('pr.serial_number', $code)
                   ->orWhere('pri.d_serial_number', $code);
             })
+            ->when($selectedItemId, fn ($query) => $query->where('pri.id', $selectedItemId))
             ->select([
                 'pr.*',
                 'pri.id as previous_item_id',
@@ -453,8 +722,75 @@ class DozbalaghController extends Controller
             ->first();
     }
 
+    private function normalizeRenewalLookupCode(string $code): string
+    {
+        $code = trim(strtr($code, [
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+        ]));
 
-public function store(Request $request)
+        return strtoupper($code);
+    }
+
+    private function parseRenewalLookupCode(string $code): array
+    {
+        $code = $this->normalizeRenewalLookupCode($code);
+
+        return preg_match('/^(KHD\d+)-(\d+)$/i', $code, $matches)
+            ? [strtoupper($matches[1]), (int) $matches[2]]
+            : [$code, null];
+    }
+
+    private function renewalSourcePayload(object $permit): array
+    {
+        $destinations = DB::table('permit_request_items as pri')
+            ->leftJoin('countries as c', 'pri.country_id', '=', 'c.id')
+            ->where('pri.id', $permit->previous_item_id)
+            ->select(
+                'pri.id', 'pri.country_id', 'c.name as country_name',
+                'c.validity_days as country_validity_days', 'pri.permit_type',
+                'pri.operation_type', 'pri.loading_origin', 'pri.loading_destination',
+                'pri.cits_code', 'pri.trip_code', 'pri.cmr_date', 'pri.receipt_code',
+                'pri.receipt_amount', 'pri.tir_carnet_number', 'pri.tir_carnet_date',
+                'pri.d_serial_number'
+            )->get();
+        $detail = $destinations->first();
+
+        return [
+            'id' => $permit->id,
+            'previous_item_id' => $permit->previous_item_id,
+            'd_code' => $permit->d_code,
+            'lookup_code' => $permit->d_code.'-'.$permit->previous_item_id,
+            'serial_number' => $permit->previous_item_serial_number,
+            'status' => $permit->status,
+            'payment_status' => $permit->payment_status,
+            'issued_at' => $permit->previous_item_issued_at,
+            'permit_valid_until' => $permit->previous_item_valid_until,
+            'validity_days' => (int) ($detail->country_validity_days ?? 30),
+            'driver_id' => $permit->driver_id,
+            'fleet_id' => $permit->fleet_id,
+            'cargo_type' => $detail->operation_type ?? '',
+            'permit_type' => $detail->permit_type ?? '',
+            'loading_origin' => $detail->loading_origin ?? '',
+            'loading_destination' => $detail->loading_destination ?? '',
+            'cits_code' => $detail->cits_code ?? '',
+            'trip_code' => $detail->trip_code ?? '',
+            'cmr_date' => $detail->cmr_date ?? '',
+            'receipt_code' => $detail->receipt_code ?? '',
+            'receipt_amount' => $detail->receipt_amount ?? '',
+            'tir_carnet_number' => $detail->tir_carnet_number ?? '',
+            'tir_carnet_date' => $detail->tir_carnet_date ?? '',
+            'driver_name' => trim(($permit->first_name_fa ?? '').' '.($permit->last_name_fa ?? '')),
+            'fleet_plate' => $permit->transit_plate ?: 'ناوگان نامشخص',
+            'countries_text' => $destinations->pluck('country_name')->implode('، '),
+            'destinations' => $destinations,
+        ];
+    }
+
+
+    public function store(Request $request, CargoDocumentRuleService $cargoRuleService)
     {
         if ($request->filled('receipt_amount')) {
             $request->merge(['receipt_amount' => str_replace(',', '', $request->receipt_amount)]);
@@ -479,14 +815,25 @@ public function store(Request $request)
             'fleet_id' => 'required|exists:fleets,id',
             'request_type' => 'required|in:new,renewal', 
             'previous_dozouleh_number' => 'required_if:request_type,renewal|nullable|string',
-            'cargo_type' => 'required|string',
+            'cargo_type' => 'required|string|exists:cargo_document_rules,cargo_type',
             'destinations' => 'required|array|min:1',
+            'destinations.*.country_id' => 'required|integer|exists:countries,id',
+            'destinations.*.permit_type' => 'required|string|max:100',
         ];
+
+        $validationRules = array_merge(
+            $validationRules,
+            $cargoRuleService->submissionRules($request->input('cargo_type'), 'store'),
+        );
 
         $request->validate($validationRules);
 
         $user = auth()->user();
         $companyId = optional($user->company)->id ?? $user->company_id ?? null;
+
+        $isAssociationMember = (bool) DB::table('companies')
+            ->where('id', $companyId)
+            ->value('is_association_member');
 
         $renewalSource = null;
 
@@ -495,6 +842,28 @@ public function store(Request $request)
             $renewalSource = $this->findRenewalSource($previousNumber, (int) $companyId);
 
             if (!$renewalSource) {
+                [$renewalLookupCode, $renewalItemId] = $this->parseRenewalLookupCode($previousNumber);
+                $validUntil = DB::table('permit_request_items as pri')
+                    ->join('permit_requests as pr', 'pri.permit_request_id', '=', 'pr.id')
+                    ->where('pr.company_id', $companyId)
+                    ->where(function ($query) use ($renewalLookupCode) {
+                        $query->where('pr.d_code', $renewalLookupCode)
+                            ->orWhere('pr.serial_number', $renewalLookupCode)
+                            ->orWhere('pri.d_serial_number', $renewalLookupCode);
+                    })
+                    ->when($renewalItemId, fn ($query) => $query->where('pri.id', $renewalItemId))
+                    ->selectRaw('COALESCE(pri.permit_valid_until, pr.permit_valid_until) as valid_until')
+                    ->orderByDesc('pri.id')
+                    ->value('valid_until');
+
+                if ($validUntil && \Carbon\Carbon::parse($validUntil)->isFuture()) {
+                    $jalaliDate = \Morilog\Jalali\Jalalian::fromCarbon(\Carbon\Carbon::parse($validUntil))->format('Y/m/d');
+
+                    return back()
+                        ->withErrors(['previous_dozouleh_number' => "این دوزوله تا تاریخ {$jalaliDate} اعتبار دارد و پیش از پایان اعتبار امکان تمدید آن وجود ندارد."])
+                        ->withInput();
+                }
+
                 return back()
                     ->withErrors(['previous_dozouleh_number' => 'این دوزوله هنوز صادر نهایی نشده است و امکان ثبت درخواست تمدید برای آن وجود ندارد. لطفاً پس از تأیید نهایی و صدور دوزوله، مجدداً اقدام نمایید.'])
                     ->withInput();
@@ -518,6 +887,7 @@ public function store(Request $request)
 
             // در متد ذخیره‌سازی فقط ناوگان کنترل می‌شود (راننده کاملاً آزاد شد)
             $activePermitCheck = PermitRequest::where('fleet_id', $request->fleet_id)
+                ->where('company_id', $companyId)
                 ->whereIn('status', $this->activePermitStatuses())
                 ->exists();
 
@@ -526,15 +896,44 @@ public function store(Request $request)
             }
         }
 
+        $destinationPermitTypeError = $this->destinationPermitTypeError($request->destinations);
+        if ($destinationPermitTypeError) {
+            return back()
+                ->withErrors(['destinations' => $destinationPermitTypeError])
+                ->withInput();
+        }
+
+        $activeDriver = Driver::active()
+            ->whereKey($request->driver_id)
+            ->where('current_company_id', $companyId)
+            ->exists();
+        if (! $activeDriver) {
+            return back()->withErrors(['driver_id' => 'راننده انتخاب‌شده فعال نیست یا به این شرکت تعلق ندارد.'])->withInput();
+        }
+
+        $activeFleet = Fleet::active()
+            ->whereKey($request->fleet_id)
+            ->where('company_id', $companyId)
+            ->exists();
+        if (! $activeFleet) {
+            return back()->withErrors(['fleet_id' => 'ناوگان انتخاب‌شده فعال نیست یا به این شرکت تعلق ندارد.'])->withInput();
+        }
+
+        $isRenewal = $request->input('request_type') === 'renewal';
+        $isFreeRenewal = $isRenewal && $isAssociationMember;
         $totalRequestAmount = 0;
         foreach ($request->destinations as $item) {
             $countryData = Country::findOrFail($item['country_id']);
-            $totalRequestAmount += ($countryData->price ?? 0);
+            if (!$isFreeRenewal) {
+                $totalRequestAmount += $this->countryPriceForCompany($countryData, $isAssociationMember);
+            }
         }
         
         $wallet = Wallet::where('company_id', $companyId)->first();
-        if (!$wallet || $wallet->balance < $totalRequestAmount) {
-            return back()->withErrors(['error' => 'موجودی کیف پول کافی نیست.']);
+        if (!$isFreeRenewal && (!$wallet || $wallet->available_balance < $totalRequestAmount)) {
+            return back()->withErrors(['error' => $isRenewal
+                ? 'برای تمدید دوزوله، موجودی کیف پول شرکت غیرعضو کافی نیست.'
+                : 'موجودی کیف پول کافی نیست.']);
         }
 
         $filePaths = [];
@@ -551,7 +950,7 @@ public function store(Request $request)
                 'driver_id'           => $request->driver_id,
                 'fleet_id'            => $request->fleet_id,
                 'status'              => 'pending',
-                'payment_status'      => 'reserved',
+                'payment_status'      => $isFreeRenewal ? 'settled' : 'reserved',
                 'total_amount'        => $totalRequestAmount,
 
                 'request_type'             => $request->input('request_type', 'new'),
@@ -559,14 +958,15 @@ public function store(Request $request)
                 'previous_d_code'          => $request->input('request_type') === 'renewal' ? ($renewalSource->d_code ?? null) : null,
                 'previous_serial_number'   => $request->input('request_type') === 'renewal' ? ($renewalSource->previous_item_serial_number ?? $renewalSource->serial_number ?? null) : null,
 
-                'company_note'        => $request->input('request_type') === 'renewal'
-                    ? 'تمدید دوزوله شماره ' . ($renewalSource->previous_item_serial_number ?? $renewalSource->serial_number ?? '-') . ' | مرجع: ' . ($renewalSource->d_code ?? $request->previous_dozouleh_number)
+                'company_note'        => $isRenewal
+                    ? ($isFreeRenewal ? 'تمدید رایگان دوزوله شماره ' : 'تمدید دوزوله با تعرفه غیرعضو شماره ') . ($renewalSource->previous_item_serial_number ?? $renewalSource->serial_number ?? '-') . ' | مرجع: ' . ($renewalSource->d_code ?? $request->previous_dozouleh_number)
                     : 'ثبت درخواست جدید',
             ]);
 
             foreach ($request->destinations as $item) {
                 $countryData = Country::findOrFail($item['country_id']);
-                DB::table('permit_request_items')->insert([
+                $countryPrice = $isFreeRenewal ? 0 : $this->countryPriceForCompany($countryData, $isAssociationMember);
+                $itemId = DB::table('permit_request_items')->insertGetId([
                     'permit_request_id'   => $permitRequest->id,
                     'country_id'          => $item['country_id'],
                     'permit_type'         => $item['permit_type'],
@@ -584,17 +984,41 @@ public function store(Request $request)
                     'cmr_file'            => $filePaths['cmr_file'] ?? null,
                     'tir_file'            => $filePaths['tir_file'] ?? null,
                     'declaration_file'    => $filePaths['declaration_file'] ?? null,
-                    'price'               => $countryData->price ?? 0,
+                    'price'               => $countryPrice,
+                    'reserved_amount'     => 0,
+                    'financial_status'    => $isFreeRenewal ? 'waived' : 'reserved',
+                    'financial_settled_at'=> $isFreeRenewal ? now() : null,
                     'allocation_status'   => 'pending',
                     'item_status'         => 'pending',
                     'renewed_from_item_id'=> $request->input('request_type') === 'renewal' ? ($renewalSource->previous_item_id ?? null) : null,
                     'created_at'          => now(),
                     'updated_at'          => now(),
                 ]);
-            }
 
-            $wallet->decrement('balance', $totalRequestAmount);
-            $wallet->increment('blocked_balance', $totalRequestAmount);
+                $permitItem = DB::table('permit_request_items')->where('id', $itemId)->first();
+                if (!$isFreeRenewal) {
+                    app(PermitItemFinancialService::class)->reserve(
+                        (int) $companyId,
+                        $itemId,
+                        $countryPrice,
+                        "بلوکه مبلغ درخواست دوزوله {$permitRequest->d_code} / ردیف {$itemId}"
+                    );
+                }
+                app(PermitItemAuditService::class)->record(
+                    $permitItem,
+                    'request_submitted',
+                    $isFreeRenewal
+                        ? 'درخواست تمدید رایگان توسط شرکت عضو ثبت شد و این ردیف از پرداخت معاف است.'
+                        : ($isRenewal
+                            ? 'درخواست تمدید توسط شرکت غیرعضو ثبت شد و مبلغ تعرفه در کیف پول بلوکه شد.'
+                            : 'درخواست دوزوله توسط شرکت ثبت و مبلغ آن در کیف پول بلوکه شد.'),
+                    [],
+                    ['price' => $countryPrice, 'status' => 'pending'],
+                    ['request_type' => $permitRequest->request_type],
+                    null,
+                    'pending',
+                );
+            }
 
             DB::commit();
             return redirect()->route('dozbalagh.index')->with('success', 'درخواست با موفقیت ثبت شد.');
@@ -676,9 +1100,25 @@ public function store(Request $request)
             $fleet = Fleet::find($fleetId);
             if (!$fleet) return response()->json(['success' => false, 'message' => 'ناوگان یافت نشد.'], 200);
 
+            if (! $fleet->isActive()) {
+                return response()->json(['success' => false, 'message' => 'این ناوگان توسط انجمن غیرفعال شده و امکان استفاده از آن وجود ندارد.'], 200);
+            }
+
+            $companyId = optional(auth()->user()->company)->id ?? auth()->user()->company_id;
+            if ($companyId && (int) $fleet->company_id !== (int) $companyId) {
+                return response()->json(['success' => false, 'message' => 'این ناوگان به شرکت شما تعلق ندارد.'], 200);
+            }
+
+            if ($driverId) {
+                if (! Driver::active()->whereKey($driverId)->where('current_company_id', $companyId)->exists()) {
+                    return response()->json(['success' => false, 'message' => 'راننده انتخاب‌شده غیرفعال است یا به این شرکت تعلق ندارد.'], 200);
+                }
+            }
+
             // دژ امنیتی تمدید: اگر حالت درخواست تمدید (renewal) باشد، نباید جلوی ناوگان گرفته شود
             if ($requestType !== 'renewal') {
                 $activeFleetPermit = PermitRequest::where('fleet_id', $fleetId)
+                    ->where('company_id', $companyId)
                     ->whereIn('status', $this->activePermitStatuses())
                     ->first();
                 if ($activeFleetPermit) {
@@ -686,6 +1126,7 @@ public function store(Request $request)
                 }
                 if ($driverId) {
                     $activeDriverPermit = PermitRequest::where('driver_id', $driverId)
+                        ->where('company_id', $companyId)
                         ->whereIn('status', $this->activePermitStatuses())
                         ->first();
                     if ($activeDriverPermit) {
@@ -695,25 +1136,32 @@ public function store(Request $request)
             }
 
             $allocationCodes = [];
-            $usedSerials = PermitRequest::whereNotNull('serial_number')->pluck('serial_number')->toArray();
+            $allocationCodeRows = [];
 
             foreach ($destinations as $dest) {
                 $countryId = $dest['country_id'] ?? null;
                 if (!$countryId) continue;
 
-                $batches = DB::table('dozbalagh_batches')->where('country_id', $countryId)->orderBy('id', 'asc')->get();
-                $allocatedSerial = 'بدون موجودی سریال';
+                $permitType = trim((string) ($dest['permit_type'] ?? ''));
+                $allocatedSerial = DB::table('dozbalagh_items as di')
+                    ->join('dozbalagh_batches as db', 'di.batch_id', '=', 'db.id')
+                    ->where('db.country_id', $countryId)
+                    ->whereNotNull('db.permit_type')
+                    ->where('db.permit_type', $permitType)
+                    ->where(function ($query) {
+                        $query->whereNull('di.lifecycle_status')
+                            ->orWhereIn('di.lifecycle_status', ['raw', 'in_stock']);
+                    })
+                    ->orderBy('di.serial_number')
+                    ->value('di.serial_number');
 
-                foreach ($batches as $b) {
-                    for ($s = $b->serial_start; $s <= $b->serial_end; $s++) {
-                        if (!in_array($s, $usedSerials)) {
-                            $allocatedSerial = $s;
-                            break;
-                        }
-                    }
-                    if ($allocatedSerial !== 'بدون موجودی سریال') break;
-                }
-                $allocationCodes[$countryId] = $allocatedSerial;
+                $allocationKey = $countryId . '|' . ($permitType !== '' ? $permitType : 'unclassified');
+                $allocationCodes[$allocationKey] = $allocatedSerial ?? 'بدون موجودی سریال';
+                $allocationCodeRows[] = [
+                    'country_id' => (int) $countryId,
+                    'permit_type' => $permitType ?: null,
+                    'serial_number' => $allocatedSerial,
+                ];
             }
 
             return response()->json([
@@ -722,7 +1170,8 @@ public function store(Request $request)
                 'data' => [
                     'plate_number' => $fleet->transit_plate ?? $fleet->plate_number,
                     'fleet_type'   => $fleet->truck_type ?? $fleet->fleet_type ?? 'نامشخص',
-                    'allocation_codes' => $allocationCodes
+                    'allocation_codes' => $allocationCodes,
+                    'allocation_code_rows' => $allocationCodeRows,
                 ]
             ]);
 
@@ -741,14 +1190,26 @@ public function store(Request $request)
             ->where('status', 'returned')
             ->firstOrFail();
 
+        if ($permitRequest->driver_id && ! Driver::active()->whereKey($permitRequest->driver_id)->exists()) {
+            return redirect()->route('dozbalagh.index')->withErrors(['error' => 'راننده این پرونده توسط انجمن غیرفعال شده و امکان اصلاح یا ارسال مجدد ندارد.']);
+        }
+
+        if ($permitRequest->fleet_id && ! Fleet::active()->whereKey($permitRequest->fleet_id)->exists()) {
+            return redirect()->route('dozbalagh.index')->withErrors(['error' => 'ناوگان این پرونده توسط انجمن غیرفعال شده و امکان اصلاح یا ارسال مجدد ندارد.']);
+        }
+
         $allWorldCountries = \App\Models\WorldCountry::orderBy('name_fa', 'asc')->get();
-        $drivers = \App\Models\Driver::where('current_company_id', $companyId)->get();
-        $fleets = \App\Models\Fleet::where('company_id', $companyId)->get();
+        $drivers = \App\Models\Driver::active()->where('current_company_id', $companyId)->get();
+        $fleets = \App\Models\Fleet::active()->where('company_id', $companyId)->get();
         $countries = \App\Models\Country::where('is_active', 1)->get(); 
-        $cargoRules = \App\Models\CargoDocumentRule::all()->keyBy('cargo_type');
+        $cargoRules = app(CargoDocumentRuleService::class)->frontendRules();
         
         $wallet = \App\Models\Wallet::where('company_id', $companyId)->first();
         $balance = $wallet ? $wallet->balance : 0;
+
+        $isAssociationMember = (bool) DB::table('companies')
+            ->where('id', $companyId)
+            ->value('is_association_member');
 
         $previousDestinations = DB::table('permit_request_items')
             ->where('permit_request_id', $id)
@@ -762,20 +1223,15 @@ public function store(Request $request)
 
         return view('company.dozbalagh.create', compact(
             'permitRequest', 'drivers', 'fleets', 'countries', 
-            'cargoRules', 'wallet', 'balance', 'allWorldCountries', 'previousDestinations'
+            'cargoRules', 'wallet', 'balance', 'allWorldCountries', 'previousDestinations', 'isAssociationMember'
         ));
     }
 
-    public function update(Request $request, $id)
+    public function update(Request $request, CargoDocumentRuleService $cargoRuleService, $id)
     {
         if ($request->filled('receipt_amount')) {
             $request->merge(['receipt_amount' => str_replace(',', '', $request->receipt_amount)]);
         }
-
-        $request->validate([
-            'cargo_type' => 'required|string',
-            'destinations' => 'required|array|min:1',
-        ]);
 
         $user = auth()->user();
         $companyId = optional($user->company)->id ?? $user->company_id ?? null;
@@ -784,6 +1240,35 @@ public function store(Request $request)
             ->where('company_id', $companyId)
             ->where('status', 'returned')
             ->firstOrFail();
+
+        $oldFirstItem = DB::table('permit_request_items')
+            ->where('permit_request_id', $permitRequest->id)
+            ->first();
+
+        $validationRules = [
+            'cargo_type' => 'required|string|exists:cargo_document_rules,cargo_type',
+            'destinations' => 'required|array|min:1',
+            'destinations.*.country_id' => 'required|integer|exists:countries,id',
+            'destinations.*.permit_type' => 'required|string|max:100',
+        ];
+
+        $validationRules = array_merge(
+            $validationRules,
+            $cargoRuleService->submissionRules(
+                $request->input('cargo_type'),
+                'update',
+                $oldFirstItem,
+            ),
+        );
+
+        $request->validate($validationRules);
+
+        $destinationPermitTypeError = $this->destinationPermitTypeError($request->destinations);
+        if ($destinationPermitTypeError) {
+            return back()
+                ->withErrors(['destinations' => $destinationPermitTypeError])
+                ->withInput();
+        }
 
         $quotaError = $this->quotaErrorForDestinations((int) $companyId, $request->destinations, $permitRequest->id);
         if ($quotaError) {
@@ -800,14 +1285,18 @@ public function store(Request $request)
 
         DB::beginTransaction();
         try {
-            $oldFirstItem = DB::table('permit_request_items')->where('permit_request_id', $id)->first();
+            $isAssociationMember = (bool) DB::table('companies')
+                ->where('id', $companyId)
+                ->value('is_association_member');
+            $isFreeRenewal = $permitRequest->request_type === 'renewal' && $isAssociationMember;
 
             DB::table('permit_request_items')->where('permit_request_id', $id)->delete();
 
             $totalRequestAmount = 0;
             foreach ($request->destinations as $item) {
                 $countryData = Country::findOrFail($item['country_id']);
-                $totalRequestAmount += ($countryData->price ?? 0);
+                $countryPrice = $isFreeRenewal ? 0 : $this->countryPriceForCompany($countryData, $isAssociationMember);
+                $totalRequestAmount += $countryPrice;
 
                 DB::table('permit_request_items')->insert([
                     'permit_request_id'   => $permitRequest->id,
@@ -827,7 +1316,7 @@ public function store(Request $request)
                     'cmr_file'            => $filePaths['cmr_file'] ?? ($oldFirstItem->cmr_file ?? null),
                     'tir_file'            => $filePaths['tir_file'] ?? ($oldFirstItem->tir_file ?? null),
                     'declaration_file'    => $filePaths['declaration_file'] ?? ($oldFirstItem->declaration_file ?? null),
-                    'price'               => $countryData->price ?? 0,
+                    'price'               => $countryPrice,
                     'allocation_status'   => 'pending',
                     'created_at'          => now(),
                     'updated_at'          => now(),
@@ -868,11 +1357,10 @@ public function store(Request $request)
     public function submitReturnLash(Request $request, $id)
     {
         $request->validate([
+            'disposition_type' => 'required|in:return_archive,unused',
             'return_image' => 'required|image|max:5120',
             'courier_name' => 'required|string|max:255',
             'courier_mobile' => 'required|string|max:30',
-            'courier_national_code' => 'nullable|string|max:30',
-            'courier_vehicle_plate' => 'nullable|string|max:100',
         ]);
 
         $user = auth()->user();
@@ -891,14 +1379,11 @@ public function store(Request $request)
             ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
             ->where('pri.id', $id)
             ->where('pr.company_id', $companyId)
-            ->where('pr.status', 'issued')
+            ->whereIn('pr.status', ['issued', 'partially_issued'])
             ->whereNotNull('pri.d_serial_number');
 
         if ($hasItemStatus) {
-            $permitItemQuery->where(function ($query) {
-                $query->whereNull('pri.item_status')
-                    ->orWhereNotIn('pri.item_status', ['lost', 'collected', 'archived']);
-            });
+            $permitItemQuery->whereIn('pri.item_status', ['issued', 'transferred_in']);
         } else {
             $permitItemQuery->where(function ($query) {
                 $query->whereNull('pri.return_status')
@@ -917,30 +1402,41 @@ public function store(Request $request)
         $fileName = $serial . '-company-return-' . time() . '.' . $file->getClientOriginalExtension();
         $imagePath = $file->storeAs('permits/company-returns', $fileName, 'public');
         $deliveryCode = (string) random_int(100000, 999999);
-        $smsSent = $this->sendCourierDeliveryCode(
-            $request->courier_mobile,
-            $deliveryCode,
-            $serial
-        );
+        $smsSent = false;
 
         if ($hasCompanyReturnFields) {
-            DB::table('permit_request_items')->where('id', $permitItem->id)->update([
+            $updated = DB::table('permit_request_items')
+                ->where('id', $permitItem->id)
+                ->whereIn('item_status', ['issued', 'transferred_in'])
+                ->update([
+                'item_status' => 'company_returned',
+                'disposition_type' => $request->disposition_type,
+                'disposition_note' => 'انتخاب شرکت هنگام ثبت و ارسال تصویر لاشه',
+                'disposition_changed_by_user_id' => auth()->id(),
+                'disposition_changed_at' => now(),
                 'company_return_image' => $imagePath,
                 'courier_name' => $request->courier_name,
                 'courier_mobile' => $request->courier_mobile,
-                'courier_national_code' => $request->courier_national_code,
-                'courier_vehicle_plate' => $request->courier_vehicle_plate,
+                'courier_national_code' => null,
+                'courier_vehicle_plate' => null,
                 'courier_delivery_code' => $deliveryCode,
-                'courier_code_sent_at' => $smsSent ? now() : null,
+                'courier_code_sent_at' => null,
                 'company_return_submitted_at' => now(),
                 'updated_at' => now(),
             ]);
+            if ($updated !== 1) {
+                Storage::disk('public')->delete($imagePath);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'تعیین تکلیف این دوزوله قبلاً ثبت شده است و امکان تولید کد جدید ندارد.',
+                ], 409);
+            }
         } else {
             $fallbackMeta = json_encode([
                 'cn' => Str::limit((string) $request->courier_name, 60, ''),
                 'cm' => Str::limit((string) $request->courier_mobile, 24, ''),
-                'nc' => Str::limit((string) $request->courier_national_code, 24, ''),
-                'vp' => Str::limit((string) $request->courier_vehicle_plate, 40, ''),
+                'nc' => '',
+                'vp' => '',
                 'dc' => $deliveryCode,
             ], JSON_UNESCAPED_UNICODE);
 
@@ -952,14 +1448,44 @@ public function store(Request $request)
             ]);
         }
 
+        $smsSent = $this->sendCourierDeliveryCode(
+            $request->courier_mobile,
+            $deliveryCode,
+            $serial
+        );
+        if ($hasCompanyReturnFields && $smsSent) {
+            DB::table('permit_request_items')->where('id', $permitItem->id)->update([
+                'courier_code_sent_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
         DB::table('permit_requests')->where('id', $permitItem->permit_request_id)->update([
             'company_note' => 'لاشه یکی از مجوزهای این پرونده توسط شرکت ثبت و برای تحویل به انجمن به پیک سپرده شد.',
             'updated_at' => now(),
         ]);
 
+        app(PermitItemAuditService::class)->record(
+            $permitItem,
+            'company_lash_submitted',
+            'شرکت تصویر لاشه و مشخصات پیک را ثبت کرد.',
+            ['disposition_type' => $permitItem->disposition_type ?? null],
+            [
+                'disposition_type' => $request->disposition_type,
+                'company_return_image' => $imagePath,
+                'courier_name' => $request->courier_name,
+                'courier_mobile' => $request->courier_mobile,
+            ],
+            ['delivery_code_created' => true],
+            $permitItem->item_status ?? null,
+            'company_returned',
+        );
+
         // تحویل لاشه به شرکت، پایان ردیابی عملیاتی این سفر است.
         DB::table('dozbalagh_items')
             ->where('serial_number', $permitItem->d_serial_number)
+            ->where('country_id', $permitItem->country_id)
+            ->where('permit_type', $permitItem->permit_type)
             ->update(['returned_at' => now(), 'updated_at' => now()]);
 
         return response()->json([
@@ -1020,8 +1546,9 @@ public function store(Request $request)
                 ->join('permit_requests as pr', 'pr.id', '=', 'pri.permit_request_id')
                 ->where('pri.id', $id)
                 ->where('pr.company_id', $companyId)
-                ->where('pr.status', 'issued')
+                ->whereIn('pr.status', ['issued', 'partially_issued'])
                 ->whereNotNull('pri.d_serial_number')
+                ->when($hasItemStatus, fn ($query) => $query->whereIn('pri.item_status', ['issued', 'transferred_in']))
                 ->select('pri.*', 'pr.driver_id', 'pr.fleet_id', 'pr.d_code')
                 ->lockForUpdate()
                 ->first();
@@ -1036,15 +1563,19 @@ public function store(Request $request)
 
             if ($hasLostFields) {
                 DB::table('permit_request_items')->where('id', $permitItem->id)->update([
-                    'item_status' => 'lost',
+                    'item_status' => 'lost_reported',
+                    'disposition_type' => 'lost',
+                    'disposition_note' => $request->lost_reason,
+                    'disposition_changed_by_user_id' => auth()->id(),
+                    'disposition_changed_at' => now(),
                     'lost_reported_at' => now(),
                     'lost_reason' => $request->lost_reason,
-                    'closed_at' => now(),
+                    'closed_at' => null,
                     'updated_at' => now(),
                 ]);
             } else {
                 DB::table('permit_request_items')->where('id', $permitItem->id)->update([
-                    'return_status' => 'lost',
+                    'return_status' => 'lost_reported',
                     'rejection_reason' => Str::limit((string) $request->lost_reason, 250, ''),
                     'updated_at' => now(),
                 ]);
@@ -1055,60 +1586,16 @@ public function store(Request $request)
                 'updated_at' => now(),
             ]);
 
-            if (!empty($permitItem->d_serial_number)) {
-                DB::table('dozbalagh_items')
-                    ->where('serial_number', $permitItem->d_serial_number)
-                    ->update([
-                        'lifecycle_status' => 'lost',
-                        'returned_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-            }
-
-            $activeItems = DB::table('permit_request_items')
-                ->where('permit_request_id', $permitItem->permit_request_id)
-                ->whereNotNull('d_serial_number')
-                ->when($hasItemStatus, function ($query) {
-                    $query->where(function ($query) {
-                        $query->whereNull('item_status')
-                            ->orWhereNotIn('item_status', ['lost', 'collected', 'archived']);
-                    });
-                }, function ($query) {
-                    $query->where(function ($query) {
-                        $query->whereNull('return_status')
-                            ->orWhereNotIn('return_status', ['lost', 'collected', 'archived']);
-                    });
-                })
-                ->count();
-
-            if ($activeItems === 0) {
-                $parentUpdate = [
-                    'status' => 'lost',
-                    'lost_reported_at' => now(),
-                    'lost_reason' => $request->lost_reason,
-                    'updated_at' => now(),
-                ];
-
-                if (Schema::hasColumn('permit_requests', 'closed_at')) {
-                    $parentUpdate['closed_at'] = now();
-                }
-
-                DB::table('permit_requests')->where('id', $permitItem->permit_request_id)->update($parentUpdate);
-
-                if ($permitItem->driver_id && Schema::hasColumn('drivers', 'is_blocked')) {
-                    DB::table('drivers')
-                        ->where('id', $permitItem->driver_id)
-                        ->orWhere('national_code', $permitItem->driver_id)
-                        ->update(['is_blocked' => false]);
-                }
-
-                if ($permitItem->fleet_id && Schema::hasColumn('fleets', 'is_blocked')) {
-                    DB::table('fleets')
-                        ->where('id', $permitItem->fleet_id)
-                        ->orWhere('smart_card_number', $permitItem->fleet_id)
-                        ->update(['is_blocked' => false]);
-                }
-            }
+            app(PermitItemAuditService::class)->record(
+                $permitItem,
+                'lost_reported_by_company',
+                $request->lost_reason ?: 'مفقودی دوزوله توسط شرکت اعلام شد و منتظر تصمیم انجمن است.',
+                [],
+                ['item_status' => 'lost_reported', 'disposition_type' => 'lost'],
+                [],
+                $permitItem->item_status ?? null,
+                'lost_reported',
+            );
 
             DB::commit();
             return response()->json([
@@ -1122,5 +1609,122 @@ public function store(Request $request)
                 'message' => 'خطا در ثبت مفقودی: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    public function nominatePickupCourier(
+        Request $request,
+        int $id,
+        SmsService $sms,
+        PermitItemAuditService $audit,
+    ) {
+        $validated = $request->validate([
+            'courier_name' => 'required|string|max:255',
+            'courier_mobile' => 'required|string|max:30',
+        ]);
+        $user = auth()->user();
+        $companyId = optional($user->company)->id ?? $user->company_id;
+        $otp = (string) random_int(10000, 99999);
+
+        $missionId = DB::transaction(function () use ($request, $id, $validated, $companyId, $otp, $audit) {
+            $item = DB::table('permit_request_items as item')
+                ->join('permit_requests as permit', 'permit.id', '=', 'item.permit_request_id')
+                ->where('item.id', $id)
+                ->where('permit.company_id', $companyId)
+                ->whereNotNull('item.d_serial_number')
+                ->whereIn('item.item_status', ['issued', 'transferred_in'])
+                ->whereNotExists(function ($query) {
+                    $query->selectRaw('1')
+                        ->from('permit_courier_missions as completed_mission')
+                        ->whereColumn('completed_mission.permit_request_item_id', 'item.id')
+                        ->where('completed_mission.direction', 'association_to_company')
+                        ->where('completed_mission.status', 'completed');
+                })
+                ->select('item.*', 'permit.company_id', 'permit.d_code')
+                ->lockForUpdate()
+                ->first();
+            abort_if(!$item, 404);
+
+            DB::table('permit_courier_missions')
+                ->where('permit_request_item_id', $id)
+                ->where('direction', 'association_to_company')
+                ->where('status', 'pending')
+                ->update(['status' => 'cancelled', 'updated_at' => now()]);
+
+            $missionId = DB::table('permit_courier_missions')->insertGetId([
+                'permit_request_item_id' => $id,
+                'company_id' => $companyId,
+                'direction' => 'association_to_company',
+                'purpose' => 'issued_permit_pickup',
+                'status' => 'pending',
+                'courier_name' => $validated['courier_name'],
+                'courier_mobile' => $validated['courier_mobile'],
+                'courier_national_code' => null,
+                'courier_vehicle_plate' => null,
+                'identity_image' => null,
+                'otp_hash' => hash('sha256', $otp),
+                'delivery_code' => $otp,
+                'otp_sent_at' => null,
+                'otp_expires_at' => null,
+                'created_by_user_id' => auth()->id(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $audit->record($item, 'outbound_courier_assigned', 'شرکت پیک دریافت دوزوله صادرشده را معرفی کرد.', [], [
+                'mission_id' => $missionId,
+                'courier_name' => $validated['courier_name'],
+                'courier_mobile' => $validated['courier_mobile'],
+            ]);
+            DB::table('permit_request_items')->where('id', $id)->update(['updated_at' => now()]);
+            return $missionId;
+        });
+
+        $smsSent = $sms->send($validated['courier_mobile'], "کد تحویل دوزوله از انجمن: {$otp}", 'permit_company_pickup_courier');
+        if ($smsSent) {
+            DB::table('permit_courier_missions')->where('id', $missionId)->update([
+                'otp_sent_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $redirect = back()->with('success', $smsSent
+            ? 'پیک معرفی و کد تحویل برای او پیامک شد.'
+            : 'پیک ثبت شد، اما پیامک به دلیل اختلال یا اعتبار ناکافی ارسال نشد.');
+        $redirect->with('courier_sms_sent', $smsSent);
+        return $redirect;
+    }
+
+    public function resendPickupCourierCode(
+        int $mission,
+        SmsService $sms,
+    ) {
+        $user = auth()->user();
+        $companyId = optional($user->company)->id ?? $user->company_id;
+        $row = DB::table('permit_courier_missions as mission')
+            ->join('permit_request_items as item', 'item.id', '=', 'mission.permit_request_item_id')
+            ->join('permit_requests as permit', 'permit.id', '=', 'item.permit_request_id')
+            ->where('mission.id', $mission)
+            ->where('mission.company_id', $companyId)
+            ->where('permit.company_id', $companyId)
+            ->where('mission.direction', 'association_to_company')
+            ->where('mission.status', 'pending')
+            ->select('mission.*')
+            ->first();
+        abort_if(!$row, 404);
+
+        $otp = (string) random_int(10000, 99999);
+        $smsSent = $sms->send($row->courier_mobile, "کد تحویل دوزوله از انجمن: {$otp}", 'permit_company_pickup_courier_resend');
+        DB::table('permit_courier_missions')->where('id', $row->id)->update([
+            'otp_hash' => hash('sha256', $otp),
+            'delivery_code' => $otp,
+            'otp_sent_at' => $smsSent ? now() : null,
+            'otp_expires_at' => null,
+            'updated_at' => now(),
+        ]);
+
+        $redirect = back()->with('success', $smsSent
+            ? 'کد جدید برای پیک پیامک شد.'
+            : 'ارسال پیامک انجام نشد؛ کد جدید را مستقیماً در اختیار پیک قرار دهید.');
+        $redirect->with('courier_sms_sent', $smsSent);
+        return $redirect;
     }
 }

@@ -1,9 +1,46 @@
 @extends('layouts.admin') 
 
+@section('header_title', 'مدیریت ناوگان')
+@section('hero_subtitle', 'مدیریت جامع ناوگان، وضعیت فعالیت و اتصال وسایل نقلیه به شرکت‌ها')
+
 @section('content')
-<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6" dir="rtl">
+@php
+    $fleetTotal = $fleets->count();
+    $activeFleets = $fleets->filter(fn ($fleet) => (bool) ($fleet->is_active ?? true))->count();
+    $inactiveFleets = $fleetTotal - $activeFleets;
+    $assignedFleets = $fleets->filter(fn ($fleet) => (bool) ($fleet->is_active ?? true))->whereNotNull('company_id')->count();
+    $unassignedFleets = $activeFleets - $assignedFleets;
+    $activeDozbalaghs = (int) $fleets->sum(fn ($fleet) => (int) ($fleet->active_dozbalaghs ?? 0));
+@endphp
+
+<div class="mx-auto max-w-7xl space-y-5" dir="rtl">
+    <section class="relative overflow-hidden rounded-2xl px-5 py-4 text-white shadow-lg sm:px-6 sm:py-5" style="background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0369a1 100%);">
+        <div class="pointer-events-none absolute -left-12 -top-16 h-40 w-40 rounded-full bg-white opacity-10"></div>
+        <div class="pointer-events-none absolute -bottom-20 right-1/3 h-36 w-36 rounded-full bg-cyan-300 opacity-10"></div>
+        <div class="relative flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div class="flex items-center gap-3.5">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white bg-opacity-15 ring-1 ring-white ring-opacity-20">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 17h2l1.5-5h11L19 17h2m-16 0v2h2m12-2v2h-2M7 12l1.5-4h7L17 12M5 17h14M8 19h8"/></svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black sm:text-2xl">مدیریت ناوگان</h1>
+                    <p class="mt-1 text-xs font-semibold text-blue-100">مدیریت ناوگان، وضعیت دسترسی و اتصال وسایل نقلیه به شرکت‌ها</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6 xl:min-w-[54rem]">
+                <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">کل ناوگان</span><strong class="text-lg font-black">{{ number_format($fleetTotal) }}</strong></div>
+                <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">ناوگان فعال</span><strong class="text-lg font-black text-emerald-300">{{ number_format($activeFleets) }}</strong></div>
+                <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">غیرفعال‌شده</span><strong class="text-lg font-black text-rose-200">{{ number_format($inactiveFleets) }}</strong></div>
+                <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">متصل به شرکت</span><strong class="text-lg font-black text-cyan-200">{{ number_format($assignedFleets) }}</strong></div>
+                <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">ناوگان آزاد</span><strong class="text-lg font-black text-violet-200">{{ number_format($unassignedFleets) }}</strong></div>
+                <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">دوزوله فعال</span><strong class="text-lg font-black text-emerald-300">{{ number_format($activeDozbalaghs) }}</strong></div>
+            </div>
+        </div>
+    </section>
+
+<section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
     <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold text-slate-800">مدیریت جامع ناوگان سامانه</h2>
+        <h2 class="text-xl font-bold text-slate-800">فهرست ناوگان سامانه</h2>
         <span class="bg-blue-100 text-blue-800 text-xs font-bold px-3 py-1 rounded-full">کل ناوگان: {{ count($fleets) }}</span>
     </div>
 
@@ -30,13 +67,14 @@
                     <th class="px-4 py-3 text-center">پلاک ترانزیت (سیستمی)</th>
                     <th class="px-4 py-3 text-center">کارت هوشمند</th>
                     <th class="px-4 py-3 text-center">دوزوله های فعال</th>
+                    <th class="px-4 py-3 text-center">وضعیت دسترسی</th>
                     <th class="px-4 py-3">شرکت فعلی (انتقال ناوگان)</th>
                     <th class="px-4 py-3 text-center">عملیات خطرناک</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
                 @forelse($fleets as $fleet)
-                <tr class="hover:bg-slate-50 transition fleet-row">
+                <tr class="transition fleet-row {{ !($fleet->is_active ?? true) ? 'bg-rose-50/30 hover:bg-rose-50/50' : 'hover:bg-slate-50' }}">
                     
                     <td class="px-4 py-3 text-center search-target" dir="ltr">
                         <x-iran-plate :plate="$fleet->transit_plate" size="sm" />
@@ -87,11 +125,19 @@
                         @endif
                     </td>
                     
+                    <td class="px-4 py-3 text-center">
+                        @if($fleet->is_active ?? true)
+                            <span class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">فعال</span>
+                        @else
+                            <span class="inline-flex rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-bold text-rose-700">غیرفعال</span>
+                        @endif
+                    </td>
+
                     <td class="px-4 py-3">
                         <form action="{{ route('admin.fleets.update_company', $fleet->id) }}" method="POST" class="flex items-center gap-2">
                             @csrf
                             @method('PUT')
-                            <select name="company_id" class="border border-slate-300 rounded-md px-2 py-1 text-sm focus:ring-sky-500 min-w-[260px] flex-1">
+                            <select name="company_id" @disabled(!($fleet->is_active ?? true)) class="border border-slate-300 rounded-md px-2 py-1 text-sm focus:ring-sky-500 min-w-[260px] flex-1 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
                                 <option value="" class="text-rose-500 font-bold">-- 🛑 آزاد (بدون شرکت) --</option>
                                 @foreach($companies as $company)
                                     <option value="{{ $company->id }}" {{ $fleet->company_id == $company->id ? 'selected' : '' }}>
@@ -99,27 +145,34 @@
                                     </option>
                                 @endforeach
                             </select>
-                            <button type="submit" class="bg-sky-100 text-sky-700 hover:bg-sky-200 px-3 py-1 rounded text-xs font-bold transition shadow-sm">تغییر</button>
+                            <button type="submit" @disabled(!($fleet->is_active ?? true)) class="px-3 py-1 rounded text-xs font-bold transition shadow-sm {{ ($fleet->is_active ?? true) ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' : 'cursor-not-allowed bg-slate-100 text-slate-400' }}">تغییر</button>
                         </form>
                     </td>
 
                     <td class="px-4 py-3 text-center">
-                        <form action="{{ route('admin.fleets.destroy', $fleet->id) }}" method="POST" class="delete-form">
-                            @csrf
-                            @method('DELETE')
-                            <button type="button" class="delete-btn bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 px-3 py-1 rounded text-xs font-bold transition">حذف سیستمی</button>
-                        </form>
+                        <div class="flex flex-wrap items-center justify-center gap-2">
+                            <form action="{{ route('admin.fleets.toggle_status', $fleet->id) }}" method="POST" class="status-form" data-status="{{ ($fleet->is_active ?? true) ? 'active' : 'inactive' }}">
+                                @csrf
+                                @method('PATCH')
+                                <button type="submit" class="rounded px-3 py-1 text-xs font-bold transition {{ ($fleet->is_active ?? true) ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' }}">{{ ($fleet->is_active ?? true) ? 'غیرفعال‌سازی' : 'فعال‌سازی' }}</button>
+                            </form>
+                            <form action="{{ route('admin.fleets.destroy', $fleet->id) }}" method="POST" class="delete-form">
+                                @csrf
+                                @method('DELETE')
+                                <button type="button" class="delete-btn bg-rose-50 text-rose-600 hover:bg-rose-100 hover:text-rose-700 px-3 py-1 rounded text-xs font-bold transition">حذف سیستمی</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 @empty
                 <tr id="no_records_row">
-                    <td colspan="5" class="p-8 text-center text-slate-400 font-bold">هیچ ناوگانی در سیستم ثبت نشده است.</td>
+                    <td colspan="6" class="p-8 text-center text-slate-400 font-bold">هیچ ناوگانی در سیستم ثبت نشده است.</td>
                 </tr>
                 @endforelse
                 
                 {{-- ردیف خالی برای زمان جستجو --}}
                 <tr id="search_empty_row" class="hidden">
-                    <td colspan="5" class="p-8 text-center text-slate-400 font-bold">هیچ ناوگانی با مشخصات وارد شده یافت نشد.</td>
+                    <td colspan="6" class="p-8 text-center text-slate-400 font-bold">هیچ ناوگانی با مشخصات وارد شده یافت نشد.</td>
                 </tr>
             </tbody>
         </table>
@@ -128,6 +181,7 @@
     {{-- نوار ابزار صفحه‌بندی ۱۰ تایی --}}
     <div id="pagination_controls" class="flex justify-center items-center py-4 bg-slate-50 border-t border-slate-200 flex-wrap gap-1 mt-4 rounded-xl">
         </div>
+</section>
 </div>
 
 <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
@@ -154,6 +208,29 @@
                     if (result.isConfirmed) {
                         form.submit();
                     }
+                });
+            });
+        });
+
+        const statusForms = document.querySelectorAll('.status-form');
+        statusForms.forEach(form => {
+            form.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const isActive = this.dataset.status === 'active';
+                Swal.fire({
+                    title: isActive ? 'غیرفعال‌سازی ناوگان؟' : 'فعال‌سازی ناوگان؟',
+                    text: isActive
+                        ? 'این ناوگان در فرایندهای جدید قابل انتخاب نخواهد بود.'
+                        : 'این ناوگان دوباره در فرایندهای جدید قابل انتخاب خواهد شد.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: isActive ? '#d97706' : '#059669',
+                    cancelButtonColor: '#64748b',
+                    confirmButtonText: isActive ? 'بله، غیرفعال شود' : 'بله، فعال شود',
+                    cancelButtonText: 'انصراف',
+                    fontFamily: 'Vazirmatn'
+                }).then(result => {
+                    if (result.isConfirmed) form.submit();
                 });
             });
         });

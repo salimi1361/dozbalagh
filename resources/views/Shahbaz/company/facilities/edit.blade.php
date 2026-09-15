@@ -6,9 +6,9 @@
 @php($savedFacilities=collect(old('facilities',$facility->facilities ?? []))->keyBy('type'))
 <form dir="rtl" method="POST" action="{{ route('company.shahbaz.facilities.update') }}" class="mx-auto max-w-6xl space-y-5">
     @csrf @method('PUT')
-    <section class="flex flex-wrap items-center justify-between gap-4 rounded-3xl border bg-white p-6 shadow-sm">
+    <section class="company-page-header flex flex-wrap items-center justify-between gap-4 rounded-3xl border p-6 shadow-sm">
         <div><h1 class="text-xl font-black">محل فعالیت و امکانات شرکت</h1><p class="mt-2 text-sm text-slate-500">نشانی پایه از پرونده مشترک شرکت خوانده می‌شود و جزئیات محل در ماژول شحباز نگهداری خواهد شد.</p></div>
-        <a href="{{ route('company.shahbaz.dossier.show') }}" class="rounded-xl border px-5 py-3 font-bold">بازگشت به پرونده</a>
+        <a href="{{ route('company.shahbaz.dossier.show') }}" class="company-header-back-link">بازگشت به پرونده</a>
     </section>
     @if(session('success'))<div class="rounded-xl bg-emerald-50 p-4 font-bold text-emerald-800">{{ session('success') }}</div>@endif
     @if($errors->any())<div class="rounded-xl bg-rose-50 p-4 text-rose-800"><ul class="list-inside list-disc">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif

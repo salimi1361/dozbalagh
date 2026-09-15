@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
             'panel.features' => \App\Http\Middleware\EnsurePanelFeatureEnabled::class,
             'cmr.company-scope' => \App\Http\Middleware\EnsureCmrCompanyScope::class,
+            'driver.active' => \App\Http\Middleware\EnsureDriverIsActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -50,7 +50,7 @@ Route::prefix('v1/driver')->group(function () {
     });
 
     // ۲. مسیرهای محافظت‌شده (نیازمند لاگین و توکن راننده)
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'driver.active'])->group(function () {
         
         // لوکیشن و رویدادها
         Route::post('/event/log', [TrackingController::class, 'logEvent']); // ثبت رویداد و ارسال نوتیف
@@ -72,6 +72,7 @@ Route::prefix('v1/driver')->group(function () {
         Route::post('/pwa-installations', [PwaInstallationController::class, 'store']);
         Route::post('/app-installations', [MobileAppInstallationController::class, 'store']);
         Route::post('/auth/device-pin', [RecognizedDeviceAuthController::class, 'setPin'])->middleware('throttle:10,1');
+        Route::get('/auth/profile', [AuthController::class, 'profile'])->middleware('throttle:30,1');
         Route::get('/startup-announcements', [StartupAnnouncementController::class, 'index']);
         Route::post('/startup-announcements/{announcement}/seen', [StartupAnnouncementController::class, 'seen']);
         Route::post('/startup-announcements/{announcement}/acknowledge', [StartupAnnouncementController::class, 'acknowledge']);

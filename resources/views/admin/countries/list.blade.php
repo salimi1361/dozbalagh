@@ -1,5 +1,7 @@
 @extends('layouts.admin')
 
+@section('header_title', 'مدیریت کشورهای مقصد')
+
 @section('content')
 <div class="p-6">
     <div class="flex justify-between mb-4">

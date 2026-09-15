@@ -10,21 +10,21 @@
 @section('content')
 <div class="max-w-7xl mx-auto">
     
-    {{-- هدر سرمه‌ای/مشکی شیک --}}
-    <div class="bg-slate-950 rounded-3xl p-6 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-slate-800 shadow-lg relative overflow-hidden">
-        <div class="absolute left-0 top-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none"></div>
+    {{-- هدر سبز هماهنگ با صفحه دوزوله‌های صادرشده --}}
+    <div class="company-page-header rounded-3xl p-6 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-lg">
+        <div class="absolute left-0 top-0 w-32 h-32 bg-emerald-300/10 rounded-full blur-2xl pointer-events-none"></div>
         <div class="z-10">
             <h1 class="text-xl font-black text-white">تاریخچه درخواست‌های دوزوله</h1>
-            <p class="text-xs text-slate-400 font-medium mt-1.5">لیست تمام مجوزهای ثبت شده به همراه آخرین وضعیت بررسی و تخصیص</p>
+            <p class="text-xs text-emerald-100 font-medium mt-1.5">لیست تمام مجوزهای ثبت شده به همراه آخرین وضعیت بررسی و تخصیص</p>
         </div>
         
         @if($requestWindowStatus['allowed'])
-            <a href="{{ route('dozbalagh.create') }}" class="z-10 flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-emerald-900/20 transition shrink-0">
+            <a href="{{ route('dozbalagh.create') }}" class="z-10 flex items-center justify-center gap-2 px-5 py-2.5 bg-white/95 hover:bg-white text-emerald-800 font-bold text-sm rounded-xl shadow-lg shadow-emerald-950/20 transition shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 ثبت درخواست جدید
             </a>
         @else
-            <button type="button" disabled class="z-10 flex items-center justify-center gap-2 px-5 py-2.5 bg-slate-700 text-slate-300 font-bold text-sm rounded-xl cursor-not-allowed shrink-0">
+            <button type="button" disabled class="z-10 flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-950/40 text-emerald-100 font-bold text-sm rounded-xl cursor-not-allowed shrink-0">
                 ثبت درخواست بسته است
             </button>
         @endif
@@ -129,7 +129,7 @@
                             $statusLabels = [
                                 'pending' => ['در حال بررسی', 'bg-amber-50 text-amber-700 border-amber-100'],
                                 'approved' => ['تایید شده', 'bg-emerald-50 text-emerald-700 border-emerald-100'],
-                                'issued' => ['صادر شده / معتبر', 'bg-sky-50 text-sky-700 border-sky-100'],
+                                'issued' => ['چاپ‌شده و آماده تحویل', 'bg-sky-50 text-sky-700 border-sky-100'],
                                 'rejected' => ['رد شده', 'bg-rose-50 text-rose-700 border-rose-100'],
                                 'returned' => ['رد شده', 'bg-rose-50 text-rose-700 border-rose-100'],
                                 'collected' => ['لاشه تحویل شده', 'bg-slate-100 text-slate-700 border-slate-200'],
@@ -393,6 +393,20 @@
                                                             <a href="{{ route('company.dozbalagh.copy', $subItem->id) }}" target="_blank" rel="noopener" class="rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-sky-700 transition hover:bg-sky-100">مشاهده و چاپ نسخه شرکت</a>
                                                         </div>
                                                     @endif
+                                                    @if(!empty($subItem->d_serial_number))
+                                                        <details class="rounded-lg border border-indigo-100 bg-indigo-50 p-2">
+                                                            <summary class="cursor-pointer text-xs font-black text-indigo-700">معرفی پیک برای دریافت دوزوله از انجمن</summary>
+                                                            <form method="POST" enctype="multipart/form-data" action="{{ route('company.dozbalagh.pickup_courier',$subItem->id) }}" class="mt-3 grid gap-2 sm:grid-cols-2">
+                                                                @csrf
+                                                                <input required name="courier_name" class="rounded-lg border-indigo-200 text-xs" placeholder="نام و نام خانوادگی پیک">
+                                                                <input required name="courier_mobile" class="rounded-lg border-indigo-200 text-xs" placeholder="شماره موبایل">
+                                                                <input required name="courier_national_code" class="rounded-lg border-indigo-200 text-xs" placeholder="کد ملی">
+                                                                <input name="courier_vehicle_plate" class="rounded-lg border-indigo-200 text-xs" placeholder="پلاک وسیله">
+                                                                <input type="file" name="identity_image" accept="image/*" class="rounded-lg border bg-white p-1 text-xs sm:col-span-2">
+                                                                <button class="rounded-lg bg-indigo-600 py-2 text-xs font-black text-white sm:col-span-2">ثبت پیک و ارسال کد تحویل</button>
+                                                            </form>
+                                                        </details>
+                                                    @endif
                                                     @if(!empty($subItem->company_return_image))
                                                         <div class="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-2 text-emerald-800">
                                                             <span>لاشه ثبت شده</span>
@@ -403,6 +417,49 @@
                                                             </a>
                                                         </div>
                                                     @endif
+                                                    @php
+                                                        $itemTimeline = \Illuminate\Support\Facades\Schema::hasTable('permit_item_events')
+                                                            ? \Illuminate\Support\Facades\DB::table('permit_item_events')
+                                                                ->where('permit_request_item_id', $subItem->id)
+                                                                ->orderByDesc('id')
+                                                                ->limit(20)
+                                                                ->get()
+                                                            : collect();
+                                                    @endphp
+                                                    <details class="rounded-lg border border-slate-200 bg-white p-2">
+                                                        <summary class="cursor-pointer text-xs font-black text-slate-700">تاریخچه پیگیری این دوزوله ({{ $itemTimeline->count() }})</summary>
+                                                        <div class="mt-3 space-y-2 border-r-2 border-sky-100 pr-3">
+                                                            @forelse($itemTimeline as $timelineEvent)
+                                                                @php
+                                                                    $timelineData = json_decode($timelineEvent->after_data ?: '{}', true) ?: [];
+                                                                    $timelineCourierName = $timelineData['courier_name'] ?? null;
+                                                                    $timelineCourierMobile = $timelineData['courier_mobile'] ?? null;
+                                                                    if (in_array($timelineEvent->event_type, ['company_lash_submitted', 'lash_received', 'unused_return_received'], true)) {
+                                                                        $timelineCourierName = $timelineCourierName ?: ($subItem->courier_name ?? null);
+                                                                        $timelineCourierMobile = $timelineCourierMobile ?: ($subItem->courier_mobile ?? null);
+                                                                    }
+                                                                    $showTimelineCourierInfo = ($timelineCourierName || $timelineCourierMobile) && in_array($timelineEvent->event_type, ['outbound_courier_assigned', 'outbound_courier_completed', 'company_lash_submitted', 'lash_received', 'unused_return_received'], true);
+                                                                @endphp
+                                                                <div class="rounded-lg bg-slate-50 p-2">
+                                                                    <div class="flex justify-between gap-2">
+                                                                        <strong class="text-[11px]">{{ $timelineEvent->description ?: $timelineEvent->event_type }}</strong>
+                                                                        <time class="whitespace-nowrap text-[9px] text-slate-400">{{ verta($timelineEvent->created_at)->format('Y/m/d H:i') }}</time>
+                                                                    </div>
+                                                                    @if($timelineEvent->from_status || $timelineEvent->to_status)
+                                                                        <p class="mt-1 text-[9px] text-slate-500">{{ $timelineEvent->from_status ?: 'شروع' }} ← {{ $timelineEvent->to_status ?: 'بدون تغییر وضعیت' }}</p>
+                                                                    @endif
+                                                                    @if($showTimelineCourierInfo)
+                                                                        <div class="mt-2 grid gap-1 rounded-md border border-sky-100 bg-white px-2 py-1.5 text-[9px] font-bold text-slate-600 sm:grid-cols-2">
+                                                                            <span>نام پیک: <strong class="text-slate-900">{{ $timelineCourierName ?: 'ثبت نشده' }}</strong></span>
+                                                                            <span>موبایل پیک: <strong class="text-slate-900" dir="ltr">{{ $timelineCourierMobile ?: 'ثبت نشده' }}</strong></span>
+                                                                        </div>
+                                                                    @endif
+                                                                </div>
+                                                            @empty
+                                                                <p class="text-[10px] text-slate-400">هنوز رویدادی برای این دوزوله ثبت نشده است.</p>
+                                                            @endforelse
+                                                        </div>
+                                                    </details>
                                                 </div>
                                             @empty
                                                 <p class="text-center text-xs text-slate-400 py-2">هیچ مسیر سفری برای این پرونده ثبت نشده است.</p>
@@ -549,6 +606,11 @@
                     <input id="courier_mobile" class="w-full text-sm border border-slate-200 rounded-xl p-2.5 font-mono text-left" dir="ltr" placeholder="شماره موبایل پیک">
                     <input id="courier_national_code" class="w-full text-sm border border-slate-200 rounded-xl p-2.5 font-mono text-left" dir="ltr" placeholder="کد ملی پیک (اختیاری)">
                     <input id="courier_vehicle_plate" class="w-full text-sm border border-slate-200 rounded-xl p-2.5" placeholder="مشخصات وسیله/پلاک پیک (اختیاری)">
+                    <select id="disposition_type" class="w-full text-sm border border-slate-200 rounded-xl p-2.5">
+                        <option value="return_archive">ثبت لاشه و پایان فرایند</option>
+                        <option value="renewal_with_lash">تمدید پس از تحویل لاشه به انجمن</option>
+                        <option value="unused">برگشت دوزوله بدون استفاده</option>
+                    </select>
                 </div>
             `,
             showCancelButton: true,
@@ -571,6 +633,7 @@
                 formData.append('courier_mobile', courierMobile);
                 formData.append('courier_national_code', document.getElementById('courier_national_code').value.trim());
                 formData.append('courier_vehicle_plate', document.getElementById('courier_vehicle_plate').value.trim());
+                formData.append('disposition_type', document.getElementById('disposition_type').value);
 
                 return fetch(`/web/company/dozbalagh/${id}/return-lash`, {
                     method: 'POST',

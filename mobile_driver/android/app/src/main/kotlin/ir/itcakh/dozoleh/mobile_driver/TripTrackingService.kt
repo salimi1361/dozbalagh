@@ -16,6 +16,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import org.json.JSONObject
+import org.json.JSONArray
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
@@ -37,6 +38,8 @@ class TripTrackingService : Service(), LocationListener {
         private const val KEY_ITEM_ID = "item_id"
         private const val KEY_TOKEN = "token"
         private const val KEY_API_BASE = "api_base"
+        private const val KEY_PENDING_REQUESTS = "pending_requests"
+        private const val MAX_PENDING_REQUESTS = 600
         private const val CHANNEL_ID = "dozoleh_active_trip"
         private const val NOTIFICATION_ID = 2410
 
@@ -179,14 +182,14 @@ class TripTrackingService : Service(), LocationListener {
             .put("speed", location.speed.toDouble())
             .put("heading", location.bearing.toDouble())
             .put("recorded_at", isoDate(location.time))
-        post("location/sync", payload)
+        enqueue("location/sync", payload)
     }
 
     private fun sendEvent(eventType: String) {
         val payload = JSONObject()
             .put("dozbalagh_item_id", itemId)
             .put("event_type", eventType)
-        post("event/log", payload)
+        enqueue("event/log", payload)
     }
 
     private fun isoDate(timestamp: Long): String =
@@ -194,30 +197,57 @@ class TripTrackingService : Service(), LocationListener {
             timeZone = TimeZone.getTimeZone("UTC")
         }.format(Date(timestamp))
 
-    private fun post(path: String, payload: JSONObject) {
-        val currentToken = token
-        val currentBase = apiBase
-        if (currentToken.isBlank() || currentBase.isBlank()) return
+    private fun enqueue(path: String, payload: JSONObject) {
         networkExecutor.execute {
-            var connection: HttpURLConnection? = null
-            try {
-                connection = URL("$currentBase/$path").openConnection() as HttpURLConnection
-                connection.requestMethod = "POST"
-                connection.connectTimeout = 15_000
-                connection.readTimeout = 20_000
-                connection.doOutput = true
-                connection.setRequestProperty("Accept", "application/json")
-                connection.setRequestProperty("Content-Type", "application/json")
-                connection.setRequestProperty("Authorization", "Bearer $currentToken")
-                connection.outputStream.use { output ->
-                    output.write(payload.toString().toByteArray(Charsets.UTF_8))
+            val preferences = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            val pending = runCatching {
+                JSONArray(preferences.getString(KEY_PENDING_REQUESTS, "[]").orEmpty().ifBlank { "[]" })
+            }.getOrElse { JSONArray() }
+            pending.put(JSONObject().put("base", apiBase).put("path", path).put("payload", payload))
+            val bounded = JSONArray()
+            val start = (pending.length() - MAX_PENDING_REQUESTS).coerceAtLeast(0)
+            for (index in start until pending.length()) bounded.put(pending.getJSONObject(index))
+            preferences.edit().putString(KEY_PENDING_REQUESTS, bounded.toString()).apply()
+
+            val remaining = JSONArray()
+            var networkAvailable = true
+            for (index in 0 until bounded.length()) {
+                val item = bounded.getJSONObject(index)
+                if (networkAvailable && postNow(item.optString("base", apiBase), item.getString("path"), item.getJSONObject("payload"))) {
+                    continue
                 }
-                connection.inputStream.use { it.readBytes() }
-            } catch (_: Throwable) {
-                runCatching { connection?.errorStream?.close() }
-            } finally {
-                connection?.disconnect()
+                networkAvailable = false
+                remaining.put(item)
             }
+            preferences.edit().putString(KEY_PENDING_REQUESTS, remaining.toString()).apply()
+        }
+    }
+
+    private fun postNow(base: String, path: String, payload: JSONObject): Boolean {
+        val currentToken = token
+        val currentBase = base.trimEnd('/')
+        if (currentToken.isBlank() || currentBase.isBlank()) return false
+        var connection: HttpURLConnection? = null
+        return try {
+            connection = URL("$currentBase/$path").openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.connectTimeout = 15_000
+            connection.readTimeout = 20_000
+            connection.doOutput = true
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("Authorization", "Bearer $currentToken")
+            connection.outputStream.use { output ->
+                output.write(payload.toString().toByteArray(Charsets.UTF_8))
+            }
+            val successful = connection.responseCode in 200..299
+            val stream = if (successful) connection.inputStream else connection.errorStream
+            runCatching { stream?.use { it.readBytes() } }
+            successful
+        } catch (_: Throwable) {
+            false
+        } finally {
+            connection?.disconnect()
         }
     }
 
@@ -230,7 +260,12 @@ class TripTrackingService : Service(), LocationListener {
         }
         if (itemId > 0) sendEvent("tracking_stopped")
         locationManager.removeUpdates(this)
-        getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
+        getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+            .remove(KEY_ACTIVE)
+            .remove(KEY_ITEM_ID)
+            .remove(KEY_TOKEN)
+            .remove(KEY_API_BASE)
+            .apply()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }

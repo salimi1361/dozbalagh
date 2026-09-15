@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Api\Driver;
 
+use App\Exceptions\DriverDeviceBindingException;
 use App\Http\Controllers\Controller;
 use App\Models\Driver;
-use App\Models\PermitRequest;
+use App\Services\DriverDeviceBindingService;
+use App\Services\DriverIdentityService;
+use App\Services\DriverProfileService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
@@ -12,6 +15,12 @@ use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly DriverIdentityService $driverIdentity,
+        private readonly DriverDeviceBindingService $deviceBinding,
+        private readonly DriverProfileService $driverProfile,
+    ) {}
+
     // ۱. درخواست ارسال کد تایید (دریافت شماره موبایل)
     public function requestOtp(Request $request)
     {
@@ -19,13 +28,20 @@ class AuthController extends Controller
             'mobile' => 'required|string|regex:/^09[0-9]{9}$/',
         ]);
 
-        $driver = Driver::where('mobile', $request->mobile)->first();
+        $driver = $this->driverIdentity->resolveActiveByMobile($request->mobile);
 
         if (!$driver) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'راننده‌ای با این شماره موبایل در سامانه یافت نشد.'
             ], 404);
+        }
+
+        if (! $driver->isActive()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'دسترسی این راننده توسط انجمن غیرفعال شده است. برای پیگیری با انجمن تماس بگیرید.',
+            ], 403);
         }
 
         $otpCode = rand(10000, 99999);
@@ -46,6 +62,17 @@ class AuthController extends Controller
         $request->validate([
             'mobile' => 'required|string|regex:/^09[0-9]{9}$/',
             'code' => 'required|string|size:5',
+            'device_uuid' => 'required|string|max:191',
+            'platform' => 'required|in:android,ios',
+            'manufacturer' => 'nullable|string|max:255',
+            'model' => 'nullable|string|max:255',
+            'device_name' => 'nullable|string|max:255',
+            'os_version' => 'nullable|string|max:255',
+            'sdk_version' => 'nullable|integer|min:1|max:999',
+            'app_version' => 'nullable|string|max:50',
+            'app_build' => 'nullable|string|max:50',
+            'app_identifier' => 'nullable|string|max:255',
+            'locale' => 'nullable|string|max:20',
         ]);
 
         $cachedCode = Cache::get('otp_' . $request->mobile);
@@ -59,64 +86,83 @@ class AuthController extends Controller
 
         Cache::forget('otp_' . $request->mobile);
 
-        // 🌟 لود دقیق راننده بر اساس رابطه رسمی 'company' که در مدل Driver تعریف شده است
-        $driver = Driver::with(['company'])->where('mobile', $request->mobile)->first();
-        $latestPermitFleet = PermitRequest::with('fleet')
-            ->where('driver_id', $driver->id)
-            ->whereHas('fleet')
-            ->orderByDesc('id')
-            ->first()?->fleet;
+        // راننده باید فقط از روی شماره موبایل یکتا انتخاب شود؛ انتخاب اولین رکورد
+        // در صورت وجود شماره تکراری می‌تواند نشست راننده دیگری را ایجاد کند.
+        $driver = $this->driverIdentity->resolveActiveByMobile($request->mobile);
+        if (! $driver || ! $driver->isActive()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'دسترسی این راننده توسط انجمن غیرفعال شده است. برای پیگیری با انجمن تماس بگیرید.',
+            ], 403);
+        }
+
+        try {
+            $this->deviceBinding->bind(
+                $driver,
+                $request->only([
+                    'device_uuid',
+                    'platform',
+                    'manufacturer',
+                    'model',
+                    'device_name',
+                    'os_version',
+                    'sdk_version',
+                    'app_version',
+                    'app_build',
+                    'app_identifier',
+                    'locale',
+                ]),
+                $request->ip(),
+                allowRevokedRebind: true,
+            );
+        } catch (DriverDeviceBindingException $exception) {
+            $isRevoked = $exception->reason === DriverDeviceBindingException::REVOKED_DEVICE;
+
+            return response()->json([
+                'status' => 'error',
+                'error_code' => $isRevoked ? 'DEVICE_ACCESS_REVOKED' : 'DEVICE_ALREADY_BOUND',
+                'message' => $isRevoked
+                    ? 'دسترسی این گوشی قبلاً لغو شده است. لطفاً با انجمن تماس بگیرید.'
+                    : 'این حساب قبلاً روی گوشی دیگری فعال شده است. لطفاً با گوشی اصلی وارد شوید.',
+            ], 409);
+        }
 
         // ایجاد توکن امنیتی Sanctum
         $token = $driver->createToken('driver_app_token')->plainTextToken;
-
-        // استخراج فیلدهای واقعی شرکت از رابطه
-        $companyName = $driver->company
-            ? ($driver->company->name_fa ?: $driver->company->name)
-            : 'شرکت حمل و نقل بین‌المللی خراسان';
-        $companyManager = $driver->company
-            ? ($driver->company->ceo_name ?: 'ثبت نشده')
-            : 'ثبت نشده';
-        $companyAddress = $driver->company
-            ? ($driver->company->address_fa ?: $driver->company->address_en ?: 'ثبت نشده')
-            : 'ثبت نشده';
-
-        /*
-        |--------------------------------------------------------------------------
-        | بخش ناوگان و کامیون (پلاک و کارت هوشمند)
-        |--------------------------------------------------------------------------
-        | از آنجا که در مدل Driver رابطه‌ای برای کانتینر یا کامیون تعریف نشده است،
-        | اگر این فیلدها بعداً به جدول drivers یا از طریق رابطه اضافه شدند،
-        | می‌توانید مقادیر سمت راست را به $driver->truck_plate یا رابطه متصل کنید.
-        */
-        $truckPlate = $latestPermitFleet?->transit_plate ?? $driver->truck_plate ?? $driver->plate_number ?? null;
-        $truckSmartCard = $latestPermitFleet?->smart_card_number ?? $driver->truck_smart_id ?? $driver->smart_card_number ?? null;
-        $truckType = $latestPermitFleet?->truck_type ?? $driver->truck_type ?? null;
 
         return response()->json([
             'status' => 'success',
             'message' => 'ورود با موفقیت انجام شد.',
             'token' => $token,
-            'driver' => [
-                'id' => $driver->id,
-                'name' => ($driver->first_name_fa || $driver->last_name_fa) ? ($driver->first_name_fa . ' ' . $driver->last_name_fa) : ($driver->name ?? 'راننده سیستم'),
-                'national_code' => $driver->national_code,
-                'mobile' => $driver->mobile,
-                
-                // اطلاعات داینامیک شرکت
-                'company_name' => $companyName,
-                'company_manager' => $companyManager,
-                'company_address' => $companyAddress,
-                'company_phone' => $driver->company?->phone,
-                'company_ceo_mobile' => $driver->company?->ceo_mobile,
-                
-                // اطلاعات ناوگان کامیون
-                'truck_plate' => $truckPlate,
-                'truck_smart_card' => $truckSmartCard,
-                'truck_type' => $truckType,
-                'fleet_source' => $latestPermitFleet ? 'dozoleh' : 'driver',
-            ]
+            'driver' => $this->driverData($driver),
         ]);
+    }
+
+    public function profile()
+    {
+        $authenticatedDriver = Driver::with('company')->findOrFail(auth()->id());
+        $driver = $this->driverIdentity->canonicalFor($authenticatedDriver);
+
+        if ($driver && (int) $driver->id !== (int) $authenticatedDriver->id) {
+            // An old token may still point to a duplicate row. Force a fresh
+            // mobile login instead of exposing the stale identity.
+            $authenticatedDriver->tokens()->delete();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'شناسه راننده تغییر کرده است؛ لطفاً دوباره وارد شوید.',
+            ], 409);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'driver' => $this->driverData($driver),
+        ]);
+    }
+
+    private function driverData(Driver $driver): array
+    {
+        return $this->driverProfile->data($driver);
     }
 
     private function sendOtpNotification($driver, $code, ?string $host = null)

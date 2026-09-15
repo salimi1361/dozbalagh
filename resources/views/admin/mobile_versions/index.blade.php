@@ -1,6 +1,7 @@
 @extends('layouts.admin')
 
 @section('header_title', 'مدیریت نسخه اپلیکیشن')
+@section('hero_subtitle', 'کنترل انتشار، حداقل نسخه مجاز و اطلاع‌رسانی به کاربران اپلیکیشن')
 
 @section('content')
 <link rel="stylesheet" href="{{ asset('assets/css/persian-datepicker.vendor.min.css') }}">

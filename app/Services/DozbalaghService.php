@@ -24,27 +24,16 @@ class DozbalaghService
                 throw new \Exception("تنها برگه‌هایی که وضعیت صادر شده (issued) دارند، قابل تمدید هستند.");
             }
 
-            // ۲. تغییر وضعیت برگه قدیمی به تمدید شده (extended) جهت حفظ تاریخچه لاشه قبلی
+            // ۲. همان برگه برای تمدید دوباره فعال می‌شود. شماره در یک کشور/نوع
+            // مجوز فقط یک رکورد انباری دارد؛ تاریخچهٔ تمدید در پرونده و رویدادهاست.
             DB::table('dozbalagh_items')->where('id', $id)->update([
-                'lifecycle_status' => 'extended',
-                'returned_at' => now(),
+                'lifecycle_status' => 'issued',
+                'returned_at' => null,
+                'issued_at' => now(),
                 'updated_at' => now()
             ]);
 
-            // ۳. ثبت رکورد جدید با همان شماره سریال (serial_number) اما شناسه و چرخه عمر جدید (issued)
-            $newItemId = DB::table('dozbalagh_items')->insertGetId([
-                'batch_id'         => $oldItem->batch_id,
-                'serial_number'    => $oldItem->serial_number, // استفاده مجدد از همان شماره سریال طبق سناریوی انجمن
-                'company_id'       => $oldItem->company_id,
-                'driver_id'        => $oldItem->driver_id,
-                'fleet_id'         => $oldItem->fleet_id,
-                'lifecycle_status' => 'issued', // برگه جدید دوباره صادر شده و فعال می‌شود
-                'issued_at'        => now(),
-                'created_at'       => now(),
-                'updated_at'       => now()
-            ]);
-
-            return $newItemId;
+            return $id;
         });
     }
 }

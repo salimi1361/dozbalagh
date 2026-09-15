@@ -32,9 +32,6 @@ class _LockScreenState extends State<LockScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.allowBiometric) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _authenticate());
-    }
   }
 
   @override
@@ -83,14 +80,15 @@ class _LockScreenState extends State<LockScreen> {
                 constraints: const BoxConstraints(maxWidth: 390),
                 child: Column(
                   children: [
-                    const Icon(
-                      Icons.fingerprint_rounded,
-                      size: 88,
-                      color: Color(0xFF78F5D0),
+                    Image.asset(
+                      'assets/images/association-logo.png',
+                      width: 76,
+                      height: 82,
+                      fit: BoxFit.contain,
                     ),
                     const SizedBox(height: 18),
                     const Text(
-                      'قفل امنیتی دوزوله',
+                      'قفل امنیتی راه‌نامه',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 23,

@@ -16,7 +16,7 @@
         'workflow' => route('company.shahbaz.workflow.show'),
     ])
 <div dir="rtl" class="mx-auto max-w-6xl space-y-6">
-<section class="rounded-3xl border bg-white p-6 shadow-sm"><div class="flex flex-wrap items-center justify-between gap-4"><div><h1 class="text-2xl font-black">{{ $company->name_fa }}</h1><p class="mt-2 text-sm text-slate-500">شناسه ملی: {{ $company->national_id ?: 'ثبت نشده' }} — وضعیت بررسی: {{ $statusLabels[$company->shahbaz_verification_status] ?? $company->shahbaz_verification_status }}</p></div><a href="{{ route('company.shahbaz.profile.edit') }}" class="rounded-xl bg-emerald-600 px-5 py-3 font-black text-white">تکمیل مشخصات پایه</a></div></section>
+<section class="company-page-header rounded-3xl p-6"><div class="flex flex-wrap items-center justify-between gap-4"><div><h1 class="text-2xl font-black">{{ $company->name_fa }}</h1><p class="mt-2 text-sm">شناسه ملی: {{ $company->national_id ?: 'ثبت نشده' }} — وضعیت بررسی: {{ $statusLabels[$company->shahbaz_verification_status] ?? $company->shahbaz_verification_status }}</p></div><a href="{{ route('company.shahbaz.profile.edit') }}" class="rounded-xl bg-white px-5 py-3 font-black text-blue-900">تکمیل مشخصات پایه</a></div></section>
 @if(in_array($company->shahbaz_verification_status,['correction_required','shahbaz_mismatch','rejected'],true) && $company->shahbaz_review_note)
 <div class="rounded-2xl border border-rose-300 bg-rose-50 p-5 text-rose-900"><b>نتیجه بررسی انجمن:</b><p class="mt-2">{{ $company->shahbaz_review_note }}</p></div>
 @endif

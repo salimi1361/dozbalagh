@@ -5,30 +5,30 @@
 @endsection
 
 @section('content')
-<div class="max-w-7xl mx-auto space-y-5">
-    <div class="bg-slate-950 text-white rounded-2xl p-6 shadow-sm flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+<div class="max-w-[1500px] mx-auto space-y-4">
+    <div class="company-page-header text-white rounded-2xl px-5 py-4 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 shadow-lg shadow-slate-200/60">
         <div>
             <h1 class="text-lg font-black">مرکز پیام شرکت و رانندگان</h1>
-            <p class="text-slate-400 text-xs mt-1">ارسال پیام انتخابی یا گروهی، مشاهده پاسخ راننده، و پیگیری مکالمات در یک صفحه مستقل.</p>
+            <p class="text-blue-100 text-xs mt-1">گفتگوی مستقیم با راننده و ارسال اطلاعیه‌های انتخابی یا گروهی</p>
         </div>
         <div class="grid grid-cols-3 gap-2 text-center">
-            <div class="bg-white/10 rounded-xl px-4 py-3">
+            <div class="bg-white/10 border border-white/10 rounded-xl px-4 py-2.5">
                 <div id="stat_drivers" class="text-lg font-black">{{ number_format($drivers->count()) }}</div>
                 <div class="text-[10px] text-slate-300">راننده فعال</div>
             </div>
-            <div class="bg-white/10 rounded-xl px-4 py-3">
+            <div class="bg-white/10 border border-white/10 rounded-xl px-4 py-2.5">
                 <div id="stat_unread" class="text-lg font-black">{{ number_format($unreadByDriver->sum()) }}</div>
                 <div class="text-[10px] text-slate-300">پاسخ خوانده‌نشده</div>
             </div>
-            <div class="bg-white/10 rounded-xl px-4 py-3">
+            <div class="bg-white/10 border border-white/10 rounded-xl px-4 py-2.5">
                 <div id="stat_threads" class="text-lg font-black">{{ number_format($threads->count()) }}</div>
                 <div class="text-[10px] text-slate-300">گفتگوی فعال</div>
             </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-12 gap-5">
-        <aside class="xl:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+    <div class="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+        <aside class="xl:col-span-3 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[700px]">
             <div class="p-4 border-b border-slate-100 bg-slate-50">
                 <div class="flex items-center justify-between gap-3 mb-3">
                     <h2 class="text-sm font-black text-slate-800">سوابق و مخاطبین</h2>
@@ -43,7 +43,7 @@
                        class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs focus:outline-none focus:border-blue-500">
             </div>
 
-            <div id="driver_list" class="max-h-[620px] overflow-y-auto divide-y divide-slate-100">
+            <div id="driver_list" class="flex-1 max-h-[610px] overflow-y-auto divide-y divide-slate-100 overscroll-contain">
                 @forelse($driverPayload as $driver)
                     <div class="driver-item bg-white p-4 hover:bg-slate-50 transition">
                         <div class="flex items-start gap-3">
@@ -66,13 +66,13 @@
             </div>
         </aside>
 
-        <section class="xl:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <section class="xl:col-span-3 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden min-h-[700px]">
             <div class="p-5 border-b border-slate-100">
                 <h2 class="text-sm font-black text-slate-800">ارسال پیام</h2>
                 <p id="selected_summary" class="text-[11px] text-slate-500 mt-1">هیچ راننده‌ای انتخاب نشده است.</p>
             </div>
 
-            <div class="p-5 space-y-4">
+            <div class="p-4 space-y-4">
                 <div class="grid grid-cols-2 gap-3">
                     <button type="button" id="scope_selected" data-scope="selected"
                             class="scope-btn bg-blue-600 text-white rounded-xl px-4 py-3 text-xs font-black">انتخابی</button>
@@ -110,7 +110,7 @@
 
                 <div>
                     <label class="block text-xs font-black text-slate-600 mb-2">متن پیام</label>
-                    <textarea id="message_body" rows="7" maxlength="1000" placeholder="متن پیام برای راننده..."
+                    <textarea id="message_body" rows="6" maxlength="1000" placeholder="متن پیام برای راننده..."
                               class="w-full border border-slate-200 rounded-xl px-3 py-3 text-sm leading-7 resize-none focus:outline-none focus:border-blue-500"></textarea>
                 </div>
 
@@ -126,25 +126,34 @@
             </div>
         </section>
 
-        <section class="xl:col-span-4 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-            <div class="p-5 border-b border-slate-100 bg-slate-50">
-                <h2 class="text-sm font-black text-slate-800">گفتگو با راننده</h2>
-                <p id="thread_title" class="text-[11px] text-slate-500 mt-1">از لیست رانندگان یک نفر را انتخاب کنید.</p>
+        <section class="xl:col-span-6 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col min-h-[700px]">
+            <div class="px-5 py-4 border-b border-slate-100 bg-white flex items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-sm font-black text-slate-800">گفتگو با راننده</h2>
+                    <p id="thread_title" class="text-[11px] text-slate-500 mt-1">از لیست رانندگان یک نفر را انتخاب کنید.</p>
+                </div>
+                <span class="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-[10px] font-black text-emerald-700">
+                    <span class="h-2 w-2 rounded-full bg-emerald-500"></span> ارتباط مستقیم
+                </span>
             </div>
-            <div id="thread_body" class="h-[470px] overflow-y-auto p-5 bg-slate-50/60">
+            <div id="thread_body" class="flex-1 min-h-[490px] max-h-[540px] overflow-y-auto p-5 bg-slate-50/70 overscroll-contain">
                 <div class="h-full flex items-center justify-center text-center text-slate-400 text-xs font-bold">
                     هنوز گفتگویی انتخاب نشده است.
                 </div>
             </div>
             <div class="border-t border-slate-100 bg-white p-4">
-                <label class="block text-xs font-black text-slate-600 mb-2">پاسخ سریع در همین گفتگو</label>
-                <textarea id="quick_reply_body" rows="3" maxlength="1000" disabled
-                          placeholder="ابتدا یک راننده را از لیست انتخاب کنید..."
-                          class="w-full border border-slate-200 rounded-xl px-3 py-3 text-sm leading-7 resize-none bg-slate-50 focus:outline-none focus:border-blue-500"></textarea>
-                <button type="button" id="quick_reply_btn" disabled
-                        class="mt-3 w-full bg-slate-300 text-white rounded-xl px-5 py-3 text-sm font-black transition">
-                    ارسال پاسخ به همین راننده
-                </button>
+                <div class="flex items-end gap-3">
+                    <div class="flex-1">
+                        <textarea id="quick_reply_body" rows="2" maxlength="1000" disabled
+                                  placeholder="ابتدا یک راننده را از لیست انتخاب کنید..."
+                                  class="w-full border border-slate-200 rounded-2xl px-4 py-3 text-sm leading-7 resize-none bg-slate-50 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-50"></textarea>
+                        <p class="mt-1.5 px-1 text-[10px] font-bold text-slate-400">Enter برای ارسال · Shift + Enter برای رفتن به خط بعد</p>
+                    </div>
+                    <button type="button" id="quick_reply_btn" disabled
+                            class="h-[54px] shrink-0 bg-slate-300 text-white rounded-2xl px-5 text-sm font-black transition shadow-sm">
+                        ارسال
+                    </button>
+                </div>
             </div>
         </section>
     </div>
@@ -375,6 +384,7 @@
         }
 
         var btn = $('#quick_reply_btn');
+        if (btn.prop('disabled')) return;
         var originalText = btn.text();
         btn.prop('disabled', true).text('در حال ارسال...');
 
@@ -440,7 +450,10 @@
         $('#send_btn').on('click', sendMessage);
         $('#quick_reply_btn').on('click', sendQuickReply);
         $('#quick_reply_body').on('keydown', function(event) {
-            if (event.ctrlKey && event.keyCode === 13) sendQuickReply();
+            if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+                event.preventDefault();
+                sendQuickReply();
+            }
         });
         $('#driver_search').on('input', renderDrivers);
 

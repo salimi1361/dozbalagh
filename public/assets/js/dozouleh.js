@@ -311,7 +311,11 @@ function updateSummary() {
     const summaryFleet = document.getElementById('summary-fleet');
     if (summaryFleet) summaryFleet.innerText = fleetSelect.options[fleetSelect.selectedIndex].getAttribute('data-plate') || '---';
 
-    let totalPrice = 0; 
+    let totalPrice = 0;
+    const isRenewal = (document.querySelector('input[name="request_type"]:checked')?.value === 'renewal')
+        || document.getElementById('final_request_type')?.value === 'renewal';
+    const isAssociationMember = Boolean(window.DozoulehConfig && window.DozoulehConfig.isAssociationMember);
+    const isFreeRenewal = isRenewal && isAssociationMember;
     const summaryListDiv = document.getElementById('summary-countries-list'); 
     if(summaryListDiv) summaryListDiv.innerHTML = '';
     
@@ -322,9 +326,9 @@ function updateSummary() {
         if(countrySel && countrySel.value && permitSel && permitSel.value) {
             const opt = countrySel.options[countrySel.selectedIndex];
             const cPrice = parseInt(opt.getAttribute('data-price') || 0);
-            totalPrice += cPrice;
+            totalPrice += isFreeRenewal ? 0 : cPrice;
             if(summaryListDiv) {
-                summaryListDiv.innerHTML += '<div class="flex justify-between text-xs bg-white p-2 rounded-lg border border-slate-100 shadow-sm"><span class="font-bold text-slate-700">📍 ' + opt.getAttribute('data-name') + ' [' + permitSel.options[permitSel.selectedIndex].text + ']</span><span class="font-mono text-slate-500">' + cPrice.toLocaleString() + ' ریال</span></div>';
+                summaryListDiv.innerHTML += '<div class="flex justify-between text-xs bg-white p-2 rounded-lg border border-slate-100 shadow-sm"><span class="font-bold text-slate-700">📍 ' + opt.getAttribute('data-name') + ' [' + permitSel.options[permitSel.selectedIndex].text + ']</span><span class="font-mono text-slate-500">' + (isFreeRenewal ? 'رایگان (تمدید عضو)' : cPrice.toLocaleString() + ' ریال') + '</span></div>';
             }
         }
     });
@@ -332,6 +336,15 @@ function updateSummary() {
     // آپدیت باکس شیک کیف پول و دکمه پرداخت
     const actionsDiv = document.getElementById('wallet-checkout-container');
     if (actionsDiv) {
+        if (isFreeRenewal) {
+            actionsDiv.innerHTML = `
+                <div class="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 mb-4 text-emerald-900">
+                    <div class="font-black mb-2">✅ تمدید عضو انجمن بدون دریافت هزینه</div>
+                    <div class="text-sm font-bold">برای این تمدید هیچ مبلغی از کیف پول رزرو یا کسر نمی‌شود.</div>
+                    <button type="submit" class="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl">تایید نهایی و ثبت تمدید رایگان</button>
+                </div>`;
+            return;
+        }
         // گرفتن موجودی کیف پول از بک‌اند لاراول (اگر ست نشده باشد، صفر در نظر می‌گیرد)
         const balance = (window.DozoulehConfig && window.DozoulehConfig.walletBalance) ? parseInt(window.DozoulehConfig.walletBalance) : 0;
         const chargeUrl = (window.DozoulehConfig && window.DozoulehConfig.chargeUrl) ? window.DozoulehConfig.chargeUrl : '#';
@@ -340,7 +353,7 @@ function updateSummary() {
         let htmlBox = `
         <div class="bg-slate-900 rounded-2xl p-5 mb-4 shadow-lg text-white">
             <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-4">
-                <span class="text-slate-400 text-sm font-bold">موجودی کیف پول</span>
+                <span class="text-slate-400 text-sm font-bold">${isRenewal ? 'تمدید دوزوله با تعرفه غیرعضو' : 'موجودی کیف پول'}</span>
                 <span class="text-xl font-mono font-black">${balance.toLocaleString()} <span class="text-xs text-slate-500">ریال</span></span>
             </div>
             <div class="flex justify-between items-center">
@@ -356,7 +369,7 @@ function updateSummary() {
                 <span class="text-xl">✅</span> موجودی حساب شما برای این درخواست کافی است.
             </div>
             <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 rounded-xl shadow-xl shadow-emerald-200 transition text-lg">
-                تایید نهایی و ثبت پرونده
+                ${isRenewal ? 'تایید نهایی و ثبت تمدید' : 'تایید نهایی و ثبت پرونده'}
             </button>`;
         } else {
             const deficit = totalPrice - balance;

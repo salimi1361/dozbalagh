@@ -55,6 +55,42 @@ class PanelFeatureSettingsTest extends TestCase
         $this->assertFalse($features->enabledForRole('company', 'cmr_company_settings'));
         $this->assertFalse($features->enabledForRole('company', 'cmr_financial'));
         $this->assertFalse($features->enabledForRole('company', 'cmr_reports'));
+        $this->assertFalse($features->enabledForRole('association', 'unused_permit_transfer'));
+    }
+
+    public function test_admin_can_enable_unused_permit_transfer_and_configure_its_financial_rules(): void
+    {
+        $admin = $this->userWithRole('admin');
+
+        $this->actingAs($admin)->put(route('admin.settings.panel-features.update'), [
+            'features' => ['association' => ['unused_permit_transfer' => '1']],
+            'transfer_financial' => [
+                'enabled' => '1',
+                'fee_amount' => '250000',
+                'refund_enabled' => '1',
+                'refund_amount' => '100000',
+            ],
+        ])->assertRedirect();
+
+        $features = json_decode(SystemSetting::getValue('panel_features'), true);
+        $financial = json_decode(SystemSetting::getValue('permit_unused_transfer_financial'), true);
+        $this->assertTrue($features['association']['unused_permit_transfer']);
+        $this->assertTrue($financial['enabled']);
+        $this->assertSame(250000.0, $financial['fee_amount']);
+        $this->assertTrue($financial['refund_enabled']);
+        $this->assertSame(100000.0, $financial['refund_amount']);
+    }
+
+    public function test_disabled_unused_permit_transfer_blocks_direct_association_request(): void
+    {
+        $association = $this->userWithRole('association');
+        SystemSetting::setValue('panel_features', [
+            'association' => ['requests' => true, 'unused_permit_transfer' => false],
+        ]);
+
+        $this->actingAs($association)
+            ->post(route('association.permits.transfer', 999999), [])
+            ->assertForbidden();
     }
 
     public function test_admin_settings_page_groups_shahbaz_and_cmr_items_for_both_panels(): void

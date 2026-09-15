@@ -66,8 +66,8 @@ class CmrController extends Controller
 
         return view('CMR.admin.create', [
             'companies' => $companies,
-            'drivers' => Driver::query()->when($company, fn ($query) => $query->where('current_company_id', $company->id))->orderBy('last_name_fa')->get(),
-            'fleets' => Fleet::query()->when($company, fn ($query) => $query->where('company_id', $company->id))->orderBy('id')->get(),
+            'drivers' => Driver::active()->when($company, fn ($query) => $query->where('current_company_id', $company->id))->orderBy('last_name_fa')->get(),
+            'fleets' => Fleet::active()->when($company, fn ($query) => $query->where('company_id', $company->id))->orderBy('id')->get(),
             'masterParties' => CmrParty::query()->where('is_active', true)->when($company, fn ($query) => $query->where('company_id', $company->id))->orderByDesc('usage_count')->get(),
             'masterLocations' => CmrLocation::query()->where('is_active', true)->when($company, fn ($query) => $query->where('company_id', $company->id))->orderByDesc('usage_count')->get(),
             'masterGoods' => CmrGoodsTemplate::query()->where('is_active', true)->when($company, fn ($query) => $query->where('company_id', $company->id))->orderByDesc('usage_count')->get(),
@@ -91,6 +91,25 @@ class CmrController extends Controller
             'attached_documents_text'=>['nullable','string',$latin],'goods'=>['required','array','min:1'],'goods.*.description'=>['required','string','max:255',$latin],
             'goods.*.marks_and_numbers'=>['nullable','string','max:255',$latin],'goods.*.package_type'=>['nullable','string','max:100',$latin],'goods.*.package_count'=>['nullable','numeric','min:0'],'goods.*.gross_weight_kg'=>['nullable','numeric','min:0'],'goods.*.volume_m3'=>['nullable','numeric','min:0'],'goods.*.commodity_code'=>['nullable','string','max:100',$latin],'goods.*.un_number'=>['nullable','string','max:20',$latin],'goods.*.adr_class'=>['nullable','string','max:50',$latin],
         ]);
+        $company = $this->companyContext();
+        if ($company) {
+            $data['company_id'] = $company->id;
+        }
+        $companyId = (int) $data['company_id'];
+        if (! empty($data['driver_id']) && ! Driver::active()->whereKey($data['driver_id'])->exists()) {
+            return back()->withInput()->withErrors(['driver_id' => 'راننده انتخاب‌شده توسط انجمن غیرفعال شده است.']);
+        }
+        if (! empty($data['fleet_id']) && ! Fleet::active()->whereKey($data['fleet_id'])->exists()) {
+            return back()->withInput()->withErrors(['fleet_id' => 'ناوگان انتخاب‌شده توسط انجمن غیرفعال شده است.']);
+        }
+        if (CmrCompanySetting::forCompany($companyId)->assignment_policy === 'same_company') {
+            if (! empty($data['driver_id']) && (int) Driver::findOrFail($data['driver_id'])->current_company_id !== $companyId) {
+                return back()->withInput()->withErrors(['driver_id' => 'Selected driver is not currently assigned to this company.']);
+            }
+            if (! empty($data['fleet_id']) && (int) Fleet::findOrFail($data['fleet_id'])->company_id !== $companyId) {
+                return back()->withInput()->withErrors(['fleet_id' => 'Selected fleet is not currently assigned to this company.']);
+            }
+        }
         DB::transaction(function () use ($cmr, $data) {
             $goods=$data['goods']; unset($data['goods']);
             $data['attached_documents']=collect(preg_split('/\r\n|\r|\n|,/', $data['attached_documents_text']??''))->map(fn($v)=>trim($v))->filter()->values()->all(); unset($data['attached_documents_text']);
@@ -155,7 +174,18 @@ class CmrController extends Controller
             'save_goods' => ['nullable', 'boolean'],
         ]);
 
+        $company = $this->companyContext();
+        if ($company) {
+            // Company users can only create CMR drafts for their own company.
+            $data['company_id'] = $company->id;
+        }
         $companyId = (int) $data['company_id'];
+        if (! empty($data['driver_id']) && ! Driver::active()->whereKey($data['driver_id'])->exists()) {
+            return back()->withInput()->withErrors(['driver_id' => 'راننده انتخاب‌شده توسط انجمن غیرفعال شده است.']);
+        }
+        if (! empty($data['fleet_id']) && ! Fleet::active()->whereKey($data['fleet_id'])->exists()) {
+            return back()->withInput()->withErrors(['fleet_id' => 'ناوگان انتخاب‌شده توسط انجمن غیرفعال شده است.']);
+        }
         if (CmrCompanySetting::forCompany($companyId)->assignment_policy === 'same_company') {
             if (! empty($data['driver_id']) && (int) Driver::findOrFail($data['driver_id'])->current_company_id !== $companyId) {
                 return back()->withInput()->withErrors(['driver_id' => 'راننده باید متعلق به شرکت انتخاب‌شده باشد.']);

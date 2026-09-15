@@ -1,0 +1,14 @@
+<details class="overflow-hidden rounded-3xl border border-sky-200 bg-white shadow-sm" @if($errors->any() && old('username')) open @endif>
+    <summary class="flex cursor-pointer list-none items-center justify-between bg-sky-50 px-6 py-5">
+        <div><h2 class="text-lg font-black text-sky-950">ساخت کاربر جدید انجمن</h2><p class="mt-1 text-xs text-sky-700">فرم ساخت کاربر فقط در صورت نیاز باز می‌شود.</p></div>
+        <span class="rounded-xl bg-sky-600 px-4 py-2 text-xs font-black text-white">بازکردن فرم</span>
+    </summary>
+    <form method="POST" action="{{ route('admin.association-users.store') }}" class="grid gap-4 border-t border-sky-100 p-6 md:grid-cols-2">@csrf
+        <label class="space-y-2"><span class="text-sm font-bold text-slate-600">نام کاربری</span><input name="username" value="{{ old('username') }}" required autocomplete="off" class="w-full rounded-xl border-slate-300"></label>
+        <label class="space-y-2"><span class="text-sm font-bold text-slate-600">شماره موبایل</span><input name="mobile" value="{{ old('mobile') }}" autocomplete="off" class="w-full rounded-xl border-slate-300"></label>
+        <label class="space-y-2"><span class="text-sm font-bold text-slate-600">رمز عبور</span><input type="password" name="password" required minlength="8" autocomplete="new-password" class="w-full rounded-xl border-slate-300"></label>
+        <label class="space-y-2"><span class="text-sm font-bold text-slate-600">تکرار رمز عبور</span><input type="password" name="password_confirmation" required minlength="8" autocomplete="new-password" class="w-full rounded-xl border-slate-300"></label>
+        <div class="space-y-3 md:col-span-2"><h3 class="font-black text-slate-700">دسترسی اولیه</h3><div class="grid gap-3 lg:grid-cols-3">@foreach($featureGroups as $group => $items)<details class="overflow-hidden rounded-xl border border-slate-200"><summary class="flex cursor-pointer list-none justify-between bg-slate-50 px-4 py-3 text-sm font-black text-slate-700"><span>{{ $groupLabels[$group] ?? ($items->first()['group_label'] ?? $group) }}</span><span class="text-[10px] text-slate-400">{{ $items->count() }} مورد</span></summary><div class="max-h-64 divide-y divide-slate-100 overflow-y-auto px-4">@foreach($items as $key => $definition)<label class="flex cursor-pointer items-start gap-3 py-3 text-sm font-bold text-slate-600"><input type="checkbox" name="features[]" value="{{ $key }}" class="mt-1 h-4 w-4 rounded border-slate-300 text-sky-600" @checked(in_array($key, old('features', []), true))><span>{{ $definition['label'] }}</span></label>@endforeach</div></details>@endforeach</div></div>
+        <div class="flex justify-end md:col-span-2"><button class="rounded-xl bg-sky-600 px-6 py-3 font-black text-white">ایجاد کاربر انجمن</button></div>
+    </form>
+</details>

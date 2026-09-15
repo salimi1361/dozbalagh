@@ -3,9 +3,9 @@
 @section('content')
 <div dir="rtl" class="mx-auto max-w-6xl space-y-5">
     @php($statusLabels=['draft'=>'پیش‌نویس','submitted'=>'ارسال‌شده','association_review'=>'در حال بررسی انجمن','correction_required'=>'نیازمند اصلاح','ready_for_shahbaz_check'=>'آماده استعلام شحباز','shahbaz_review'=>'در حال بررسی شحباز','shahbaz_mismatch'=>'دارای مغایرت','shahbaz_verified'=>'تأیید شحباز','ready_for_issue'=>'آماده صدور','issued'=>'صادر شده','rejected'=>'رد شده','cancelled'=>'لغو شده'])
-    <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border bg-white p-5">
+    <div class="company-page-header flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-5">
         <div><h1 class="text-xl font-black">درخواست‌های {{ $company->name_fa }}</h1><p class="mt-1 text-sm text-slate-500">هر درخواست و تاریخچه آن مستقل نگهداری می‌شود.</p></div>
-        <div class="flex gap-2"><a href="{{ route('company.shahbaz.dossier.show') }}" class="rounded-xl border px-4 py-2 font-bold">بازگشت به پرونده</a>@if($editable)<a href="{{ route('company.shahbaz.requests.create') }}" class="rounded-xl bg-emerald-700 px-4 py-2 font-bold text-white">ثبت درخواست جدید</a>@endif</div>
+        <div class="flex flex-wrap gap-2"><a href="{{ route('company.shahbaz.dossier.show') }}" class="company-header-back-link">بازگشت به پرونده</a>@if($editable)<a href="{{ route('company.shahbaz.requests.create') }}" class="rounded-xl bg-emerald-700 px-4 py-2 font-bold text-white">ثبت درخواست جدید</a>@endif</div>
     </div>
     @if(session('success'))<div class="rounded-xl bg-emerald-50 p-4 font-bold text-emerald-800">{{ session('success') }}</div>@endif
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

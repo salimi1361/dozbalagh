@@ -12,14 +12,14 @@
 
 @section('content')
     <div class="max-w-6xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="bg-slate-950 p-6 text-white flex justify-between items-center">
+        <div class="company-page-header p-6 text-white flex justify-between items-center">
             <div>
                 <h1 class="text-base font-black">لیست کارتابل رانندگان فعال</h1>
-                <p class="text-slate-400 text-[11px] mt-0.5">سیستم فینگلیش خودکار و کنترل محدودیت‌های بین‌المللی فعال است.</p>
+                <p class="text-emerald-100 text-[11px] mt-0.5">سیستم فینگلیش خودکار و کنترل محدودیت‌های بین‌المللی فعال است.</p>
             </div>
             
             <button onclick="openDriverModal()"
-                    class="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-5 py-2.5 rounded-xl text-xs shadow-lg transition">
+                    class="bg-white/95 hover:bg-white text-emerald-800 font-black px-5 py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-950/20 transition">
                 ➕ ثبت راننده جدید
             </button>
         </div>
@@ -58,7 +58,10 @@
                             
                             <td class="p-4 text-center">
                                 @if($d->active_dozbalaghs > 0)
-                                    <span class="bg-emerald-100 text-emerald-700 font-black px-3 py-1 rounded-full text-xs shadow-sm">{{ $d->active_dozbalaghs }} عدد</span>
+                                    <span class="inline-flex flex-col items-center bg-emerald-100 text-emerald-800 font-black px-3 py-1 rounded-lg text-[11px] shadow-sm">
+                                        <span>فعلاً دوزبلاغ فعال دارد</span>
+                                        <span class="mt-0.5 text-[10px] text-emerald-600">{{ $d->active_dozbalaghs }} عدد</span>
+                                    </span>
                                 @else
                                     <span class="bg-slate-100 text-slate-400 font-bold px-3 py-1 rounded-full text-xs">ندارد</span>
                                 @endif
@@ -68,8 +71,10 @@
                                 <button onclick="editDriver('{{ $d->national_code }}', '{{ $d->first_name_fa }}', '{{ $d->last_name_fa }}', '{{ $d->first_name_en }}', '{{ $d->last_name_en }}', '{{ $d->passport_number }}', '{{ $d->mobile }}')" 
                                         class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-3 py-1.5 rounded-lg text-xs transition">✏️ ویرایش</button>
                                 
-                                <button onclick="deleteDriver('{{ $d->national_code }}', {{ $d->active_dozbalaghs }})" 
-                                        class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition">🗑️ حذف</button>
+                                @if($d->active_dozbalaghs == 0)
+                                    <button onclick="deleteDriver('{{ $d->national_code }}', 0)"
+                                            class="bg-rose-500 hover:bg-rose-600 text-white font-bold px-3 py-1.5 rounded-lg text-xs transition">🗑️ حذف</button>
+                                @endif
                             </td>
                         </tr>
                     @empty
@@ -88,30 +93,97 @@
             </div>
     </div>
 
-    <div id="driver_modal" class="hidden fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden">
-            <div class="bg-slate-950 p-5 text-white flex justify-between items-center">
-                <h3 class="font-black">ثبت و استعلام راننده</h3>
-                <button onclick="closeDriverModal()" class="text-slate-400 hover:text-white text-xl">✕</button>
-            </div>
-            <div class="p-6 space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-b pb-4 bg-slate-50 p-3 rounded-xl">
-                    <input type="text" id="m_national_code" placeholder="کد ملی (۱۰ رقم)" maxlength="10" class="w-full p-3 border rounded-xl font-mono text-center bg-white">
-                    <input type="text" id="m_mobile" placeholder="موبایل (مثال: 0912...)" maxlength="11" class="w-full p-3 border rounded-xl font-mono text-center bg-white">
-                    <button onclick="inquiryDriverLive()" id="btn_inquiry" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl text-xs transition">🔍 استعلام راهداری</button>
+    <div id="driver_modal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-slate-950/70 p-3 backdrop-blur-sm sm:p-4">
+        <div class="mx-auto my-2 w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="driver_modal_title">
+            <div class="company-page-header flex items-start justify-between gap-3 p-4 text-white">
+                <div class="min-w-0">
+                    <p class="text-xs font-bold text-emerald-100">ناوگان و رانندگان شرکت</p>
+                    <h3 id="driver_modal_title" class="mt-1 text-base font-black">ثبت و استعلام راننده جدید</h3>
+                    <p class="mt-1 max-w-2xl text-[11px] leading-5 text-blue-100">استعلام خودکار؛ در صورت عدم پاسخ، ورود دستی اطلاعات.</p>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input type="text" id="m_first_name_fa" placeholder="نام (فارسی)" oninput="$('#m_first_name_en').val(toFinglish(this.value))" class="w-full p-3 border rounded-xl text-center">
-                    <input type="text" id="m_first_name_en" placeholder="نام (فینگلیش)" class="w-full p-3 border border-blue-200 bg-blue-50 rounded-xl text-center uppercase">
-                    <input type="text" id="m_last_name_fa" placeholder="نام خانوادگی (فارسی)" oninput="$('#m_last_name_en').val(toFinglish(this.value))" class="w-full p-3 border rounded-xl text-center">
-                    <input type="text" id="m_last_name_en" placeholder="نام خانوادگی (فینگلیش)" class="w-full p-3 border border-blue-200 bg-blue-50 rounded-xl text-center uppercase">
-                    <input type="text" id="m_passport" placeholder="شماره پاسپورت" class="md:col-span-2 w-full p-3 border border-amber-200 text-amber-900 rounded-xl font-mono text-center uppercase">
-                </div>
-                <div class="pt-4 flex justify-end gap-2">
-                    <button onclick="closeDriverModal()" class="bg-slate-200 text-slate-800 hover:bg-slate-300 px-6 py-3 rounded-xl text-xs font-bold transition">انصراف</button>
-                    <button onclick="saveDriver()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl text-xs font-bold transition">💾 ذخیره پرونده</button>
+                <div class="flex shrink-0 items-start gap-3">
+                    <span id="status_badge" class="rounded-full bg-white/15 px-3 py-1.5 text-[10px] font-black text-white ring-1 ring-white/20">در انتظار استعلام</span>
+                    <button type="button" onclick="closeDriverModal()" class="rounded-xl p-1 text-2xl leading-none text-blue-100 transition hover:bg-white/10 hover:text-white" aria-label="بستن فرم">✕</button>
                 </div>
             </div>
+
+            <form id="driver_form" class="space-y-3 p-4 sm:p-5" onsubmit="saveDriver(event); return false;">
+                <section class="rounded-xl border border-sky-100 bg-sky-50/60 p-3 sm:p-4">
+                    <div class="mb-3 flex items-start gap-2.5">
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-600 text-xs font-black text-white">۱</span>
+                        <div>
+                            <h4 class="text-sm font-black text-slate-800">استعلام اولیه راننده</h4>
+                            <p class="mt-0.5 text-[10px] leading-4 text-slate-500">کد ملی و موبایل الزامی است.</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <label class="block text-right text-xs font-black text-slate-700">
+                            کد ملی راننده <span class="text-rose-600">*</span>
+                            <span class="mr-1 inline text-[10px] font-normal text-slate-500">(۱۰ رقم)</span>
+                            <input type="text" id="m_national_code" required maxlength="10" minlength="10" inputmode="numeric" autocomplete="off" placeholder="مثال: ۰۰۱۲۳۴۵۶۷۸" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-center font-mono text-sm tracking-widest outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100">
+                        </label>
+                        <label class="block text-right text-xs font-black text-slate-700">
+                            شماره موبایل راننده <span class="text-rose-600">*</span>
+                            <span class="mr-1 inline text-[10px] font-normal text-slate-500">(با ۰۹، ۱۱ رقم)</span>
+                            <input type="text" id="m_mobile" required maxlength="11" minlength="11" inputmode="tel" autocomplete="tel" placeholder="مثال: ۰۹۱۲۱۲۳۴۵۶۷" dir="ltr" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-center font-mono text-sm tracking-widest outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-100">
+                            <span class="mt-1 block text-[10px] font-normal text-slate-500">هر شماره موبایل فقط برای یک راننده قابل ثبت است.</span>
+                        </label>
+                    </div>
+                    <div class="mt-3 flex justify-end">
+                        <button type="button" onclick="inquiryDriverLive()" id="btn_inquiry" class="rounded-lg bg-sky-600 px-5 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60">🔍 استعلام از راهداری</button>
+                    </div>
+                </section>
+
+                <section class="rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
+                    <div class="mb-3 flex items-start gap-2.5">
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-600 text-xs font-black text-white">۲</span>
+                        <div>
+                            <h4 class="text-sm font-black text-slate-800">مشخصات مورد نیاز پرونده</h4>
+                            <p class="mt-0.5 text-[10px] leading-4 text-slate-500">استعلامی یا ورود دستی؛ همه موارد الزامی است.</p>
+                        </div>
+                    </div>
+                    <div class="mb-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[10px] leading-5 text-amber-900">
+                        <span class="shrink-0 text-sm">⚠️</span>
+                        <p><strong>تذکر مهم برای ثبت‌کننده:</strong> این اطلاعات مستقیماً روی دوزوله درج می‌شود. نام و نام خانوادگی لاتین را دقیقاً مطابق پاسپورت و فقط با حروف انگلیسی بزرگ وارد کنید؛ مسئولیت صحت اطلاعات با شرکت ثبت‌کننده است.</p>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <label class="block text-right text-xs font-black text-slate-700">
+                            نام فارسی <span class="text-rose-600">*</span>
+                            <span class="mr-1 inline text-[10px] font-normal text-slate-500">(مطابق مدرک)</span>
+                            <input type="text" id="m_first_name_fa" required maxlength="100" placeholder="نام راننده" oninput="$('#m_first_name_en').val(toFinglish(this.value))" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100">
+                        </label>
+                        <label class="block text-right text-xs font-black text-slate-700">
+                            نام خانوادگی فارسی <span class="text-rose-600">*</span>
+                            <span class="mr-1 inline text-[10px] font-normal text-slate-500">(مطابق مدرک)</span>
+                            <input type="text" id="m_last_name_fa" required maxlength="100" placeholder="نام خانوادگی راننده" oninput="$('#m_last_name_en').val(toFinglish(this.value))" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white p-2.5 text-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100">
+                        </label>
+                        <label class="block text-right text-xs font-black text-slate-700">
+                            نام لاتین / پاسپورت <span class="text-rose-600">*</span>
+                            <span class="mr-1 inline text-[10px] font-normal text-slate-500">(انگلیسی بزرگ)</span>
+                            <input type="text" id="m_first_name_en" required maxlength="100" placeholder="مثال: MOHAMMAD" dir="ltr" class="mt-1.5 w-full rounded-lg border border-indigo-200 bg-indigo-50/60 p-2.5 text-left font-mono text-sm uppercase outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100">
+                        </label>
+                        <label class="block text-right text-xs font-black text-slate-700">
+                            نام خانوادگی لاتین / پاسپورت <span class="text-rose-600">*</span>
+                            <span class="mr-1 inline text-[10px] font-normal text-slate-500">(انگلیسی بزرگ)</span>
+                            <input type="text" id="m_last_name_en" required maxlength="100" placeholder="مثال: AHMADI" dir="ltr" class="mt-1.5 w-full rounded-lg border border-indigo-200 bg-indigo-50/60 p-2.5 text-left font-mono text-sm uppercase outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100">
+                        </label>
+                        <label class="block text-right text-xs font-black text-slate-700 md:col-span-2">
+                            شماره پاسپورت <span class="text-rose-600">*</span>
+                            <span class="mr-1 inline text-[10px] font-normal text-slate-500">(حروف و عدد)</span>
+                            <input type="text" id="m_passport" required maxlength="30" placeholder="مثال: A12345678" dir="ltr" class="mt-1.5 w-full rounded-lg border border-amber-300 bg-amber-50/50 p-2.5 text-left font-mono text-sm uppercase outline-none transition focus:border-amber-500 focus:ring-4 focus:ring-amber-100">
+                        </label>
+                    </div>
+                    <p class="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-[10px] leading-5 text-slate-600">اطلاعات ثبت‌شده برای صدور و چاپ دوزوله استفاده می‌شود؛ پیش از ذخیره، نام لاتین و شماره پاسپورت را دوباره کنترل کنید.</p>
+                </section>
+
+                <div class="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3">
+                    <p class="text-[11px] font-bold text-slate-400"><span class="text-rose-600">*</span> تکمیل همهٔ موارد الزامی است.</p>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="closeDriverModal()" class="rounded-lg bg-slate-100 px-5 py-2.5 text-xs font-black text-slate-700 transition hover:bg-slate-200">انصراف</button>
+                        <button type="submit" id="btn_save_driver" class="rounded-lg bg-sky-700 px-6 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-60">💾 ذخیره پرونده</button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -246,8 +318,40 @@
         return finglishWords.join(" ").toUpperCase();
     }
     
-    function openDriverModal() { $('#driver_modal').removeClass('hidden'); $('#m_national_code').prop('disabled', false); }
-    function closeDriverModal() { $('#driver_modal').addClass('hidden'); $('input').val(''); }
+    function resetDriverModal() {
+        const modal = $('#driver_modal');
+        modal.find('input').val('').prop('disabled', false);
+        $('#btn_inquiry').prop('disabled', false).text('🔍 استعلام از راهداری').removeClass('bg-amber-600').addClass('bg-sky-600');
+        $('#btn_save_driver').prop('disabled', false).text('💾 ذخیره پرونده');
+        $('#status_badge').text('در انتظار استعلام').attr('class', 'rounded-full bg-white/15 px-3 py-1.5 text-[10px] font-black text-white ring-1 ring-white/20');
+    }
+
+    function openDriverModal() {
+        resetDriverModal();
+        $('#driver_modal').removeClass('hidden');
+        $('#m_national_code').trigger('focus');
+    }
+
+    function closeDriverModal() {
+        $('#driver_modal').addClass('hidden');
+        resetDriverModal();
+    }
+
+    function normalizeDigits(value) {
+        return String(value || '').replace(/[۰-۹]/g, digit => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)));
+    }
+
+    $('#m_national_code, #m_mobile').on('input', function () {
+        this.value = normalizeDigits(this.value).replace(/\D/g, '');
+    });
+
+    $('#m_first_name_en, #m_last_name_en').on('input', function () {
+        this.value = this.value.replace(/[^a-zA-Z ]/g, '').toUpperCase();
+    });
+
+    $('#m_passport').on('input', function () {
+        this.value = this.value.replace(/[^a-zA-Z0-9 -]/g, '').toUpperCase();
+    });
 
     function openNotifyModal(scope = 'selected', driverId = null) {
         const driver = companyDrivers.find(item => Number(item.id) === Number(driverId));
@@ -337,15 +441,20 @@
     });
 
     function inquiryDriverLive() {
-        let natId = $('#m_national_code').val(); 
-        let mobile = $('#m_mobile').val(); 
+        let natId = normalizeDigits($('#m_national_code').val()).replace(/\D/g, '');
+        let mobile = normalizeDigits($('#m_mobile').val()).replace(/\D/g, '');
+        $('#m_national_code').val(natId);
+        $('#m_mobile').val(mobile);
         let btn = $('#btn_inquiry');
-        if (!natId || !mobile) return;
+        if (!/^\d{10}$/.test(natId) || !/^09\d{9}$/.test(mobile)) {
+            Swal.fire({ icon: 'warning', title: 'اطلاعات استعلام ناقص است', text: 'کد ملی باید ۱۰ رقم و موبایل باید ۱۱ رقم و با ۰۹ شروع شود.', confirmButtonText: 'متوجه شدم' });
+            return;
+        }
         
-        btn.text('⏳ استعلام زنده...').addClass('bg-amber-600').removeClass('bg-blue-600').prop('disabled', true);
+        btn.text('⏳ استعلام زنده...').addClass('bg-amber-600').removeClass('bg-sky-600').prop('disabled', true);
 
         $.post("{{ route('web.company.driver.inquire') }}", { _token: "{{ csrf_token() }}", national_id: natId, mobile_number: mobile }, function(res) {
-            btn.text('🔍 استعلام راهداری').addClass('bg-blue-600').removeClass('bg-amber-600').prop('disabled', false);
+            btn.text('🔍 استعلام از راهداری').addClass('bg-sky-600').removeClass('bg-amber-600').prop('disabled', false);
             
             if (res.success && res.data) {
                 let driver = null;
@@ -394,7 +503,7 @@
                 switchToManualMode("پاسخی از سازمان دریافت نشده است. لطفاً مشخصات را دستی وارد کنید.", "error"); 
             }
         }).fail(function(xhr) {
-            btn.text('🔍 استعلام راهداری').addClass('bg-blue-600').removeClass('bg-amber-600').prop('disabled', false);
+            btn.text('🔍 استعلام از راهداری').addClass('bg-sky-600').removeClass('bg-amber-600').prop('disabled', false);
             
             let actualErrorMessage = "سرویس استعلام راهداری موقتاً پاسخگو نیست (Timeout). لطفاً دستی وارد کنید.";
             if (xhr.status === 419) {
@@ -419,21 +528,60 @@
         });
     }
     
-    function saveDriver() {
-        let btn = $(event.target); let originalText = btn.text();
-        btn.prop('disabled', true).text('در حال ذخیره...');
-        
-        let isEditMode = $('#m_national_code').is(':disabled') ? 1 : 0;
+    function saveDriver(event) {
+        event.preventDefault();
 
-        let data = { 
-            _token: "{{ csrf_token() }}", 
-            national_id: $('#m_national_code').val(), 
-            mobile: $('#m_mobile').val(), 
-            first_name: $('#m_first_name_fa').val(), 
-            last_name: $('#m_last_name_fa').val(), 
-            first_name_en: $('#m_first_name_en').val(), 
-            last_name_en: $('#m_last_name_en').val(), 
-            passport_number: $('#m_passport').val(),
+        const form = document.getElementById('driver_form');
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        const nationalId = normalizeDigits($('#m_national_code').val()).replace(/\D/g, '');
+        const mobile = normalizeDigits($('#m_mobile').val()).replace(/\D/g, '');
+        const firstNameFa = $('#m_first_name_fa').val().trim();
+        const lastNameFa = $('#m_last_name_fa').val().trim();
+        const firstNameEn = $('#m_first_name_en').val().trim().toUpperCase();
+        const lastNameEn = $('#m_last_name_en').val().trim().toUpperCase();
+        const passportNumber = $('#m_passport').val().trim().toUpperCase();
+        const latinNamePattern = /^[A-Z]+(?:[ '-][A-Z]+)*$/;
+        const passportPattern = /^[A-Z0-9][A-Z0-9 -]*$/;
+
+        $('#m_national_code').val(nationalId);
+        $('#m_mobile').val(mobile);
+        $('#m_first_name_en').val(firstNameEn);
+        $('#m_last_name_en').val(lastNameEn);
+        $('#m_passport').val(passportNumber);
+
+        if (!/^\d{10}$/.test(nationalId) || !/^09\d{9}$/.test(mobile)) {
+            Swal.fire({ icon: 'warning', title: 'اطلاعات ناقص است', text: 'کد ملی باید ۱۰ رقم و موبایل باید ۱۱ رقم و با ۰۹ شروع شود.', confirmButtonText: 'متوجه شدم' });
+            return;
+        }
+
+        if (!latinNamePattern.test(firstNameEn) || !latinNamePattern.test(lastNameEn)) {
+            Swal.fire({ icon: 'warning', title: 'نام لاتین نامعتبر است', text: 'نام و نام خانوادگی لاتین را فقط با حروف انگلیسی بزرگ وارد کنید.', confirmButtonText: 'متوجه شدم' });
+            return;
+        }
+
+        if (!passportPattern.test(passportNumber)) {
+            Swal.fire({ icon: 'warning', title: 'شماره پاسپورت نامعتبر است', text: 'شماره پاسپورت باید فقط شامل حروف انگلیسی، عدد، فاصله یا خط تیره باشد.', confirmButtonText: 'متوجه شدم' });
+            return;
+        }
+
+        const btn = $('#btn_save_driver');
+        const originalText = btn.text();
+        btn.prop('disabled', true).text('در حال ذخیره...');
+
+        const isEditMode = $('#m_national_code').is(':disabled') ? 1 : 0;
+        const data = {
+            _token: "{{ csrf_token() }}",
+            national_id: nationalId,
+            mobile: mobile,
+            first_name: firstNameFa,
+            last_name: lastNameFa,
+            first_name_en: firstNameEn,
+            last_name_en: lastNameEn,
+            passport_number: passportNumber,
             is_edit: isEditMode
         };
 
@@ -454,7 +602,9 @@
             }
         }).fail(function(xhr) {
             btn.prop('disabled', false).text(originalText);
-            let errMsg = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : "سرور خطا داد";
+            const response = xhr.responseJSON || {};
+            const validationErrors = response.errors ? Object.values(response.errors).flat().join('\n') : '';
+            let errMsg = validationErrors || response.message || "سرور خطا داد";
             Swal.fire({ icon: 'error', title: 'عدم ثبت رکورد', text: errMsg, confirmButtonText: 'اصلاح مشخصات', confirmButtonColor: '#e11d48' });
         });
     }

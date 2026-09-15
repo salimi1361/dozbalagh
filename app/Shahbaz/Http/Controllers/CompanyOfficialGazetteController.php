@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Morilog\Jalali\Jalalian;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CompanyOfficialGazetteController extends Controller
 {
@@ -18,13 +19,50 @@ class CompanyOfficialGazetteController extends Controller
     public function index(Request $request): View
     {
         $company = $request->user()->company;
+        [$dateFrom, $dateTo] = $this->dateRange($request);
+        $gazettes = $this->filteredGazettes($company->id, $dateFrom, $dateTo)->get();
 
         return view('Shahbaz.company.gazettes.index', [
             'company' => $company,
-            'gazettes' => OfficialGazette::where('company_id', $company->id)->latest('gazette_date')->latest('id')->get(),
+            'gazettes' => $gazettes,
             'editable' => in_array($company->shahbaz_verification_status, self::EDITABLE_STATUSES, true),
             'changeGroups' => $this->changeGroups(),
+            'dateFromJalali' => $request->input('date_from_jalali'),
+            'dateToJalali' => $request->input('date_to_jalali'),
         ]);
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $company = $request->user()->company;
+        [$dateFrom, $dateTo] = $this->dateRange($request);
+        $gazettes = $this->filteredGazettes($company->id, $dateFrom, $dateTo)->get();
+        $fileName = 'official-gazettes-'.$company->national_id.'-'.now()->format('Ymd-His').'.csv';
+
+        return response()->streamDownload(function () use ($company, $gazettes, $request): void {
+            $output = fopen('php://output', 'wb');
+            fwrite($output, "\xEF\xBB\xBF");
+            fputcsv($output, ['گزارش روزنامه رسمی شرکت', $company->name_fa]);
+            fputcsv($output, ['شناسه ملی', $company->national_id]);
+            fputcsv($output, ['از تاریخ شمسی', $request->input('date_from_jalali') ?: 'ابتدای سوابق', 'تا تاریخ شمسی', $request->input('date_to_jalali') ?: 'انتهای سوابق']);
+            fputcsv($output, []);
+            fputcsv($output, ['ردیف', 'شماره روزنامه رسمی', 'تاریخ روزنامه رسمی (شمسی)', 'گروه تغییرات', 'شماره نامه/اعلامیه', 'تاریخ نامه (شمسی)', 'موضوع آگهی', 'توضیحات']);
+
+            foreach ($gazettes as $index => $gazette) {
+                fputcsv($output, [
+                    $index + 1,
+                    $gazette->gazette_number,
+                    $gazette->gazette_date ? verta($gazette->gazette_date)->format('Y/m/d') : '',
+                    $gazette->change_group,
+                    $gazette->notice_number,
+                    $gazette->notice_date ? verta($gazette->notice_date)->format('Y/m/d') : '',
+                    $gazette->subject,
+                    $gazette->notes,
+                ]);
+            }
+
+            fclose($output);
+        }, $fileName, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function store(Request $request): RedirectResponse
@@ -73,5 +111,39 @@ class CompanyOfficialGazetteController extends Controller
         } catch (\Throwable) {
             throw ValidationException::withMessages([$source => 'تاریخ شمسی انتخاب‌شده معتبر نیست.']);
         }
+    }
+
+    private function dateRange(Request $request): array
+    {
+        $from = $this->parseJalaliDate($request->input('date_from_jalali'), 'date_from_jalali');
+        $to = $this->parseJalaliDate($request->input('date_to_jalali'), 'date_to_jalali');
+
+        if ($from && $to && $from->gt($to)) {
+            throw ValidationException::withMessages(['date_to_jalali' => 'تاریخ پایان نمی‌تواند قبل از تاریخ شروع باشد.']);
+        }
+
+        return [$from, $to];
+    }
+
+    private function parseJalaliDate(mixed $value, string $field): ?\Carbon\Carbon
+    {
+        if (blank($value)) return null;
+
+        try {
+            $normalized = strtr(trim((string) $value), ['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']);
+            return Jalalian::fromFormat('Y/m/d', $normalized)->toCarbon()->startOfDay();
+        } catch (\Throwable) {
+            throw ValidationException::withMessages([$field => 'تاریخ شمسی انتخاب‌شده معتبر نیست.']);
+        }
+    }
+
+    private function filteredGazettes(int $companyId, ?\Carbon\Carbon $dateFrom, ?\Carbon\Carbon $dateTo)
+    {
+        return OfficialGazette::query()
+            ->where('company_id', $companyId)
+            ->when($dateFrom, fn ($query) => $query->whereDate('gazette_date', '>=', $dateFrom->toDateString()))
+            ->when($dateTo, fn ($query) => $query->whereDate('gazette_date', '<=', $dateTo->toDateString()))
+            ->latest('gazette_date')
+            ->latest('id');
     }
 }

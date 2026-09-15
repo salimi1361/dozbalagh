@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache; // 🚀 اضافه شدن کلاس کش
 
 class WalletController extends Controller
@@ -29,6 +30,7 @@ class WalletController extends Controller
         $transactions = WalletTransaction::where('wallet_id', $wallet->id)
             ->orderBy('id', 'desc')
             ->paginate(10);
+        $this->attachSourceTransferTraces($transactions->getCollection(), $companyId);
 
         return view('company.wallet.index', compact('wallet', 'transactions'));
     }
@@ -160,6 +162,7 @@ class WalletController extends Controller
             ->whereIn('id', $ids)
             ->orderBy('id', 'desc')
             ->get();
+        $this->attachSourceTransferTraces($transactions, $companyId);
 
         $fileName = "transactions_export_" . date('Y-m-d_H-i') . ".csv";
 
@@ -182,7 +185,11 @@ class WalletController extends Controller
 
             foreach ($transactions as $trx) {
                 $type = ($trx->type === 'credit' || $trx->type === 'wallet_charge') ? 'بستانکار (+)' : 'بدهکار (-)';
-                $status = $trx->status === 'success' ? 'موفق' : ($trx->status === 'failed' ? 'ناموفق' : 'معلق');
+                $isSettledDebit = $trx->action_type === 'dozbalagh_purchase'
+                    || ($trx->business_event ?? null) === 'permit_transfer_fee';
+                $status = $isSettledDebit
+                    ? 'قطعی / پرداخت‌شده'
+                    : ($trx->status === 'success' ? 'موفق' : ($trx->status === 'failed' ? 'ناموفق' : 'معلق'));
 
                 // 📅 تبدیل زنده تاریخ به هجری شمسی و میلادی
                 $shamsiDate = \Morilog\Jalali\Jalalian::fromCarbon($trx->created_at)->format('Y/m/d H:i');
@@ -190,7 +197,9 @@ class WalletController extends Controller
 
                 fputcsv($file, [
                     $trx->ref_id ?? $trx->id,
-                    $trx->description,
+                    $trx->source_transfer_trace
+                        ? ($trx->description.' | دوزوله شماره '.$trx->source_transfer_trace->serial_number.' مختومه به علت انتقال توسط انجمن؛ رهگیری '.$trx->source_transfer_trace->tracking_code.'؛ تاریخ '.\Morilog\Jalali\Jalalian::fromCarbon(\Carbon\Carbon::parse($trx->source_transfer_trace->created_at))->format('Y/m/d H:i'))
+                        : $trx->description,
                     $trx->amount,
                     $type,
                     $status,
@@ -202,5 +211,36 @@ class WalletController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    private function attachSourceTransferTraces($transactions, int $companyId): void
+    {
+        $itemIds = $transactions
+            ->where('action_type', 'dozbalagh_purchase')
+            ->pluck('permit_request_item_id')
+            ->filter()
+            ->unique()
+            ->values();
+        if ($itemIds->isEmpty()) {
+            return;
+        }
+
+        $traces = DB::table('permit_item_transfers')
+            ->where('source_company_id', $companyId)
+            ->whereIn('permit_request_item_id', $itemIds)
+            ->orderByDesc('id')
+            ->get(['id', 'permit_request_item_id', 'serial_number', 'created_at'])
+            ->unique('permit_request_item_id')
+            ->keyBy('permit_request_item_id');
+
+        $transactions->each(function ($transaction) use ($traces) {
+            $trace = $transaction->action_type === 'dozbalagh_purchase'
+                ? $traces->get($transaction->permit_request_item_id)
+                : null;
+            if ($trace) {
+                $trace->tracking_code = 'TRF-'.str_pad((string) $trace->id, 8, '0', STR_PAD_LEFT);
+            }
+            $transaction->source_transfer_trace = $trace;
+        });
     }
 }

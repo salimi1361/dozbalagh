@@ -35,7 +35,7 @@ class DriverCmrController extends Controller
 
     public function show(CmrDocument $cmr): JsonResponse
     {
-        abort_unless((int) $cmr->driver_id === (int) auth()->id(), 403);
+        $this->assertOwner($cmr);
         abort_if($cmr->status === 'draft', 404);
         $cmr->load(['company:id,name_fa,name_en,address_en', 'fleet', 'goods', 'events', 'signatures', 'attachments', 'handovers.attachments']);
         $policy=CmrCompanySetting::forCompany((int)$cmr->company_id);
@@ -77,6 +77,8 @@ class DriverCmrController extends Controller
         $data=$request->validate([
             'client_uuid'=>['required','uuid'],'stage'=>['required','in:origin,destination'],
             'outcome'=>['required','in:accepted,accepted_with_reservations,delivered,partial,damaged,refused'],
+            'document_version'=>['required','integer','min:1'],
+            'document_hash'=>['required','string','size:64'],
             'signer_name'=>['nullable','string','max:255'],'signer_identifier'=>['nullable','string','max:255'],
             'signature'=>['nullable','image','mimes:png,jpg,jpeg,webp','max:5120'],
             'photos'=>['nullable','array','max:5'],'photos.*'=>['image','mimes:png,jpg,jpeg,webp','max:10240'],
@@ -88,16 +90,28 @@ class DriverCmrController extends Controller
         $existing=CmrHandoverRecord::where('cmr_document_id',$cmr->id)->where('stage',$data['stage'])->where('client_uuid',$data['client_uuid'])->first();
         if($existing) return response()->json(['data'=>$existing,'duplicate'=>true]);
         $policy=CmrCompanySetting::forCompany((int)$cmr->company_id); $stage=$data['stage'];
+        $allowedOutcomes=$stage==='origin'
+            ? ['accepted','accepted_with_reservations','refused']
+            : ['delivered','partial','damaged','refused'];
+        if(!in_array($data['outcome'],$allowedOutcomes,true)) abort(422,'The selected outcome is not valid for this handover stage.');
         $enabled=(bool)$policy->{$stage.'_evidence_enabled'};
         if(!$enabled) abort(409,'Evidence workflow is not enabled for this stage.');
         if($policy->{$stage.'_require_signature'} && (!$request->hasFile('signature') || blank($data['signer_name']??null))) abort(422,'Signature and signer name are required.');
         if($policy->{$stage.'_require_photo'} && !$request->hasFile('photos')) abort(422,'At least one evidence photo is required.');
         if($policy->{$stage.'_require_gps'} && (!isset($data['latitude'],$data['longitude']))) abort(422,'GPS location is required.');
         if(!$policy->allow_delivery_exceptions && !in_array($data['outcome'],[$stage==='origin'?'accepted':'delivered'],true)) abort(422,'Delivery exceptions are disabled by company policy.');
+        $exceptionOutcomes=['accepted_with_reservations','partial','damaged','refused'];
+        if(in_array($data['outcome'],$exceptionOutcomes,true) && blank($data['notes']??null)) abort(422,'Notes are required when a reservation, shortage, damage or refusal is recorded.');
+        if(in_array($data['outcome'],['partial','damaged','refused'],true) && !$request->hasFile('photos')) abort(422,'At least one evidence photo is required for partial, damaged or refused handovers.');
 
         $record=DB::transaction(function() use($request,$cmr,$data,$stage){
             $document=CmrDocument::lockForUpdate()->findOrFail($cmr->id);
             abort_unless($stage==='origin' ? $document->status==='issued' : $document->status==='in_transit',409,'CMR status is not valid for this handover stage.');
+            abort_unless(
+                (int)$data['document_version']===(int)$document->version && hash_equals((string)$document->integrity_hash,(string)$data['document_hash']),
+                409,
+                'The CMR has changed. Refresh the document before confirming the handover.'
+            );
             $signaturePath=null;$signatureHash=null;
             if($request->hasFile('signature')){$file=$request->file('signature');$signatureHash=hash_file('sha256',$file->getRealPath());$signaturePath=$file->storeAs('cmr/'.$document->uuid.'/handovers/signatures',Str::uuid().'.'.$file->getClientOriginalExtension(),'local');}
             $occurredAt=isset($data['occurred_at'])?Carbon::parse($data['occurred_at'])->setTimezone(config('app.timezone')):now();
@@ -127,7 +141,7 @@ class DriverCmrController extends Controller
 
     public function print(CmrDocument $cmr): View
     {
-        abort_unless((int) $cmr->driver_id === (int) auth()->id(), 403);
+        $this->assertOwner($cmr);
         abort_if($cmr->status === 'draft', 404);
         $cmr->load(['company', 'driver', 'fleet', 'goods', 'signatures', 'printTemplate']);
         if ($cmr->printTemplate?->print_mode === 'preprinted' && $cmr->printTemplate?->background_path) {
@@ -140,7 +154,12 @@ class DriverCmrController extends Controller
     public function accept(Request $request, CmrDocument $cmr): JsonResponse
     {
         abort_if(CmrCompanySetting::forCompany((int)$cmr->company_id)->origin_evidence_enabled,409,'Use the origin handover evidence workflow.');
-        $data = $request->validate(['reservation' => ['nullable', 'string', 'max:2000'], 'confirmed' => ['accepted']]);
+        $data = $request->validate([
+            'reservation' => ['nullable', 'string', 'max:2000'],
+            'confirmed' => ['accepted'],
+            'document_version'=>['nullable','integer','min:1'],
+            'document_hash'=>['nullable','string','size:64'],
+        ]);
         $this->assertOwner($cmr);
         $driver = auth()->user();
         $name = trim(($driver->first_name_en ?? '').' '.($driver->last_name_en ?? '')) ?: 'Driver #'.$driver->id;
@@ -148,6 +167,7 @@ class DriverCmrController extends Controller
         DB::transaction(function () use ($cmr, $data, $request, $name, $driver) {
             $document = CmrDocument::query()->lockForUpdate()->findOrFail($cmr->id);
             abort_unless($document->status === 'issued', 409, 'Only an issued CMR can be accepted.');
+            $this->assertDocumentVersion($document,$data);
             $this->recordSignature($document, 'driver', $name, $data['reservation'] ?? null, $request, (int) $driver->id);
             $document->update(['status' => 'accepted', 'carrier_reservations' => $data['reservation'] ?? $document->carrier_reservations]);
             $this->event($document, 'accepted', 'issued', 'accepted', 'Driver accepted the goods and the current CMR version.', (int) $driver->id);
@@ -171,11 +191,18 @@ class DriverCmrController extends Controller
     {
         abort_if(CmrCompanySetting::forCompany((int)$cmr->company_id)->destination_evidence_enabled,409,'Use the destination handover evidence workflow.');
         $latin = 'regex:/^[\p{Latin}\p{N}\p{P}\p{Z}\r\n]+$/u';
-        $data = $request->validate(['consignee_signer_name' => ['required', 'string', 'max:255', $latin], 'reservation' => ['nullable', 'string', 'max:2000'], 'confirmed_by_consignee' => ['accepted']]);
+        $data = $request->validate([
+            'consignee_signer_name' => ['required', 'string', 'max:255', $latin],
+            'reservation' => ['nullable', 'string', 'max:2000'],
+            'confirmed_by_consignee' => ['accepted'],
+            'document_version'=>['nullable','integer','min:1'],
+            'document_hash'=>['nullable','string','size:64'],
+        ]);
         $this->assertOwner($cmr);
         DB::transaction(function () use ($cmr, $data, $request) {
             $document = CmrDocument::query()->lockForUpdate()->findOrFail($cmr->id);
             abort_unless($document->status === 'in_transit', 409, 'Only a CMR in transit can be delivered.');
+            $this->assertDocumentVersion($document,$data);
             $this->recordSignature($document, 'consignee', $data['consignee_signer_name'], $data['reservation'] ?? null, $request, (int) auth()->id(), 'witnessed_on_driver_device');
             $document->update(['status' => 'delivered']);
             $this->event($document, 'delivered', 'in_transit', 'delivered', 'Goods received and box 24 acknowledgement recorded.', (int) auth()->id());
@@ -195,8 +222,11 @@ class DriverCmrController extends Controller
     public function trackingEvent(Request $request, CmrDocument $cmr): JsonResponse
     {
         $this->assertOwner($cmr);
-        abort_unless(in_array($cmr->status, ['accepted','in_transit'], true), 409, 'CMR tracking is not active.');
         $data=$request->validate(['event_type'=>['required','in:tracking_started,tracking_stopped'],'latitude'=>['nullable','numeric'],'longitude'=>['nullable','numeric']]);
+        $allowedStatuses=$data['event_type']==='tracking_stopped'
+            ? ['accepted','in_transit','delivered']
+            : ['accepted','in_transit'];
+        abort_unless(in_array($cmr->status, $allowedStatuses, true), 409, 'CMR tracking is not active.');
         DB::table('driver_events')->insert(['driver_id'=>auth()->id(),'dozbalagh_item_id'=>null,'cmr_document_id'=>$cmr->id,'event_type'=>$data['event_type'],'latitude'=>$data['latitude']??null,'longitude'=>$data['longitude']??null,'created_at'=>now(),'updated_at'=>now()]);
         return response()->json(['status'=>'success']);
     }
@@ -211,6 +241,16 @@ class DriverCmrController extends Controller
     private function assertOwner(CmrDocument $cmr): void
     {
         abort_unless((int) $cmr->driver_id === (int) auth()->id(), 403);
+    }
+
+    private function assertDocumentVersion(CmrDocument $document, array $data): void
+    {
+        if(!isset($data['document_version'],$data['document_hash'])) return;
+        abort_unless(
+            (int)$data['document_version']===(int)$document->version && hash_equals((string)$document->integrity_hash,(string)$data['document_hash']),
+            409,
+            'The CMR has changed. Refresh the document before confirming.'
+        );
     }
 
     private function handoverPolicy(CmrCompanySetting $settings): array
@@ -238,7 +278,8 @@ class DriverCmrController extends Controller
             'number' => $document->number,
             'company_serial' => $document->company_serial,
             'status' => $document->status,
-            'company_name' => $document->company?->name_en ?: $document->company?->name_fa,
+            'company_id' => $document->company?->id,
+            'company_name' => $document->company?->name_fa ?: $document->company?->name_en,
             'vehicle_plate' => $document->fleet?->transit_plate,
             'taking_over_place' => $document->taking_over_place,
             'taking_over_at' => $document->taking_over_at?->toIso8601String(),

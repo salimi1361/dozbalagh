@@ -2,9 +2,9 @@
 @section('header_title','ناوگان پرونده شرکت')
 @section('content')
 <div dir="rtl" class="mx-auto max-w-6xl space-y-5">
-    <section class="flex flex-wrap items-center justify-between gap-4 rounded-3xl border bg-white p-6 shadow-sm">
+    <section class="company-page-header flex flex-wrap items-center justify-between gap-4 rounded-3xl border p-6 shadow-sm">
         <div><h1 class="text-xl font-black">ناوگان مرکزی {{ $company->name_fa }}</h1><p class="mt-2 text-sm text-slate-500">این اطلاعات مستقیماً از ناوگان مشترک دوزوله و CMR خوانده می‌شود و نسخه جداگانه‌ای در شحباز ساخته نمی‌شود.</p></div>
-        <div class="flex flex-wrap gap-2"><a href="{{ route('company.shahbaz.dossier.show') }}" class="rounded-xl border px-5 py-3 font-bold">بازگشت به پرونده</a>@if($editable)<a href="{{ route('web.company.fleet.index') }}" class="rounded-xl bg-emerald-700 px-5 py-3 font-black text-white">مدیریت و افزودن ناوگان</a>@endif</div>
+        <div class="flex flex-wrap gap-2"><a href="{{ route('company.shahbaz.dossier.show') }}" class="company-header-back-link">بازگشت به پرونده</a>@if($editable)<a href="{{ route('web.company.fleet.index') }}" class="rounded-xl bg-emerald-700 px-5 py-3 font-black text-white">مدیریت و افزودن ناوگان</a>@endif</div>
     </section>
     @if(!$editable)<div class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">پرونده در حال بررسی یا بسته است؛ ناوگان فقط قابل مشاهده است.</div>@endif
     <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

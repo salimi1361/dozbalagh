@@ -15,12 +15,13 @@ class PermitController extends Controller
     {
         $driver = auth()->user();
 
-        $permits = PermitRequest::where(function ($query) use ($driver) {
-                $query->where('driver_id', $driver->id);
-
-                if (!empty($driver->fleet_id)) {
-                    $query->orWhere('fleet_id', $driver->fleet_id);
-                }
+        $permits = PermitRequest::where('driver_id', $driver->id)
+            ->whereNotExists(function ($renewals) {
+                $renewals->selectRaw('1')
+                    ->from('permit_requests as active_renewals')
+                    ->whereColumn('active_renewals.previous_request_id', 'permit_requests.id')
+                    ->where('active_renewals.request_type', 'renewal')
+                    ->whereIn('active_renewals.status', $this->activePermitStatuses());
             })
             ->with(['company', 'country', 'fleet'])
             ->orderByDesc('id')
@@ -37,13 +38,7 @@ class PermitController extends Controller
     {
         $driver = auth()->user();
 
-        $permit = PermitRequest::where(function ($query) use ($driver) {
-                $query->where('driver_id', $driver->id);
-
-                if (!empty($driver->fleet_id)) {
-                    $query->orWhere('fleet_id', $driver->fleet_id);
-                }
-            })
+        $permit = PermitRequest::where('driver_id', $driver->id)
             ->with(['company', 'country', 'fleet'])
             ->find($id);
 
@@ -71,10 +66,21 @@ class PermitController extends Controller
         $items = $this->permitItems($permit->id);
         $trackingItems = DozbalaghItem::query()
             ->whereIn('serial_number', collect($items)->pluck('d_serial_number')->filter()->values())
+            ->where('company_id', $permit->company_id)
             ->whereIn('lifecycle_status', ['issued', 'consumed'])
             ->whereNull('returned_at')
+            ->when($items !== [], function ($query) use ($permit) {
+                $query->whereExists(function ($scope) use ($permit) {
+                    $scope->selectRaw('1')
+                        ->from('permit_request_items as scoped_item')
+                        ->where('scoped_item.permit_request_id', $permit->id)
+                        ->whereColumn('scoped_item.d_serial_number', 'dozbalagh_items.serial_number')
+                        ->whereColumn('scoped_item.country_id', 'dozbalagh_items.country_id')
+                        ->whereColumn('scoped_item.permit_type', 'dozbalagh_items.permit_type');
+                });
+            })
             ->get()
-            ->keyBy(fn (DozbalaghItem $item) => (string) $item->serial_number);
+            ->keyBy(fn (DozbalaghItem $item) => $this->trackingKey($item->country_id, $item->permit_type, $item->serial_number));
         $firstItem = $items[0] ?? null;
         $cmrDate = $permit->cmr_date ?? ($firstItem['cmr_date_raw'] ?? null);
         $tirCarnetDate = $permit->tir_carnet_date ?? ($firstItem['tir_carnet_date_raw'] ?? null);
@@ -123,7 +129,7 @@ class PermitController extends Controller
             'dozoleh_items' => array_map(
                 fn ($item) => $this->formatPermitItem(
                     $item,
-                    $trackingItems->get((string) ($item['d_serial_number'] ?? '')),
+                    $trackingItems->get($this->trackingKey($item['country_id'] ?? null, $item['permit_type'] ?? null, $item['d_serial_number'] ?? null)),
                 ),
                 $items,
             ),
@@ -214,15 +220,36 @@ class PermitController extends Controller
             return null;
         }
 
+        $hasScopedItem = DB::table('permit_request_items')
+            ->where('permit_request_id', $permit->id)
+            ->whereNotNull('d_serial_number')
+            ->exists();
+
         return \App\Models\DozbalaghItem::where('serial_number', $permit->serial_number)
+            ->where('company_id', $permit->company_id)
             ->whereIn('lifecycle_status', ['issued', 'consumed'])
             ->whereNull('returned_at')
+            ->when($hasScopedItem, function ($query) use ($permit) {
+                $query->whereExists(function ($scope) use ($permit) {
+                    $scope->selectRaw('1')
+                        ->from('permit_request_items as scoped_item')
+                        ->where('scoped_item.permit_request_id', $permit->id)
+                        ->whereColumn('scoped_item.d_serial_number', 'dozbalagh_items.serial_number')
+                        ->whereColumn('scoped_item.country_id', 'dozbalagh_items.country_id')
+                        ->whereColumn('scoped_item.permit_type', 'dozbalagh_items.permit_type');
+                });
+            })
             ->where(function ($query) use ($permit) {
                 $query->where('driver_id', $permit->driver_id)
                     ->orWhere('fleet_id', $permit->fleet_id)
                     ->orWhereNull('driver_id');
             })
             ->first();
+    }
+
+    private function trackingKey($countryId, $permitType, $serial): string
+    {
+        return (string) $countryId.'|'.(string) $permitType.'|'.(string) $serial;
     }
 
     private function toPersianNumbers($string): string
@@ -264,6 +291,11 @@ class PermitController extends Controller
             'برگشتی', 'returned', 'collected', 'archived' => 'used',
             default => (string) $status,
         };
+    }
+
+    private function activePermitStatuses(): array
+    {
+        return ['draft', 'pending', 'under_review', 'returned', 'approved', 'issued'];
     }
 
     private function translateStatus($status): string

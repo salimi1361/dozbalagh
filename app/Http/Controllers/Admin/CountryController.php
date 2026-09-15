@@ -20,7 +20,8 @@ class CountryController extends Controller
         $request->validate([
             'name'           => 'required|string|max:255|unique:countries,name',
             'code'           => 'nullable|string|max:10',
-            'price'          => 'required|numeric|min:0',
+            'member_price'     => 'required|numeric|min:0',
+            'non_member_price' => 'required|numeric|min:0',
             'validity_days'  => 'required|integer|min:0',
             'permit_types'   => 'required|array|min:1',
             'permit_types.*' => 'in:bilateral,transit,bilateral_transit,third_country_transit,third_country',
@@ -40,7 +41,10 @@ class CountryController extends Controller
         Country::create([
             'name'                 => trim($request->name),
             'code'                 => strtoupper(trim($request->code)),
-            'price'                => $request->price,
+            // price برای سازگاری با بخش‌های قدیمی تا زمان اتصال تعرفه عضویت نگه داشته می‌شود.
+            'price'                => $request->non_member_price,
+            'member_price'         => $request->member_price,
+            'non_member_price'     => $request->non_member_price,
             'validity_days'        => $request->validity_days, // 👈 ذخیره در دیتابیس
             'allowed_permit_types' => $definedPermitTypes,
             'requestable_permit_types' => $requestablePermitTypes,
@@ -56,7 +60,8 @@ class CountryController extends Controller
         $request->validate([
             'name'           => 'required|string|max:255|unique:countries,name,' . $id,
             'code'           => 'nullable|string|max:10',
-            'price'          => 'required|numeric|min:0',
+            'member_price'     => 'required|numeric|min:0',
+            'non_member_price' => 'required|numeric|min:0',
             'validity_days'  => 'required|integer|min:0',
             'permit_types'   => 'required|array|min:1',
             'permit_types.*' => 'in:bilateral,transit,bilateral_transit,third_country_transit,third_country',
@@ -78,7 +83,8 @@ class CountryController extends Controller
         $country->update([
             'name'                 => trim($request->name),
             'code'                 => strtoupper(trim($request->code)),
-            'price'                => $request->price,
+            'member_price'         => $request->member_price,
+            'non_member_price'     => $request->non_member_price,
             'validity_days'        => $request->validity_days, // 👈 آپدیت در دیتابیس
             'allowed_permit_types' => $definedPermitTypes,
             'requestable_permit_types' => $requestablePermitTypes,

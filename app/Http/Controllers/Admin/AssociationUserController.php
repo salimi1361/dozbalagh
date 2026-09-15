@@ -62,25 +62,66 @@ class AssociationUserController extends Controller
         abort_unless($user->hasRole('association'), 404);
 
         $featureKeys = array_keys($features->definitions()['association'] ?? []);
-        $validated = $request->validate([
+        $rules = [
             'username' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
             'mobile' => ['nullable', 'string', 'max:20'],
             'status' => ['required', Rule::in(['active', 'inactive', 'suspended'])],
-            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            'change_password' => ['nullable', 'boolean'],
             'features' => ['required', 'array', 'min:1'],
             'features.*' => ['string', 'distinct', Rule::in($featureKeys)],
-        ]);
+        ];
+        if ($request->boolean('change_password')) {
+            $rules['password'] = ['required', 'string', 'min:8', 'confirmed'];
+        }
+        $validated = $request->validate($rules);
 
         $user->username = $validated['username'];
         $user->mobile = $validated['mobile'] ?? null;
         $user->status = $validated['status'];
         $user->association_feature_keys = array_values($validated['features']);
-        if (! empty($validated['password'])) {
+        if ($request->boolean('change_password')) {
             $user->password = Hash::make($validated['password']);
         }
         $user->save();
 
         return back()->with('success', 'اطلاعات کاربر انجمن به‌روزرسانی شد.');
+    }
+
+    public function updateProfile(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($user->hasRole('association'), 404);
+        $validated = $request->validate([
+            'username' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'mobile' => ['nullable', 'string', 'max:20'],
+            'status' => ['required', Rule::in(['active', 'inactive', 'suspended'])],
+        ]);
+        $user->update($validated);
+
+        return back()->with('success', 'مشخصات کاربر انجمن ذخیره شد.');
+    }
+
+    public function updateFeatures(Request $request, User $user, PanelFeatureService $features): RedirectResponse
+    {
+        abort_unless($user->hasRole('association'), 404);
+        $featureKeys = array_keys($features->definitions()['association'] ?? []);
+        $validated = $request->validate([
+            'features' => ['required', 'array', 'min:1'],
+            'features.*' => ['string', 'distinct', Rule::in($featureKeys)],
+        ]);
+        $user->update(['association_feature_keys' => array_values($validated['features'])]);
+
+        return back()->with('success', 'دسترسی‌های کاربر انجمن ذخیره شد.');
+    }
+
+    public function updatePassword(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($user->hasRole('association'), 404);
+        $validated = $request->validate([
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+        $user->update(['password' => Hash::make($validated['password'])]);
+
+        return back()->with('success', 'رمز عبور کاربر انجمن تغییر کرد.');
     }
 
     public function destroy(User $user): RedirectResponse

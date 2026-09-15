@@ -25,6 +25,7 @@ class DriverPermit {
     required this.destination,
     required this.cargoType,
     required this.permitType,
+    required this.requestType,
     required this.tripCode,
     required this.fleetPlate,
     required this.truckType,
@@ -47,6 +48,7 @@ class DriverPermit {
   final String destination;
   final String cargoType;
   final String permitType;
+  final String requestType;
   final String tripCode;
   final String fleetPlate;
   final String truckType;
@@ -62,6 +64,7 @@ class DriverPermit {
   };
 
   bool get isActive => activeStatuses.contains(statusKey);
+  bool get isRenewal => requestType == 'renewal';
 
   factory DriverPermit.fromJson(Map<String, dynamic> json) {
     String text(String key, [String fallback = 'ثبت نشده']) {
@@ -86,6 +89,7 @@ class DriverPermit {
       destination: text('destination'),
       cargoType: text('cargo_type'),
       permitType: text('permit_type'),
+      requestType: text('request_type', 'new').toLowerCase(),
       tripCode: text('trip_code'),
       fleetPlate: text('fleet_plate'),
       truckType: text('truck_type'),

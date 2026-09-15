@@ -393,22 +393,16 @@ class _BrandHeader extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 82,
-          height: 82,
-          padding: const EdgeInsets.all(9),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: const Color(0x5578F5D0)),
-            boxShadow: const [
-              BoxShadow(color: Color(0x5521A8FF), blurRadius: 30),
-            ],
+          width: 112,
+          height: 120,
+          child: Image.asset(
+            'assets/images/association-logo.png',
+            fit: BoxFit.contain,
           ),
-          child: Image.asset('assets/images/association-logo.png'),
         ),
         const SizedBox(height: 13),
         const Text(
-          'دوزوله راننده',
+          'راه‌نامه',
           style: TextStyle(
             color: Colors.white,
             fontSize: 25,

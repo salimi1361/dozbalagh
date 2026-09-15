@@ -13,19 +13,25 @@ use App\Http\Controllers\Admin\{
     FinancialController
 };
 use App\Http\Controllers\Admin\AssociationCrmController;
+use App\Http\Controllers\Admin\FleetLoadingTypeController;
 use App\Http\Controllers\Admin\PanelFeatureController;
 use App\Http\Controllers\Admin\AssociationUserController;
 use App\Http\Controllers\Admin\PwaInstallationReportController;
+use App\Http\Controllers\Admin\AccountSecurityController as AdminAccountSecurityController;
 use App\Http\Controllers\Association\DashboardController as AssociationDashboardController;
 use App\Http\Controllers\Association\AssociationController;
+use App\Http\Controllers\Association\PermitWorkflowController;
 use App\Http\Controllers\Association\ReportController as AssociationReportController;
+use App\Http\Controllers\Association\PerformanceReportController;
 use App\Http\Controllers\Association\IssuedDozbalaghFinancialReportController;
+use App\Http\Controllers\Association\CompanyHeaderTickerController;
 use App\Http\Controllers\TrackingMapController;
 use App\Http\Controllers\MapTileController;
 use App\Http\Controllers\DriverDeviceController;
 use App\Http\Controllers\Association\AccountSecurityController;
 use App\Http\Controllers\Admin\MobileAppVersionController;
 use App\Http\Controllers\DriverAnnouncementController;
+use App\Http\Controllers\AssistantController;
 require __DIR__.'/cmr.php';
 require __DIR__.'/shahbaz.php';
 // ==========================================
@@ -38,7 +44,19 @@ Route::get('/', fn() => redirect()->route('login'));
 // ==========================================
 Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+Route::post('/password/forgot/request', [AuthController::class, 'requestPasswordReset'])
+    ->middleware('throttle:5,10')
+    ->name('password.reset.request');
+Route::post('/password/forgot/verify', [AuthController::class, 'verifyPasswordResetCode'])
+    ->middleware('throttle:10,10')
+    ->name('password.reset.verify');
+Route::post('/password/forgot/reset', [AuthController::class, 'resetPassword'])
+    ->middleware('throttle:5,10')
+    ->name('password.reset.update');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+Route::post('/assistant/message', AssistantController::class)
+    ->middleware(['auth', 'role:admin,association,company', 'panel.features', 'throttle:30,1'])
+    ->name('assistant.message');
 Route::post('/pwa/installations', [\App\Http\Controllers\PwaInstallationController::class, 'store'])->middleware('auth')->name('pwa.installations.store');
 Route::middleware(['auth', 'role:admin,association,company', 'panel.features'])->group(function () {
     Route::get('/driver-devices', [DriverDeviceController::class, 'index'])->name('driver-device-reset.index');
@@ -48,6 +66,17 @@ Route::middleware(['auth', 'role:admin,association,company', 'panel.features'])-
 Route::middleware(['auth', 'role:association', 'panel.features'])->group(function () {
     Route::get('/association/account/security', [AccountSecurityController::class, 'edit'])->name('association.account.security.edit');
     Route::put('/association/account/security', [AccountSecurityController::class, 'update'])->name('association.account.security.update');
+    Route::get('/association/company-header-ticker', [CompanyHeaderTickerController::class, 'edit'])->name('association.company-header-ticker.edit');
+    Route::post('/association/company-header-ticker', [CompanyHeaderTickerController::class, 'store'])->name('association.company-header-ticker.store');
+    Route::put('/association/company-header-ticker/{tickerItem}', [CompanyHeaderTickerController::class, 'update'])->name('association.company-header-ticker.update');
+    Route::delete('/association/company-header-ticker/{tickerItem}', [CompanyHeaderTickerController::class, 'destroy'])->name('association.company-header-ticker.destroy');
+});
+Route::middleware(['auth', 'role:company'])->group(function () {
+    Route::get('/company/header-ticker', [CompanyHeaderTickerController::class, 'feed'])->name('company.header-ticker.feed');
+});
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/admin/account/security', [AdminAccountSecurityController::class, 'edit'])->name('admin.account.security.edit');
+    Route::put('/admin/account/security', [AdminAccountSecurityController::class, 'update'])->name('admin.account.security.update');
 });
 Route::middleware(['auth', 'role:admin,association,company', 'panel.features'])->group(function () {
     Route::get('/driver-announcements', [DriverAnnouncementController::class, 'index'])->name('driver-announcements.index');
@@ -68,8 +97,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     // 📊 داشبورد کل ادمین
     Route::get('/dashboard', function () {
         $companiesCount = \App\Models\Company::count();
-        $driversCount = \App\Models\Driver::count();
-        $fleetsCount = \App\Models\Fleet::count();
+        $driversCount = \App\Models\Driver::active()->count();
+        $fleetsCount = \App\Models\Fleet::active()->count();
         $pendingRequestsCount = \App\Models\PermitRequest::where('status', 'pending')->count();
 
         $weekStart = \Carbon\Carbon::now()->subDays(6)->startOfDay();
@@ -109,19 +138,17 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
         $destinationChartData = $destinationRows->map(fn ($row) => (int) $row->total)->values();
         $destinationTotal = $destinationChartData->sum();
 
-        $availableStatuses = ['raw', 'in_stock', 'returned_unused'];
-        $usedStatuses = ['consumed', 'issued', 'collected', 'archived', 'lost', 'used', 'extended', 'cancelled'];
+        $availableStatuses = ['raw', 'in_stock'];
 
         $lowStockCountries = \Illuminate\Support\Facades\DB::table('dozbalagh_items as di')
             ->join('dozbalagh_batches as db', 'di.batch_id', '=', 'db.id')
             ->leftJoin('countries as c', 'db.country_id', '=', 'c.id')
-            ->where(function ($query) use ($availableStatuses, $usedStatuses) {
+            ->where(function ($query) use ($availableStatuses) {
                 $query->whereNull('di.lifecycle_status')
-                    ->orWhereIn('di.lifecycle_status', $availableStatuses)
-                    ->orWhereNotIn('di.lifecycle_status', $usedStatuses);
+                    ->orWhereIn('di.lifecycle_status', $availableStatuses);
             })
-            ->selectRaw("COALESCE(c.name, db.country_name, 'نامشخص') as country_name, COUNT(di.id) as available_count")
-            ->groupByRaw("COALESCE(c.name, db.country_name, 'نامشخص')")
+            ->selectRaw("COALESCE(c.name, db.country_name, 'نامشخص') as country_name, COALESCE(db.permit_type, 'unclassified') as permit_type, COUNT(di.id) as available_count")
+            ->groupByRaw("COALESCE(c.name, db.country_name, 'نامشخص'), COALESCE(db.permit_type, 'unclassified')")
             ->having('available_count', '<=', 50)
             ->orderBy('available_count')
             ->limit(4)
@@ -157,8 +184,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     // 🎫 انبار
     Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
     Route::post('/inventory', [InventoryController::class, 'store'])->name('inventory.store');
+    Route::get('/inventory/{id}/edit', [InventoryController::class, 'edit'])->name('inventory.edit');
+    Route::put('/inventory/{id}', [InventoryController::class, 'update'])->name('inventory.update');
     Route::delete('/inventory/{id}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
-    Route::get('/admin/inventory/{id}/available-serials', [InventoryController::class, 'getAvailableSerials'])->name('admin.inventory.available-serials'); 
+    Route::get('/inventory/{id}/available-serials', [InventoryController::class, 'getAvailableSerials'])->name('inventory.available-serials');
 	
     // 🚚 سهمیه‌ها
     Route::get('/allocations', [AllocationController::class, 'index'])->name('allocations.index');
@@ -172,15 +201,18 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::get('/companies/create', [CompanyController::class, 'create'])->name('companies.create');
     Route::post('/companies', [CompanyController::class, 'store'])->name('companies.store');
     Route::get('/companies/{id}/edit', [CompanyController::class, 'edit'])->name('companies.edit');
+    Route::get('/companies/{id}/review', [CompanyController::class, 'review'])->name('companies.review');
     Route::put('/companies/{id}', [CompanyController::class, 'update'])->name('companies.update');
     Route::delete('/companies/{id}', [CompanyController::class, 'destroy'])->name('companies.destroy');
     Route::put('/companies/{id}/approve', [CompanyController::class, 'approve'])->name('companies.approve');
+    Route::put('/companies/{id}/request-correction', [CompanyController::class, 'requestCorrection'])->name('companies.request-correction');
     Route::put('/companies/{id}/reset-password', [CompanyController::class, 'resetPassword'])->name('companies.reset-password');
     
     // 👤 مدیریت جامع رانندگان
-    Route::get('/drivers', [DriverController::class, 'index'])->name('drivers.index');
-    Route::put('/drivers/{id}/company', [DriverController::class, 'updateCompany'])->name('drivers.update_company');
-    Route::delete('/drivers/{id}', [DriverController::class, 'destroy'])->name('drivers.destroy');
+     Route::get('/drivers', [DriverController::class, 'index'])->name('drivers.index');
+     Route::put('/drivers/{id}/company', [DriverController::class, 'updateCompany'])->name('drivers.update_company');
+     Route::patch('/drivers/{id}/status', [DriverController::class, 'toggleStatus'])->name('drivers.toggle_status');
+     Route::delete('/drivers/{id}', [DriverController::class, 'destroy'])->name('drivers.destroy');
     Route::get('/tracking', [TrackingMapController::class, 'index'])->name('tracking.index');
     Route::get('/tracking/data', [TrackingMapController::class, 'data'])->name('tracking.data');
     Route::get('/web/admin/driver/dashboard', [App\Http\Controllers\Admin\AdminMenuController::class, 'index'])->name('web.admin.driver.index');
@@ -188,7 +220,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     // 🚛 مدیریت جامع ناوگان
     Route::get('/fleets', [FleetController::class, 'index'])->name('fleets.index');
     Route::put('/fleets/{id}/company', [FleetController::class, 'updateCompany'])->name('fleets.update_company');
-    Route::delete('/fleets/{id}', [FleetController::class, 'destroy'])->name('fleets.destroy');
+    Route::patch('/fleets/{id}/status', [FleetController::class, 'toggleStatus'])->name('fleets.toggle_status');
+     Route::delete('/fleets/{id}', [FleetController::class, 'destroy'])->name('fleets.destroy');
+
+     // 🧰 اطلاعات پایه انواع بارگیر و گزینه‌های مجاز ناوگان بین‌المللی
+     Route::get('/fleet-loading-types', [FleetLoadingTypeController::class, 'index'])->name('fleet-loading-types.index');
+     Route::post('/fleet-loading-types', [FleetLoadingTypeController::class, 'store'])->name('fleet-loading-types.store');
+     Route::put('/fleet-loading-types/{fleetLoadingType}', [FleetLoadingTypeController::class, 'update'])->name('fleet-loading-types.update');
+     Route::delete('/fleet-loading-types/{fleetLoadingType}', [FleetLoadingTypeController::class, 'destroy'])->name('fleet-loading-types.destroy');
     
     // 🏛️ مدیریت مالی ادمین
     Route::get('/financial/dashboard', [FinancialController::class, 'dashboard'])->name('financial.dashboard');
@@ -199,6 +238,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     Route::delete('/financial/manual-adjustment/{id}', [FinancialController::class, 'destroyAdjustment'])->name('financial.destroyAdjustment');
 
     Route::middleware('role:admin')->group(function () {
+        Route::patch('/drivers/registration-app-sms', [DriverController::class, 'toggleRegistrationSms'])->name('drivers.registration_app_sms');
         Route::get('/mobile-app/versions', [MobileAppVersionController::class, 'index'])->name('mobile-app.versions.index');
         Route::put('/mobile-app/versions/{platform}', [MobileAppVersionController::class, 'update'])->name('mobile-app.versions.update');
         Route::get('/settings/panel-features', [PanelFeatureController::class, 'index'])->name('settings.panel-features.index');
@@ -206,6 +246,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
         Route::get('/association-users', [AssociationUserController::class, 'index'])->name('association-users.index');
         Route::post('/association-users', [AssociationUserController::class, 'store'])->name('association-users.store');
         Route::put('/association-users/{user}', [AssociationUserController::class, 'update'])->name('association-users.update');
+        Route::put('/association-users/{user}/profile', [AssociationUserController::class, 'updateProfile'])->name('association-users.profile');
+        Route::put('/association-users/{user}/features', [AssociationUserController::class, 'updateFeatures'])->name('association-users.features');
+        Route::put('/association-users/{user}/password', [AssociationUserController::class, 'updatePassword'])->name('association-users.password');
         Route::delete('/association-users/{user}', [AssociationUserController::class, 'destroy'])->name('association-users.destroy');
         Route::get('/reports/pwa-installations', [PwaInstallationReportController::class, 'index'])->name('reports.pwa-installations.index');
     });
@@ -227,8 +270,21 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
 // 🏛️ روت‌های کارتابل و مدیریت پروانه‌های انجمن صنفی
 // ==========================================
 Route::middleware(['auth', 'role:admin,association', 'panel.features'])->group(function () {
+    Route::get('/web/association/permits', [PermitWorkflowController::class, 'index'])->name('association.permits.index');
+    Route::get('/web/association/permits/{item}', [PermitWorkflowController::class, 'show'])->name('association.permits.show');
+    Route::post('/web/association/permits/{item}/decision', [PermitWorkflowController::class, 'decide'])->name('association.permits.decision');
+    Route::post('/web/association/permit-requests/{parentRequest}/reject-all', [PermitWorkflowController::class, 'rejectAll'])->name('association.permits.reject-all');
+    Route::put('/web/association/permits/{item}', [PermitWorkflowController::class, 'update'])->name('association.permits.update');
+    Route::post('/web/association/permits/{item}/cits', [PermitWorkflowController::class, 'cits'])->name('association.permits.cits');
+    Route::post('/web/association/permits/{item}/disposition', [PermitWorkflowController::class, 'disposition'])->name('association.permits.disposition');
+    Route::post('/web/association/permits/{item}/receive-lash', [PermitWorkflowController::class, 'receiveLash'])->name('association.permits.receive-lash');
+    Route::post('/web/association/permits/{item}/transfer', [PermitWorkflowController::class, 'transfer'])->name('association.permits.transfer');
+    Route::get('/web/association/permits/{item}/transfer-conflicts', [PermitWorkflowController::class, 'transferConflicts'])->name('association.permits.transfer-conflicts');
+    Route::get('/web/association/permits/{item}/fleet-history', [PermitWorkflowController::class, 'fleetHistory'])->name('association.permits.fleet-history');
+    Route::post('/web/association/permits/{item}/outbound-courier', [PermitWorkflowController::class, 'createOutboundCourier'])->name('association.permits.outbound-courier');
+    Route::post('/web/association/courier-missions/{mission}/complete', [PermitWorkflowController::class, 'completeCourier'])->name('association.courier.complete');
     Route::get('/association/dashboard', [AssociationDashboardController::class, 'index'])->name('association.dashboard');
-    Route::get('/web/association/driver/list', [AssociationController::class, 'index'])->name('association.pending.index');
+    Route::get('/web/association/driver/list', [PermitWorkflowController::class, 'index'])->name('association.pending.index');
     Route::post('/web/association/request/process/{id}', [AssociationController::class, 'updateRequestStatus']);
     
     // 🟢 دریافت مستندات شرکت برای پاپ‌آپ انجمن
@@ -237,18 +293,21 @@ Route::middleware(['auth', 'role:admin,association', 'panel.features'])->group(f
     // 🟢 روت جدید و اختصاصی: ثبت ویرایش مستقیم اطلاعات شرکت توسط اپراتور انجمن
     Route::post('/web/association/request/inline-update/{id}', [AssociationController::class, 'updateCompanyRequestDataInline']);
 
-    Route::get('/web/association/approved/permits', [AssociationController::class, 'associationApprovedPermits'])->name('association.approved.index');
+    Route::get('/web/association/approved/permits', [PermitWorkflowController::class, 'index'])->name('association.approved.index');
     Route::post('/web/association/request/serial/{id}', [AssociationController::class, 'assignPermitSerial'])->name('association.permit.assign_serial');    
+    Route::post('/web/association/request/serial/{id}/correct', [AssociationController::class, 'correctPermitSerial'])->name('association.permit.correct_serial');
     
     // 🔄 روت‌های مرحله سوم چرخه (مدیریت تردد و لاشه فیزیکی)
-    Route::get('/web/association/transit-permits', [AssociationController::class, 'transitPermits'])->name('association.transit.index');
+    Route::get('/web/association/transit-permits', [PermitWorkflowController::class, 'index'])->name('association.transit.index');
     Route::post('/web/association/transit/settle/{id}', [AssociationController::class, 'settleTransitPermit'])->name('association.transit.settle');
 
     // آرشیو لاشه‌ها و پروانه‌ها
-    Route::get('/web/association/permits/archive', [AssociationController::class, 'archivePermits'])->name('association.archive.index'); 
+    Route::get('/web/association/permits/archive', fn () => redirect()->route('association.permits.index', ['scope' => 'archive']))->name('association.archive.index');
 
     Route::get('/web/association/reports', [AssociationReportController::class, 'index'])->name('association.reports.index');
     Route::get('/web/association/reports/export', [AssociationReportController::class, 'exportExcel'])->name('association.reports.export');
+    Route::get('/web/association/reports/performance', [PerformanceReportController::class, 'index'])->name('association.performance-reports.index');
+    Route::get('/web/association/reports/performance/export', [PerformanceReportController::class, 'export'])->name('association.performance-reports.export');
     Route::middleware('role:admin,association')->group(function () {
         Route::get('/web/association/issued-financial-report', [IssuedDozbalaghFinancialReportController::class, 'index'])->name('association.issued-financial.index');
         Route::get('/web/association/issued-financial-report/export', [IssuedDozbalaghFinancialReportController::class, 'export'])->name('association.issued-financial.export');

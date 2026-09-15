@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Jobs\SendCompanyProfileUpdatedPush;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -36,12 +37,20 @@ class Company extends Model
         'activity_license_issued_on',
         'activity_license_expires_on',
         'activity_license_status',
+        'is_association_member',
+        'profile_submitted_at',
+        'profile_review_note',
+        'profile_reviewed_by_user_id',
+        'profile_reviewed_at',
     ];
 
     protected $casts = [
         'shahbaz_verified_at' => 'datetime',
         'activity_license_issued_on' => 'date',
         'activity_license_expires_on' => 'date',
+        'is_association_member' => 'boolean',
+        'profile_submitted_at' => 'datetime',
+        'profile_reviewed_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -49,6 +58,15 @@ class Company extends Model
         static::created(function ($company) {
             if (method_exists($company, 'wallet')) {
                 $company->wallet()->create(['balance' => 0.00]);
+            }
+        });
+
+        static::updated(function (Company $company) {
+            if ($company->wasChanged([
+                'name', 'name_fa', 'name_en', 'phone', 'ceo_mobile',
+                'ceo_name', 'address_fa', 'address_en',
+            ])) {
+                SendCompanyProfileUpdatedPush::dispatch($company->id)->afterCommit();
             }
         });
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Fleet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -30,6 +31,14 @@ class FleetController extends Controller
 
     public function updateCompany(Request $request, $id)
     {
+        $fleet = DB::table('fleets')->where('id', $id)->first();
+        if (!$fleet) {
+            return back()->with('error', 'ناوگان مورد نظر یافت نشد.');
+        }
+        if (!(bool) ($fleet->is_active ?? true)) {
+            return back()->with('error', 'ناوگان غیرفعال است و تا زمان فعال‌سازی امکان اتصال به شرکت ندارد.');
+        }
+
         $companyId = $request->company_id;
         
         // 🟢 تغییر current_company_id به company_id
@@ -39,6 +48,24 @@ class FleetController extends Controller
         ]);
 
         return back()->with('success', 'وضعیت و شرکت ناوگان با موفقیت بروزرسانی شد.');
+    }
+
+    public function toggleStatus(Request $request, $id)
+    {
+        $fleet = Fleet::findOrFail($id);
+        $isActive = ! $fleet->isActive();
+
+        $fleet->forceFill([
+            'is_active' => $isActive,
+            'updated_at' => now(),
+        ])->save();
+
+        return back()->with(
+            'success',
+            $isActive
+                ? 'ناوگان با موفقیت فعال شد و دوباره در فرایندهای جدید قابل انتخاب است.'
+                : 'ناوگان به‌طور کامل غیرفعال شد و در فرایندهای جدید قابل انتخاب نیست.'
+        );
     }
 
     // حذف ناوگان

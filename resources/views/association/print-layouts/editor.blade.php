@@ -1,4 +1,7 @@
 @extends('layouts.admin')
+
+@section('header_title', 'ویرایش قالب چاپ')
+@section('hero_subtitle', 'طراحی و تنظیم دقیق اجزای قابل چاپ اسناد انجمن')
 @section('content')
 @php
  $initialFields = $layout ? $layout->fields->map(fn($f) => $f->only(['field_key','x_mm','y_mm','width_mm','height_mm','font_size_pt','font_family','text_align','rotation_deg','is_bold','show_on_original','show_on_copy']))->values() : collect();

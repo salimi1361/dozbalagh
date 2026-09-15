@@ -39,7 +39,7 @@
 
         <div class="flex-1 overflow-y-auto p-6 md:p-8">
             <div class="max-w-2xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="bg-slate-950 p-6 text-white flex justify-between items-center">
+                <div class="company-page-header p-6 text-white flex justify-between items-center">
                     <div>
                         <h1 class="text-base font-black">ثبت و استعلام راننده جدید ترانزیت</h1>
                         <p class="text-slate-400 text-[11px] mt-0.5">اطلاعات رسمی راهداری قفل شده؛ فیلدهای لاتین و پاسپورت را با حروف بزرگ انگلیسی وارد نمایید.</p>

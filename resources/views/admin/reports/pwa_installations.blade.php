@@ -1,14 +1,10 @@
 @extends('layouts.admin')
 
 @section('header_title', 'وضعیت اپلیکیشن‌ها')
+@section('hero_subtitle', 'آمار نصب اپلیکیشن موبایل، وب‌اپلیکیشن و وضعیت فعالیت دستگاه‌ها')
 
 @section('content')
 <div class="space-y-6" dir="rtl">
-    <div>
-        <h1 class="text-2xl font-black text-slate-900">آمار نصب و دستگاه‌ها</h1>
-        <p class="mt-2 text-sm font-semibold text-slate-500">نصب واقعی اپلیکیشن موبایل و نصب وب‌اپلیکیشن به‌صورت جداگانه نمایش داده می‌شوند.</p>
-    </div>
-
     <div class="inline-flex rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
         <a href="{{ route('admin.reports.pwa-installations.index', ['section' => 'app']) }}" class="rounded-xl px-5 py-2.5 text-sm font-black transition {{ $section === 'app' ? 'bg-cyan-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100' }}">📱 اپلیکیشن موبایل</a>
         <a href="{{ route('admin.reports.pwa-installations.index', ['section' => 'web']) }}" class="rounded-xl px-5 py-2.5 text-sm font-black transition {{ $section === 'web' ? 'bg-cyan-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100' }}">🌐 وب‌اپلیکیشن</a>

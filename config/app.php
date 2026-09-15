@@ -17,6 +17,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | User-facing release version
+    |--------------------------------------------------------------------------
+    |
+    | This value is displayed in the application sidebar. Bump it for each
+    | release that is delivered to users.
+    |
+    */
+    'release_version' => env('APP_RELEASE_VERSION', '1.0.0'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |
