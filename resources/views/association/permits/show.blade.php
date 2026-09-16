@@ -369,7 +369,9 @@
             @if($permit->item_status === 'company_returned')
             <section class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
                 <h2 class="font-black text-emerald-900">{{ $isUnusedReturn ? 'دریافت دوزوله استفاده‌نشده از پیک شرکت' : 'دریافت لاشه از پیک شرکت' }}</h2>
-                @php($showReturnCourierCode = $showCourierCode && filled($permit->courier_delivery_code))
+                @php
+                    $showReturnCourierCode = $showCourierCode && filled($permit->courier_delivery_code);
+                @endphp
                 <p class="mt-2 text-xs text-emerald-700">{{ $showReturnCourierCode ? 'کد ارسال‌شده به پیک نمایش داده می‌شود؛ پس از مشاهده، دریافت را تأیید کنید.' : ($isUnusedReturn ? 'شرکت این دوزوله را بدون استفاده برگشت داده است. پس از کنترل کد پیک، شماره حفظ و امکان انتقال یا تمدید فعال می‌شود؛ این مسیر وارد CITS لاشه نمی‌شود.' : 'تصویر لاشه و مشخصات پیک ثبت شده است. پس از دریافت، کنترل CITS انجام می‌شود.') }}</p>
                 @if($showReturnCourierCode)
                     <div class="mt-4 grid gap-2 rounded-xl bg-white p-3 text-sm md:grid-cols-3">
@@ -399,7 +401,9 @@
                 <h2 class="font-black">پیک معرفی‌شده توسط شرکت</h2>
                 @forelse($missions->where('direction','association_to_company')->where('status','pending') as $mission)
                     <div class="mt-4 rounded-xl bg-sky-50 p-3 text-sm">
-                        @php($showMissionCourierCode = $showCourierCode && filled($mission->delivery_code))
+                        @php
+                            $showMissionCourierCode = $showCourierCode && filled($mission->delivery_code);
+                        @endphp
                         <div class="grid gap-2 {{ $showMissionCourierCode ? 'md:grid-cols-3' : 'md:grid-cols-2' }}">
                             <span>نام: <strong>{{ $mission->courier_name }}</strong></span>
                             <span>موبایل: <strong dir="ltr">{{ $mission->courier_mobile }}</strong></span>
