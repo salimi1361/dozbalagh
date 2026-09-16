@@ -826,7 +826,12 @@ class DozbalaghController extends Controller
             $cargoRuleService->submissionRules($request->input('cargo_type'), 'store'),
         );
 
-        $request->validate($validationRules);
+        $validationRules['cits_code'] = ['required', 'regex:/^D[0-9]+$/'];
+
+        $request->validate($validationRules, [
+            'cits_code.required' => 'کد درخواست سامانه جامع (CITS) الزامی است.',
+            'cits_code.regex' => 'کد درخواست سامانه جامع (CITS) باید با حرف بزرگ D شروع شود و ادامه آن فقط شامل ارقام باشد.',
+        ]);
 
         $user = auth()->user();
         $companyId = optional($user->company)->id ?? $user->company_id ?? null;

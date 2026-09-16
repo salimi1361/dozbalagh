@@ -74,7 +74,8 @@
         {{-- باکس CITS (همیشه ثابت) --}}
         <div class="p-4 rounded-xl border border-slate-200 bg-white shadow-sm md:col-span-4 lg:col-span-1">
             <label class="block text-xs font-bold text-slate-700 mb-2">کد درخواست سامانه جامع (CITS) <span class="text-rose-500">*</span></label>
-            <input type="text" name="cits_code" required class="w-full border border-emerald-300 rounded-xl p-3 text-sm bg-slate-50 font-mono focus:border-emerald-500 outline-none transition-colors" placeholder="الزامی">
+            <input id="cits_code" type="text" name="cits_code" value="{{ old('cits_code', 'D') }}" required dir="ltr" inputmode="numeric" pattern="D[0-9]+" class="w-full border border-emerald-300 rounded-xl p-3 text-sm bg-slate-50 font-mono focus:border-emerald-500 outline-none transition-colors" placeholder="D123456" aria-describedby="cits_code_hint">
+            <p id="cits_code_hint" class="mt-2 text-[11px] text-slate-500">حرف بزرگ D ثابت است؛ فقط ارقام پس از آن را وارد کنید.</p>
         </div>
 
         {{-- باکس فیش (داینامیک) --}}
@@ -157,6 +158,60 @@
 
     </div>
 </div>
+
+@once
+    <script>
+        (() => {
+            const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
+            const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
+
+            const normalizeCitsCode = (value) => {
+                const englishDigits = String(value ?? '')
+                    .replace(/[۰-۹]/g, (digit) => persianDigits.indexOf(digit))
+                    .replace(/[٠-٩]/g, (digit) => arabicDigits.indexOf(digit));
+
+                return `D${englishDigits.replace(/[^0-9]/g, '')}`;
+            };
+
+            const initializeCitsCode = () => {
+                const input = document.getElementById('cits_code');
+
+                if (!input || input.dataset.citsPrefixBound === 'true') {
+                    return;
+                }
+
+                input.dataset.citsPrefixBound = 'true';
+
+                const normalize = () => {
+                    const normalizedValue = normalizeCitsCode(input.value);
+
+                    if (input.value !== normalizedValue) {
+                        input.value = normalizedValue;
+                    }
+                };
+
+                input.addEventListener('input', normalize);
+                input.addEventListener('blur', normalize);
+                input.addEventListener('keydown', (event) => {
+                    if (
+                        (event.key === 'Backspace' && input.selectionStart <= 1 && input.selectionEnd <= 1)
+                        || (event.key === 'Delete' && input.selectionStart === 0)
+                    ) {
+                        event.preventDefault();
+                    }
+                });
+
+                normalize();
+            };
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initializeCitsCode, { once: true });
+            } else {
+                initializeCitsCode();
+            }
+        })();
+    </script>
+@endonce
 
 <div id="image_preview_modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 p-4" role="dialog" aria-modal="true" aria-labelledby="image_preview_title">
     <div class="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
