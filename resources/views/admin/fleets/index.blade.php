@@ -25,6 +25,7 @@
                 <div>
                     <h1 class="text-xl font-black sm:text-2xl">مدیریت ناوگان</h1>
                     <p class="mt-1 text-xs font-semibold text-blue-100">مدیریت ناوگان، وضعیت دسترسی و اتصال وسایل نقلیه به شرکت‌ها</p>
+                    <button type="button" onclick="openFleetRegistrationModal()" class="mt-3 rounded-xl bg-white px-4 py-2 text-xs font-black text-sky-800 shadow-lg shadow-sky-950/20 transition hover:bg-sky-50">➕ ثبت ناوگان جدید</button>
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6 xl:min-w-[54rem]">
@@ -186,6 +187,7 @@
 
 <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
+@include('admin.fleets._registration_modal')
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {

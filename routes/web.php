@@ -210,6 +210,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     
     // 👤 مدیریت جامع رانندگان
      Route::get('/drivers', [DriverController::class, 'index'])->name('drivers.index');
+     Route::post('/drivers/inquire', [\App\Http\Controllers\Company\DriverController::class, 'inquireApi'])->name('drivers.inquire');
+     Route::post('/drivers', [\App\Http\Controllers\Company\DriverController::class, 'store'])->name('drivers.store');
      Route::put('/drivers/{id}/company', [DriverController::class, 'updateCompany'])->name('drivers.update_company');
      Route::patch('/drivers/{id}/status', [DriverController::class, 'toggleStatus'])->name('drivers.toggle_status');
      Route::delete('/drivers/{id}', [DriverController::class, 'destroy'])->name('drivers.destroy');
@@ -219,6 +221,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
     
     // 🚛 مدیریت جامع ناوگان
     Route::get('/fleets', [FleetController::class, 'index'])->name('fleets.index');
+    Route::post('/fleets/inquire', [\App\Http\Controllers\Company\FleetController::class, 'inquireApi'])->name('fleets.inquire');
+    Route::post('/fleets', [\App\Http\Controllers\Company\FleetController::class, 'store'])->name('fleets.store');
     Route::put('/fleets/{id}/company', [FleetController::class, 'updateCompany'])->name('fleets.update_company');
     Route::patch('/fleets/{id}/status', [FleetController::class, 'toggleStatus'])->name('fleets.toggle_status');
      Route::delete('/fleets/{id}', [FleetController::class, 'destroy'])->name('fleets.destroy');

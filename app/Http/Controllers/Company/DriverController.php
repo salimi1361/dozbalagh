@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Company;
 
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Models\CompanyDriverMessage;
 use App\Models\Driver;
 use App\Models\MobileAppVersion;
@@ -24,6 +25,27 @@ use Throwable;
 
 class DriverController extends Controller
 {
+    private function registrationCompanyId(Request $request): ?int
+    {
+        $user = $request->user();
+
+        if ($user?->hasRole('admin', 'association')) {
+            $companyId = $request->integer('company_id');
+
+            return Company::query()
+                ->whereKey($companyId)
+                ->where('status', 'approved')
+                ->value('id');
+        }
+
+        return optional($user?->company)->id ?? $user?->company_id;
+    }
+
+    private function requiresCompanySelection(Request $request): bool
+    {
+        return (bool) $request->user()?->hasRole('admin', 'association');
+    }
+
     private function normalizeDigits(mixed $value): string
     {
         return strtr(trim((string) $value), [
@@ -236,7 +258,14 @@ class DriverController extends Controller
 
             // گام اول: بررسی استعلام آفلاین از دیتابیس خودمان
             $localDriver = DB::table('drivers')->where('national_code', $nationalId)->first();
-            $companyId = optional(auth()->user()->company)->id ?? auth()->user()->company_id ?? null;
+            $companyId = $this->registrationCompanyId($request);
+
+            if ($this->requiresCompanySelection($request) && ! $companyId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'یک شرکت تأییدشده را برای ثبت راننده انتخاب کنید.',
+                ], 422);
+            }
 
             if ($localDriver && ! (bool) ($localDriver->is_active ?? true)) {
                 return response()->json(['success' => false, 'message' => 'این راننده توسط انجمن غیرفعال شده و امکان ثبت یا ویرایش ندارد.'], 403);
@@ -320,10 +349,20 @@ class DriverController extends Controller
     {
         try {
             // 🟢 گرفتن آیدی شرکت به صورت کاملاً امن
-            $companyId = auth()->user()->company->id ?? auth()->user()->company_id;
+            $companyId = $this->registrationCompanyId($request);
+            if ($this->requiresCompanySelection($request) && ! $companyId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'یک شرکت تأییدشده را برای ثبت راننده انتخاب کنید.',
+                ], 422);
+            }
+
+            $registrationCompany = $this->requiresCompanySelection($request)
+                ? Company::find($companyId)
+                : auth()->user()->company;
             $companyName = trim((string) (
-                auth()->user()->company?->name_fa
-                ?? auth()->user()->company?->name
+                $registrationCompany?->name_fa
+                ?? $registrationCompany?->name
                 ?? 'شرکت حمل و نقل'
             ));
             $nationalCode = $this->normalizeDigits($request->input('national_id', $request->input('national_code')));

@@ -25,6 +25,7 @@
                 <div>
                     <h1 class="text-xl font-black sm:text-2xl">مدیریت رانندگان</h1>
                     <p class="mt-1 text-xs font-semibold text-blue-100">مدیریت رانندگان سامانه، اتصال به شرکت‌ها و پایش دوزوله‌های فعال</p>
+                    <button type="button" onclick="openDriverRegistrationModal()" class="mt-3 rounded-xl bg-white px-4 py-2 text-xs font-black text-sky-800 shadow-lg shadow-sky-950/20 transition hover:bg-sky-50">➕ ثبت راننده جدید</button>
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6 xl:min-w-[54rem]">
@@ -176,6 +177,7 @@
 
 <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
+@include('admin.drivers._registration_modal')
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {

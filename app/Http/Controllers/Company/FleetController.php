@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Company;
 
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Models\FleetLoadingType;
 use App\Services\CompanyAssetReleaseGuard;
 use Illuminate\Http\Request;
@@ -14,6 +15,27 @@ use Throwable;
 
 class FleetController extends Controller 
 {
+    private function registrationCompanyId(Request $request): ?int
+    {
+        $user = $request->user();
+
+        if ($user?->hasRole('admin', 'association')) {
+            $companyId = $request->integer('company_id');
+
+            return Company::query()
+                ->whereKey($companyId)
+                ->where('status', 'approved')
+                ->value('id');
+        }
+
+        return optional($user?->company)->id ?? $user?->company_id;
+    }
+
+    private function requiresCompanySelection(Request $request): bool
+    {
+        return (bool) $request->user()?->hasRole('admin', 'association');
+    }
+
     public function index() {
         // 🟢 خواندن قطعی و امن آیدی شرکت
         $user = auth()->user();
@@ -66,8 +88,13 @@ class FleetController extends Controller
                 return response()->json(['success' => false, 'message' => 'شماره کارت هوشمند باید دقیقاً ۷ رقم باشد.'], 422);
             }
 
-            $user = auth()->user();
-            $companyId = optional($user->company)->id ?? $user->company_id ?? null;
+            $companyId = $this->registrationCompanyId($request);
+            if ($this->requiresCompanySelection($request) && ! $companyId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'یک شرکت تأییدشده را برای ثبت ناوگان انتخاب کنید.',
+                ], 422);
+            }
             $local = DB::table('fleets')->where('smart_card_number', $smartId)->first();
             if ($local && ! (bool) ($local->is_active ?? true)) {
                 return response()->json(['success' => false, 'message' => 'این ناوگان توسط انجمن غیرفعال شده و امکان استفاده از آن وجود ندارد.'], 403);
@@ -157,8 +184,13 @@ class FleetController extends Controller
 
     public function store(Request $request) {
         try {
-            $user = auth()->user();
-            $companyId = optional($user->company)->id ?? $user->company_id ?? null;
+            $companyId = $this->registrationCompanyId($request);
+            if ($this->requiresCompanySelection($request) && ! $companyId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'یک شرکت تأییدشده را برای ثبت ناوگان انتخاب کنید.',
+                ], 422);
+            }
             
             if (!$companyId) {
                 return response()->json(['success' => false, 'message' => 'حساب کاربری شما به هیچ شرکتی متصل نیست.'], 400);

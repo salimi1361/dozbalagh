@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Fleet;
+use App\Models\FleetLoadingType;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -26,7 +27,9 @@ class FleetController extends Controller
 
         $companies = DB::table('companies')->where('status', 'approved')->select('id', 'name_fa')->get();
 
-        return view('admin.fleets.index', compact('fleets', 'companies'));
+        $loadingTypes = FleetLoadingType::availableForCompany()->ordered()->get();
+
+        return view('admin.fleets.index', compact('fleets', 'companies', 'loadingTypes'));
     }
 
     public function updateCompany(Request $request, $id)
