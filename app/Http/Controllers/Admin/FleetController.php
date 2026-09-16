@@ -24,7 +24,11 @@ class FleetController extends Controller
             ->orderBy('fleets.id', 'desc')
             ->get(); 
 
-        $companies = DB::table('companies')->where('status', 'approved')->select('id', 'name_fa')->get();
+        // همه شرکت‌های ثبت‌شده باید در منوی انتقال ناوگان قابل انتخاب باشند.
+        $companies = DB::table('companies')
+            ->select('id', 'name_fa')
+            ->orderBy('name_fa')
+            ->get();
 
         return view('admin.fleets.index', compact('fleets', 'companies'));
     }
