@@ -177,7 +177,7 @@
 <div class="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
     <h3 class="text-base font-black text-slate-800 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm inline-block">کشورهای مسیر و نوع مجوزها</h3>
     <button type="button" id="add_destination_btn" class="bg-blue-50 text-blue-600 border border-blue-200 px-5 py-2.5 rounded-xl hover:bg-blue-100 transition flex items-center text-sm font-bold shadow-sm">
-        <span class="ml-2">➕</span> افزودن کشور عبوری/مقصد
+        <span class="ml-2">➕</span> افزودن برگ تردد
     </button>
 </div>
 
@@ -201,3 +201,12 @@
         </div>
     </div>
 </div>
+
+<section class="mt-4 rounded-2xl border border-sky-200 bg-sky-50/50 p-4 shadow-sm">
+    <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <label for="company_request_note" class="text-sm font-black text-slate-800">توضیحات تکمیلی برای انجمن <span class="font-normal text-slate-400">(اختیاری)</span></label>
+        <span class="text-[11px] font-bold text-slate-400">حداکثر ۲۰۰۰ کاراکتر</span>
+    </div>
+    <p class="mt-2 text-xs leading-6 text-slate-500">در صورت نیاز، توضیحات مرتبط با این درخواست را برای بررسی انجمن بنویسید.</p>
+    <textarea id="company_request_note" name="company_request_note" rows="4" maxlength="2000" class="mt-3 w-full resize-y rounded-xl border border-sky-200 bg-white p-3 text-sm leading-7 text-slate-800 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100" placeholder="توضیحات خود را برای انجمن بنویسید...">{{ old('company_request_note') }}</textarea>
+</section>

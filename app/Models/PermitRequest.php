@@ -42,6 +42,7 @@ class PermitRequest extends Model
         'status',
         'reject_reason',
         'company_note',
+        'company_request_note',
         'description',
         'company_return_image',
         'courier_name',

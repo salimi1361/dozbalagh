@@ -1027,7 +1027,7 @@ class PermitWorkflowController extends Controller
             ->select([
                 'item.*', 'request.d_code', 'request.company_id', 'request.driver_id', 'request.fleet_id',
                 'request.request_type', 'request.previous_serial_number', 'request.previous_d_code',
-                'request.status as parent_status', 'request.created_at as request_created_at',
+                'request.status as parent_status', 'request.created_at as request_created_at', 'request.company_request_note',
                 'company.name_fa as company_name', 'country.name as country_name', 'country.validity_days as country_validity_days',
                 DB::raw('DATEDIFF(item.permit_valid_until, CURDATE()) as expiry_days_remaining'),
                 'driver.first_name_fa', 'driver.last_name_fa', 'driver.national_code as driver_national_code',

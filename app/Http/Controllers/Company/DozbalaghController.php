@@ -819,6 +819,7 @@ class DozbalaghController extends Controller
             'destinations' => 'required|array|min:1',
             'destinations.*.country_id' => 'required|integer|exists:countries,id',
             'destinations.*.permit_type' => 'required|string|max:100',
+            'company_request_note' => 'nullable|string|max:2000',
         ];
 
         $validationRules = array_merge(
@@ -827,6 +828,8 @@ class DozbalaghController extends Controller
         );
 
         $request->validate($validationRules);
+
+        $companyRequestNote = trim((string) $request->input('company_request_note', ''));
 
         $user = auth()->user();
         $companyId = optional($user->company)->id ?? $user->company_id ?? null;
@@ -952,6 +955,7 @@ class DozbalaghController extends Controller
                 'status'              => 'pending',
                 'payment_status'      => $isFreeRenewal ? 'settled' : 'reserved',
                 'total_amount'        => $totalRequestAmount,
+                'company_request_note'=> $companyRequestNote !== '' ? $companyRequestNote : null,
 
                 'request_type'             => $request->input('request_type', 'new'),
                 'previous_request_id'      => $request->input('request_type') === 'renewal' ? ($renewalSource->id ?? null) : null,

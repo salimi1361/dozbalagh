@@ -134,6 +134,16 @@
                 </div>
             </section>
 
+            @if(filled($permit->company_request_note))
+            <section class="rounded-2xl border border-sky-200 bg-sky-50/60 p-5 xl:col-span-2">
+                <div class="flex items-center gap-3">
+                    <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-600 text-lg text-white">📝</span>
+                    <div><h2 class="font-black text-sky-950">توضیحات شرکت برای انجمن</h2><p class="mt-1 text-xs text-sky-700">متن ثبت‌شده همراه این درخواست دوزوله</p></div>
+                </div>
+                <p class="mt-4 whitespace-pre-line rounded-xl border border-sky-100 bg-white/80 p-4 text-sm font-bold leading-7 text-slate-800">{{ $permit->company_request_note }}</p>
+            </section>
+            @endif
+
             @if(in_array($permit->item_status,['pending','under_review']))
             <section class="rounded-2xl border border-slate-200 bg-white p-4 xl:col-span-2">
                 <div class="flex flex-col justify-between gap-2 border-b border-slate-100 pb-4 md:flex-row md:items-center">
