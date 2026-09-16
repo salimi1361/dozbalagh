@@ -26,8 +26,11 @@ class DriverController extends Controller
             ->orderBy('drivers.id', 'desc')
             ->get(); 
 
-        // لیست شرکت‌های فعال برای نمایش در منوی کشویی انتقال راننده
-        $companies = DB::table('companies')->where('status', 'approved')->select('id', 'name_fa')->get();
+        // همه شرکت‌های ثبت‌شده باید در منوی انتقال راننده قابل انتخاب باشند.
+        $companies = DB::table('companies')
+            ->select('id', 'name_fa')
+            ->orderBy('name_fa')
+            ->get();
         $driverRegistrationSmsEnabled = $this->driverRegistrationSmsEnabled();
 
         return view('admin.drivers.index', compact('drivers', 'companies', 'driverRegistrationSmsEnabled'));

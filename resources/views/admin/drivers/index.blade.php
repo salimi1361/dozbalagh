@@ -123,19 +123,49 @@
                         @endif
                     </td>
                     
-                    <td class="px-4 py-3">
+                    <td class="relative z-40 px-4 py-3">
+                        @php
+                            $isDriverActive = (bool) ($driver->is_active ?? true);
+                            $selectedCompanyName = $driver->company_name ?: '-- 🛑 آزاد (بدون شرکت) --';
+                        @endphp
                         <form action="{{ route('admin.drivers.update_company', $driver->id) }}" method="POST" class="flex items-center gap-2">
                             @csrf
                             @method('PUT')
-                            <select name="company_id" @disabled(!($driver->is_active ?? true)) class="min-w-[260px] flex-1 rounded-md border border-slate-300 px-2 py-1 text-sm focus:ring-sky-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
-                                <option value="" class="text-rose-500 font-bold">-- 🛑 آزاد (بدون شرکت) --</option>
-                                @foreach($companies as $company)
-                                    <option value="{{ $company->id }}" {{ $driver->current_company_id == $company->id ? 'selected' : '' }}>
-                                        {{ $company->name_fa }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            <button type="submit" @disabled(!($driver->is_active ?? true)) class="rounded px-3 py-1 text-xs font-bold shadow-sm transition {{ ($driver->is_active ?? true) ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' : 'cursor-not-allowed bg-slate-100 text-slate-400' }}">تغییر</button>
+                            <div class="company-combobox relative min-w-[260px] flex-1" data-company-combobox>
+                                <input type="hidden" name="company_id" value="{{ $driver->current_company_id ?? '' }}" data-company-id-input>
+                                <button type="button" data-company-toggle aria-haspopup="listbox" aria-expanded="false"
+                                        aria-controls="company_options_{{ $driver->id }}" @disabled(!$isDriverActive)
+                                        class="flex w-full items-center justify-between gap-2 rounded-md border border-slate-300 bg-white px-2 py-1 text-right text-sm text-slate-700 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
+                                    <span class="truncate" data-company-selected-label>{{ $selectedCompanyName }}</span>
+                                    <svg class="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7"/></svg>
+                                </button>
+
+                                <div id="company_options_{{ $driver->id }}" data-company-panel role="listbox" aria-label="انتخاب شرکت"
+                                     class="company-options-panel absolute right-0 z-50 mt-1 hidden w-full overflow-hidden rounded-md border border-slate-200 bg-white shadow-lg">
+                                    <div class="border-b border-slate-100 p-2">
+                                        <label class="sr-only" for="company_search_{{ $driver->id }}">جستجوی نام شرکت</label>
+                                        <input id="company_search_{{ $driver->id }}" type="search" autocomplete="off" data-company-search
+                                               placeholder="جستجوی نام شرکت..."
+                                               class="w-full rounded-md border border-slate-200 px-2 py-1.5 text-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100">
+                                    </div>
+                                    <div class="max-h-48 overflow-y-auto p-1">
+                                        <button type="button" role="option" aria-selected="{{ $driver->current_company_id ? 'false' : 'true' }}"
+                                                data-company-option data-company-id="" data-company-name="-- 🛑 آزاد (بدون شرکت) --"
+                                                class="w-full rounded px-2 py-2 text-right text-xs text-rose-600 transition hover:bg-rose-50 {{ $driver->current_company_id ? '' : 'bg-sky-50 font-bold text-sky-800' }}">
+                                            -- 🛑 آزاد (بدون شرکت) --
+                                        </button>
+                                        @foreach($companies as $company)
+                                            @php $isSelectedCompany = (int) $driver->current_company_id === (int) $company->id; @endphp
+                                            <button type="button" role="option" aria-selected="{{ $isSelectedCompany ? 'true' : 'false' }}"
+                                                    data-company-option data-company-id="{{ $company->id }}" data-company-name="{{ $company->name_fa }}"
+                                                    class="w-full rounded px-2 py-2 text-right text-xs text-slate-700 transition hover:bg-sky-50 {{ $isSelectedCompany ? 'bg-sky-50 font-bold text-sky-800' : '' }}">
+                                                {{ $company->name_fa }}
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" @disabled(!$isDriverActive) class="rounded px-3 py-1 text-xs font-bold shadow-sm transition {{ $isDriverActive ? 'bg-sky-100 text-sky-700 hover:bg-sky-200' : 'cursor-not-allowed bg-slate-100 text-slate-400' }}">تغییر</button>
                         </form>
                     </td>
 
@@ -288,6 +318,134 @@
             
             currentPage = 1;
             updatePagination();
+        });
+
+        // کشوی محلی شرکت با جستجو درون خود فهرست، بدون ذخیره خودکار تغییرات.
+        const companyComboboxes = Array.from(document.querySelectorAll('[data-company-combobox]'));
+
+        function getCompanyPanel(combobox) {
+            return combobox._companyPanel || combobox.querySelector('[data-company-panel]');
+        }
+
+        function closeCompanyCombobox(combobox) {
+            const panel = getCompanyPanel(combobox);
+            const toggle = combobox.querySelector('[data-company-toggle]');
+            const searchInput = panel.querySelector('[data-company-search]');
+
+            if (combobox._companyPanelPlaceholder && panel.parentNode !== combobox._companyPanelPlaceholder.parentNode) {
+                combobox._companyPanelPlaceholder.parentNode.insertBefore(panel, combobox._companyPanelPlaceholder);
+            }
+
+            panel.classList.add('hidden');
+            panel.classList.remove('fixed', 'top-full', 'bottom-full', 'mb-1');
+            panel.classList.add('absolute', 'right-0', 'z-50', 'mt-1', 'w-full');
+            panel.style.removeProperty('direction');
+            panel.style.removeProperty('left');
+            panel.style.removeProperty('top');
+            panel.style.removeProperty('visibility');
+            panel.style.removeProperty('width');
+            panel.style.removeProperty('z-index');
+            toggle.setAttribute('aria-expanded', 'false');
+            searchInput.value = '';
+            combobox.querySelectorAll('[data-company-option]').forEach(function(option) {
+                option.classList.remove('hidden');
+            });
+        }
+
+        function openCompanyCombobox(combobox) {
+            const panel = getCompanyPanel(combobox);
+            const toggle = combobox.querySelector('[data-company-toggle]');
+            const searchInput = panel.querySelector('[data-company-search]');
+            const toggleRect = toggle.getBoundingClientRect();
+            const pageMargin = 8;
+
+            document.body.appendChild(panel);
+            panel.classList.remove('absolute', 'right-0', 'z-50', 'top-full', 'bottom-full', 'mt-1', 'mb-1', 'w-full', 'hidden');
+            panel.classList.add('fixed');
+            panel.style.direction = 'rtl';
+            panel.style.visibility = 'hidden';
+            panel.style.zIndex = '1000';
+
+            const panelWidth = Math.min(toggleRect.width, window.innerWidth - (pageMargin * 2));
+            panel.style.width = `${panelWidth}px`;
+            panel.style.left = `${Math.max(pageMargin, Math.min(toggleRect.left, window.innerWidth - panelWidth - pageMargin))}px`;
+            panel.style.top = `${pageMargin}px`;
+
+            const panelHeight = panel.getBoundingClientRect().height;
+            const roomBelow = window.innerHeight - toggleRect.bottom - pageMargin;
+            const roomAbove = toggleRect.top - pageMargin;
+            const opensUpward = roomBelow < panelHeight && roomAbove > roomBelow;
+            const top = opensUpward
+                ? Math.max(pageMargin, toggleRect.top - panelHeight - 4)
+                : Math.min(Math.max(pageMargin, toggleRect.bottom + 4), Math.max(pageMargin, window.innerHeight - panelHeight - pageMargin));
+
+            panel.style.top = `${top}px`;
+            panel.style.removeProperty('visibility');
+            toggle.setAttribute('aria-expanded', 'true');
+            searchInput.focus();
+        }
+
+        function updateCompanySelection(combobox, selectedId) {
+            combobox.querySelectorAll('[data-company-option]').forEach(function(option) {
+                const isSelected = option.dataset.companyId === selectedId;
+                option.setAttribute('aria-selected', isSelected ? 'true' : 'false');
+                option.classList.toggle('bg-sky-50', isSelected);
+                option.classList.toggle('font-bold', isSelected);
+                option.classList.toggle('text-sky-800', isSelected);
+            });
+        }
+
+        companyComboboxes.forEach(function(combobox) {
+            const toggle = combobox.querySelector('[data-company-toggle]');
+            const panel = getCompanyPanel(combobox);
+            const searchInput = combobox.querySelector('[data-company-search]');
+            const selectedLabel = combobox.querySelector('[data-company-selected-label]');
+            const companyIdInput = combobox.querySelector('[data-company-id-input]');
+            const companyOptions = Array.from(combobox.querySelectorAll('[data-company-option]'));
+
+            combobox._companyPanel = panel;
+            combobox._companyPanelPlaceholder = document.createComment('company-options-panel');
+            panel.parentNode.insertBefore(combobox._companyPanelPlaceholder, panel);
+
+            toggle.addEventListener('click', function() {
+                const isOpen = !panel.classList.contains('hidden');
+                companyComboboxes.forEach(closeCompanyCombobox);
+
+                if (isOpen) return;
+
+                openCompanyCombobox(combobox);
+            });
+
+            searchInput.addEventListener('input', function() {
+                const query = this.value.trim().toLocaleLowerCase('fa-IR');
+
+                companyOptions.forEach(function(option) {
+                    const isUnassignedOption = option.dataset.companyId === '';
+                    const isMatch = option.dataset.companyName.toLocaleLowerCase('fa-IR').includes(query);
+                    option.classList.toggle('hidden', !isUnassignedOption && query !== '' && !isMatch);
+                });
+            });
+
+            companyOptions.forEach(function(option) {
+                option.addEventListener('click', function() {
+                    companyIdInput.value = option.dataset.companyId;
+                    selectedLabel.textContent = option.dataset.companyName;
+                    updateCompanySelection(combobox, option.dataset.companyId);
+                    closeCompanyCombobox(combobox);
+                    toggle.focus();
+                });
+            });
+        });
+
+        document.addEventListener('click', function(event) {
+            companyComboboxes.forEach(function(combobox) {
+                const panel = getCompanyPanel(combobox);
+                if (!combobox.contains(event.target) && !panel.contains(event.target)) closeCompanyCombobox(combobox);
+            });
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') companyComboboxes.forEach(closeCompanyCombobox);
         });
 
         // اجرای اولیه صفحه‌بندی
