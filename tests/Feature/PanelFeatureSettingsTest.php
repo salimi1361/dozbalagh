@@ -36,6 +36,7 @@ class PanelFeatureSettingsTest extends TestCase
         $this->assertFalse($stored['company']['wallet']);
         $this->assertFalse($stored['association']['shahbaz_company_review']);
         $this->assertFalse($stored['association']['cmr_documents']);
+        $this->assertFalse($stored['association']['show_courier_code']);
         $this->assertFalse($stored['company']['shahbaz_overview']);
         $this->assertFalse($stored['company']['cmr_reports']);
     }
@@ -56,6 +57,21 @@ class PanelFeatureSettingsTest extends TestCase
         $this->assertFalse($features->enabledForRole('company', 'cmr_financial'));
         $this->assertFalse($features->enabledForRole('company', 'cmr_reports'));
         $this->assertFalse($features->enabledForRole('association', 'unused_permit_transfer'));
+        $this->assertFalse($features->enabledForRole('association', 'show_courier_code'));
+    }
+
+    public function test_admin_can_enable_courier_code_display_for_association(): void
+    {
+        $admin = $this->userWithRole('admin');
+
+        $this->actingAs($admin)->put(route('admin.settings.panel-features.update'), [
+            'features' => ['association' => ['show_courier_code' => '1']],
+        ])->assertRedirect();
+
+        $stored = json_decode(SystemSetting::getValue('panel_features'), true);
+
+        $this->assertTrue($stored['association']['show_courier_code']);
+        $this->assertTrue(app(PanelFeatureService::class)->enabledForRole('association', 'show_courier_code'));
     }
 
     public function test_admin_can_enable_unused_permit_transfer_and_configure_its_financial_rules(): void
@@ -104,6 +120,8 @@ class PanelFeatureSettingsTest extends TestCase
             ->assertSee('CMR')
             ->assertSee('features[association][shahbaz_company_review]', false)
             ->assertSee('features[association][cmr_documents]', false)
+            ->assertSee('نمایش کد پیک به انجمن')
+            ->assertSee('features[association][show_courier_code]', false)
             ->assertSee('features[company][shahbaz_overview]', false)
             ->assertSee('features[company][cmr_documents]', false)
             ->assertSee('features[company][cmr_issuance]', false)

@@ -16,6 +16,7 @@ return [
         'dashboard' => ['label' => 'داشبورد انجمن', 'routes' => ['association.dashboard']],
         'company_header_ticker' => ['label' => 'مدیریت تابلوی روان پنل شرکت‌ها', 'routes' => ['association.company-header-ticker.*'], 'default' => false],
         'unused_permit_transfer' => ['label' => 'انتقال دوزوله برگشتی بدون استفاده', 'routes' => ['association.permits.transfer'], 'default' => false],
+        'show_courier_code' => ['label' => 'نمایش کد پیک به انجمن', 'routes' => [], 'default' => false],
         'requests' => ['label' => 'کارتابل درخواست‌های معلق', 'routes' => ['association.pending.*', 'association.permits.*', 'association.courier.*']],
         'issuance' => ['label' => 'صدور و تخصیص سریال', 'routes' => ['association.approved.*', 'association.permit.assign_serial']],
         'transit' => ['label' => 'مدیریت تردد', 'routes' => ['association.transit.*']],

@@ -237,6 +237,7 @@ class PermitWorkflowController extends Controller
         $countries = DB::table('countries')->orderBy('name')->get(['id', 'name']);
         $transferEnabled = auth()->user()?->role?->name === 'association'
             && app(PanelFeatureService::class)->enabledForUser(auth()->user(), 'unused_permit_transfer');
+        $showCourierCode = app(PanelFeatureService::class)->enabledForRole('association', 'show_courier_code');
         $transferCompanies = collect();
         $transferDrivers = collect();
         $transferFleets = collect();
@@ -250,7 +251,7 @@ class PermitWorkflowController extends Controller
                 ->orderBy('transit_plate')->get(['id', 'company_id', 'transit_plate', 'transit_horse', 'transit_trailer']);
         }
 
-        return view('association.permits.show', compact('permit', 'events', 'missions', 'issuance', 'companyDrivers', 'companyFleets', 'countries', 'transferEnabled', 'transferCompanies', 'transferDrivers', 'transferFleets', 'transferFinancial'));
+        return view('association.permits.show', compact('permit', 'events', 'missions', 'issuance', 'companyDrivers', 'companyFleets', 'countries', 'transferEnabled', 'transferCompanies', 'transferDrivers', 'transferFleets', 'transferFinancial', 'showCourierCode'));
     }
 
     public function transfer(
@@ -857,15 +858,21 @@ class PermitWorkflowController extends Controller
         return back()->with('success', 'نوع تعیین تکلیف دوزوله تغییر کرد و در تاریخچه ثبت شد.');
     }
 
-    public function receiveLash(Request $request, int $item, PermitItemAuditService $audit)
+    public function receiveLash(Request $request, int $item, PermitItemAuditService $audit, PanelFeatureService $features)
     {
-        $validated = $request->validate(['courier_code' => 'required|string|max:20']);
-        $receivedAsUnused = DB::transaction(function () use ($item, $validated, $audit) {
+        $validated = $request->validate(['courier_code' => 'nullable|string|max:20']);
+        $showCourierCode = $features->enabledForRole('association', 'show_courier_code');
+        $receivedAsUnused = DB::transaction(function () use ($item, $validated, $audit, $showCourierCode) {
             $row = $this->lockItem($item);
             if ($row->item_status !== 'company_returned' || empty($row->company_return_image)) {
                 abort(422, 'شرکت هنوز تصویر برگشت و مشخصات پیک را ثبت نکرده است.');
             }
-            if (!hash_equals((string) $row->courier_delivery_code, trim($validated['courier_code']))) {
+            $skipCodeVerification = $showCourierCode && filled($row->courier_delivery_code);
+            $submittedCode = trim((string) ($validated['courier_code'] ?? ''));
+            if (!$skipCodeVerification && $submittedCode === '') {
+                abort(422, 'کد تحویل پیک الزامی است.');
+            }
+            if (!$skipCodeVerification && !hash_equals((string) $row->courier_delivery_code, $submittedCode)) {
                 abort(422, 'کد تحویل پیک صحیح نیست.');
             }
             $isUnused = $row->disposition_type === 'unused';
@@ -887,11 +894,16 @@ class PermitWorkflowController extends Controller
                 'updated_at' => now(),
             ]);
             $audit->record($row, $isUnused ? 'unused_return_received' : 'lash_received', $isUnused
-                ? 'کد پیک کنترل و دوزوله استفاده‌نشده دریافت شد؛ شماره حفظ و پرونده برای انتقال یا تمدید آماده شد.'
-                : 'کد پیک کنترل و لاشه دریافت شد؛ پرونده در انتظار ثبت نتیجه تحویل در CITS است.', [], [
+                ? ($skipCodeVerification
+                    ? 'کد پیک نمایش داده شد و دوزوله استفاده‌نشده دریافت شد؛ شماره حفظ و پرونده برای انتقال یا تمدید آماده شد.'
+                    : 'کد پیک کنترل و دوزوله استفاده‌نشده دریافت شد؛ شماره حفظ و پرونده برای انتقال یا تمدید آماده شد.')
+                : ($skipCodeVerification
+                    ? 'کد پیک نمایش داده شد و لاشه دریافت شد؛ پرونده در انتظار ثبت نتیجه تحویل در CITS است.'
+                    : 'کد پیک کنترل و لاشه دریافت شد؛ پرونده در انتظار ثبت نتیجه تحویل در CITS است.'), [], [
                 'disposition_type' => $row->disposition_type,
                 'item_status' => $newStatus,
                 'cits_required' => !$isUnused,
+                'courier_code_displayed' => $skipCodeVerification,
             ], [], $row->item_status, $newStatus);
             $this->syncParent((int) $row->permit_request_id);
             return $isUnused;
@@ -979,18 +991,26 @@ class PermitWorkflowController extends Controller
         return back()->with('success', "پیک معرفی و کد تحویل ارسال شد. شماره مأموریت: {$missionId}");
     }
 
-    public function completeCourier(Request $request, int $mission, PermitItemAuditService $audit)
+    public function completeCourier(Request $request, int $mission, PermitItemAuditService $audit, PanelFeatureService $features)
     {
-        $validated = $request->validate(['otp' => 'required|digits:5']);
-        DB::transaction(function () use ($mission, $validated, $audit) {
+        $validated = $request->validate(['otp' => 'nullable|digits:5']);
+        $showCourierCode = $features->enabledForRole('association', 'show_courier_code');
+        DB::transaction(function () use ($mission, $validated, $audit, $showCourierCode) {
             $row = DB::table('permit_courier_missions')->where('id', $mission)->lockForUpdate()->first();
             abort_if(!$row || $row->status !== 'pending', 404);
-            if ($row->otp_expires_at && now()->greaterThan($row->otp_expires_at)) {
-                abort(422, 'کد تحویل منقضی شده است.');
-            }
-            DB::table('permit_courier_missions')->where('id', $mission)->increment('otp_attempts');
-            if (!hash_equals($row->otp_hash, hash('sha256', $validated['otp']))) {
-                abort(422, 'کد تحویل صحیح نیست.');
+            $skipCodeVerification = $showCourierCode && filled($row->delivery_code);
+            $submittedOtp = (string) ($validated['otp'] ?? '');
+            if (!$skipCodeVerification) {
+                if ($submittedOtp === '') {
+                    abort(422, 'کد تحویل پیک الزامی است.');
+                }
+                if ($row->otp_expires_at && now()->greaterThan($row->otp_expires_at)) {
+                    abort(422, 'کد تحویل منقضی شده است.');
+                }
+                DB::table('permit_courier_missions')->where('id', $mission)->increment('otp_attempts');
+                if (!hash_equals($row->otp_hash, hash('sha256', $submittedOtp))) {
+                    abort(422, 'کد تحویل صحیح نیست.');
+                }
             }
             DB::table('permit_courier_missions')->where('id', $mission)->update([
                 'status' => 'completed',
@@ -1001,10 +1021,13 @@ class PermitWorkflowController extends Controller
             ]);
             $item = $this->lockItem((int) $row->permit_request_item_id);
             DB::table('permit_request_items')->where('id', $item->id)->update(['updated_at' => now()]);
-            $audit->record($item, 'outbound_courier_completed', 'هویت پیک کنترل و دوزوله صادرشده تحویل شد.', [], [
+            $audit->record($item, 'outbound_courier_completed', $skipCodeVerification
+                ? 'کد پیک نمایش داده شد و تحویل دوزوله صادرشده ثبت شد.'
+                : 'هویت پیک کنترل و دوزوله صادرشده تحویل شد.', [], [
                 'mission_id' => $mission,
                 'courier_name' => $row->courier_name,
                 'courier_mobile' => $row->courier_mobile,
+                'courier_code_displayed' => $skipCodeVerification,
             ]);
         });
         return back()->with('success', 'تحویل دوزوله به پیک با موفقیت ثبت شد.');

@@ -369,9 +369,19 @@
             @if($permit->item_status === 'company_returned')
             <section class="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
                 <h2 class="font-black text-emerald-900">{{ $isUnusedReturn ? 'دریافت دوزوله استفاده‌نشده از پیک شرکت' : 'دریافت لاشه از پیک شرکت' }}</h2>
-                <p class="mt-2 text-xs text-emerald-700">{{ $isUnusedReturn ? 'شرکت این دوزوله را بدون استفاده برگشت داده است. پس از کنترل کد پیک، شماره حفظ و امکان انتقال یا تمدید فعال می‌شود؛ این مسیر وارد CITS لاشه نمی‌شود.' : 'تصویر لاشه و مشخصات پیک ثبت شده است. پس از دریافت، کنترل CITS انجام می‌شود.' }}</p>
+                @php($showReturnCourierCode = $showCourierCode && filled($permit->courier_delivery_code))
+                <p class="mt-2 text-xs text-emerald-700">{{ $showReturnCourierCode ? 'کد ارسال‌شده به پیک نمایش داده می‌شود؛ پس از مشاهده، دریافت را تأیید کنید.' : ($isUnusedReturn ? 'شرکت این دوزوله را بدون استفاده برگشت داده است. پس از کنترل کد پیک، شماره حفظ و امکان انتقال یا تمدید فعال می‌شود؛ این مسیر وارد CITS لاشه نمی‌شود.' : 'تصویر لاشه و مشخصات پیک ثبت شده است. پس از دریافت، کنترل CITS انجام می‌شود.') }}</p>
+                @if($showReturnCourierCode)
+                    <div class="mt-4 grid gap-2 rounded-xl bg-white p-3 text-sm md:grid-cols-3">
+                        <span>نام: <strong>{{ $permit->courier_name ?: 'ثبت نشده' }}</strong></span>
+                        <span>موبایل: <strong dir="ltr">{{ $permit->courier_mobile ?: 'ثبت نشده' }}</strong></span>
+                        <span>کد پیک: <strong dir="ltr" class="font-mono tracking-[.18em]">{{ $permit->courier_delivery_code }}</strong></span>
+                    </div>
+                @endif
                 <form method="POST" action="{{ route('association.permits.receive-lash',$permit->id) }}" class="mt-4 flex gap-2">@csrf
-                    <input required name="courier_code" class="min-w-0 flex-1 rounded-xl border-emerald-200" placeholder="کد تحویل پیک">
+                    @unless($showReturnCourierCode)
+                        <input required name="courier_code" class="min-w-0 flex-1 rounded-xl border-emerald-200" placeholder="کد تحویل پیک">
+                    @endunless
                     <button class="rounded-xl bg-emerald-700 px-6 font-black text-white">{{ $isUnusedReturn ? 'تأیید دریافت بدون استفاده' : 'تأیید دریافت لاشه' }}</button>
                 </form>
             </section>
@@ -389,12 +399,18 @@
                 <h2 class="font-black">پیک معرفی‌شده توسط شرکت</h2>
                 @forelse($missions->where('direction','association_to_company')->where('status','pending') as $mission)
                     <div class="mt-4 rounded-xl bg-sky-50 p-3 text-sm">
-                        <div class="grid gap-2 md:grid-cols-2">
+                        @php($showMissionCourierCode = $showCourierCode && filled($mission->delivery_code))
+                        <div class="grid gap-2 {{ $showMissionCourierCode ? 'md:grid-cols-3' : 'md:grid-cols-2' }}">
                             <span>نام: <strong>{{ $mission->courier_name }}</strong></span>
                             <span>موبایل: <strong dir="ltr">{{ $mission->courier_mobile }}</strong></span>
+                            @if($showMissionCourierCode)
+                                <span>کد پیک: <strong dir="ltr" class="font-mono tracking-[.18em]">{{ $mission->delivery_code }}</strong></span>
+                            @endif
                         </div>
                         <form method="POST" action="{{ route('association.courier.complete',$mission->id) }}" class="mt-3 flex gap-2">@csrf
-                            <input name="otp" required inputmode="numeric" pattern="[0-9]{5}" minlength="5" maxlength="5" class="min-w-0 flex-1 rounded-xl border-sky-200" placeholder="کد ۵ رقمی پیک">
+                            @unless($showMissionCourierCode)
+                                <input name="otp" required inputmode="numeric" pattern="[0-9]{5}" minlength="5" maxlength="5" class="min-w-0 flex-1 rounded-xl border-sky-200" placeholder="کد ۵ رقمی پیک">
+                            @endunless
                             <button class="rounded-xl bg-sky-700 px-5 font-black text-white">تأیید تحویل</button>
                         </form>
                     </div>
