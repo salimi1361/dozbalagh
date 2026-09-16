@@ -109,7 +109,7 @@
         .sidebar-version { display: flex; width: 8rem; align-items: center; justify-content: center; gap: .5rem; white-space: nowrap; font-size: .68rem; font-weight: 900; letter-spacing: .015em; }
         .sidebar-version::before, .sidebar-version::after { content: ''; height: 1px; flex: 1; background: linear-gradient(90deg, transparent, #34d399); opacity: .65; }
         .sidebar-version::after { transform: scaleX(-1); }
-        .company-header-ticker { min-width: 0; overflow: hidden !important; isolation: isolate; }
+        #companyHeaderTicker { min-width: 0; overflow: hidden !important; isolation: isolate; }
         .company-header-ticker-track { position: relative; display: block; width: 100%; height: 1.5rem; direction: ltr; }
         .company-header-ticker-segment { position: absolute; top: 50%; left: 0; display: inline-flex; align-items: center; width: max-content; min-width: max-content; padding: 0 1.5rem; direction: ltr; transform: translate3d(0, -50%, 0); box-sizing: border-box; white-space: nowrap; }
         .company-header-ticker-content { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 1.5rem; direction: rtl; }
