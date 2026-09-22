@@ -72,9 +72,7 @@ class DriverController extends Controller
     ): bool {
         try {
             $driverName = trim($firstNameFa . ' ' . $lastNameFa);
-            $message = "راننده گرامی {$driverName}، اطلاعات شما در شرکت {$companyName} با موفقیت ثبت گردید.\n"
-                . "جهت اطلاعات بیشتر اپلیکیشن را از لینک ذیل دانلود بکنید.\n"
-                . $this->driverAppDownloadUrl();
+            $message = "راننده گرامی {$driverName}، اطلاعات شما در شرکت {$companyName} با موفقیت ثبت گردید.";
 
             return $sms->send($mobile, $message, 'driver_registration_app_link');
         } catch (Throwable $e) {
