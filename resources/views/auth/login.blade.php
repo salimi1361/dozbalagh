@@ -37,9 +37,9 @@
     
     <div class="absolute inset-0 bg-black/50 backdrop-blur-md z-0"></div>
 
-    <div class="relative z-10 grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/30 bg-white/95 shadow-2xl backdrop-blur-lg md:grid-cols-[0.9fr_1.1fr]">
+    <div class="relative z-10 grid min-w-0 w-full max-w-5xl overflow-hidden rounded-3xl border border-white/30 bg-white/95 shadow-2xl backdrop-blur-lg md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         
-        <aside class="bg-gradient-to-br from-sky-950 via-slate-900 to-sky-900 p-7 text-white md:p-10">
+        <aside class="min-w-0 bg-gradient-to-br from-sky-950 via-slate-900 to-sky-900 p-7 text-white md:p-10">
             <div class="flex justify-center mb-4">
                 <img src="{{ asset('images/logo1.png') }}" alt="لوگوی انجمن بین‌المللی خراسان رضوی" class="h-28 w-auto drop-shadow-xl">
             </div>
@@ -65,7 +65,7 @@
             </div>
         </aside>
 
-        <main class="bg-white p-6 sm:p-8 md:p-10">
+        <main class="min-w-0 bg-white p-6 sm:p-8 md:p-10">
 
         @if(session('success'))
             <div class="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-bold text-emerald-700">
