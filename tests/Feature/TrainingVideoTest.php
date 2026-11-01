@@ -27,7 +27,8 @@ class TrainingVideoTest extends TestCase
             ->assertSee('ورود مستقیم داخلی')
             ->assertSee('امنیت چندمرحله‌ای')
             ->assertSee('دسترسی یکپارچه')
-            ->assertSee('آموزش سامانه');
+            ->assertSee('آموزش سامانه')
+            ->assertSee('سامانه دوزوله حمل و نقل بین المللی');
     }
 
     public function test_public_training_page_only_shows_active_videos(): void

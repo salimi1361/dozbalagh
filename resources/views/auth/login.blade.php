@@ -43,7 +43,7 @@
             <div class="flex justify-center mb-4">
                 <img src="{{ asset('images/logo1.png') }}" alt="لوگوی انجمن بین‌المللی خراسان رضوی" class="h-28 w-auto drop-shadow-xl">
             </div>
-            <h1 class="text-center text-xl font-bold text-amber-400">سامانه جامع حمل و نقل بین المللی</h1>
+            <h1 class="text-center text-xl font-bold text-amber-400">سامانه دوزوله حمل و نقل بین المللی</h1>
             <p class="mt-2 text-center text-sm font-semibold text-white">انجمن بین المللی خراسان رضوی</p>
             <div class="mt-10 space-y-3 text-right text-sm leading-6 text-slate-100">
                 <div class="rounded-2xl border border-white/10 bg-white/10 p-4">
