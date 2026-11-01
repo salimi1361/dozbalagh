@@ -30,6 +30,7 @@ use App\Http\Controllers\MapTileController;
 use App\Http\Controllers\DriverDeviceController;
 use App\Http\Controllers\Association\AccountSecurityController;
 use App\Http\Controllers\Admin\MobileAppVersionController;
+use App\Http\Controllers\Admin\TrainingVideoController;
 use App\Http\Controllers\DriverAnnouncementController;
 use App\Http\Controllers\AssistantController;
 require __DIR__.'/cmr.php';
@@ -38,6 +39,8 @@ require __DIR__.'/shahbaz.php';
 // روت اصلی
 // ==========================================
 Route::get('/', fn() => redirect()->route('login'));
+
+Route::get('/training', [TrainingVideoController::class, 'publicIndex'])->name('training.index');
 
 // ==========================================
 // احراز هویت
@@ -241,6 +244,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () 
         Route::patch('/drivers/registration-app-sms', [DriverController::class, 'toggleRegistrationSms'])->name('drivers.registration_app_sms');
         Route::get('/mobile-app/versions', [MobileAppVersionController::class, 'index'])->name('mobile-app.versions.index');
         Route::put('/mobile-app/versions/{platform}', [MobileAppVersionController::class, 'update'])->name('mobile-app.versions.update');
+        Route::get('/training', [TrainingVideoController::class, 'index'])->name('training.index');
+        Route::post('/training', [TrainingVideoController::class, 'store'])->name('training.store');
+        Route::put('/training/{trainingVideo}', [TrainingVideoController::class, 'update'])->name('training.update');
+        Route::delete('/training/{trainingVideo}', [TrainingVideoController::class, 'destroy'])->name('training.destroy');
         Route::get('/settings/panel-features', [PanelFeatureController::class, 'index'])->name('settings.panel-features.index');
         Route::put('/settings/panel-features', [PanelFeatureController::class, 'update'])->name('settings.panel-features.update');
         Route::get('/association-users', [AssociationUserController::class, 'index'])->name('association-users.index');
