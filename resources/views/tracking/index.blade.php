@@ -36,7 +36,7 @@
                 <div id="tracking-map" class="h-[68vh] min-h-[520px] w-full"></div>
                 @if ($showMapAttribution)
                     <div class="relative z-10 -mt-7 w-fit rounded-tl-md bg-white/90 px-2 py-1 text-[10px] text-slate-600" dir="ltr">
-                        © <a class="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>
+                        نقشهٔ محلی سامانه
                     </div>
                 @endif
             </div>
