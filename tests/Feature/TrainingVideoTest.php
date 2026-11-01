@@ -17,9 +17,17 @@ class TrainingVideoTest extends TestCase
 
     public function test_login_cards_link_to_training_page(): void
     {
-        $this->get('/login')
-            ->assertOk()
-            ->assertSee(route('training.index'), false);
+        $response = $this->get('/login')->assertOk();
+
+        $this->assertSame(
+            1,
+            substr_count((string) $response->getContent(), 'href="' . route('training.index') . '"'),
+        );
+        $response
+            ->assertSee('ورود مستقیم داخلی')
+            ->assertSee('امنیت چندمرحله‌ای')
+            ->assertSee('دسترسی یکپارچه')
+            ->assertSee('آموزش سامانه');
     }
 
     public function test_public_training_page_only_shows_active_videos(): void

@@ -46,17 +46,21 @@
             <h1 class="text-center text-xl font-bold text-amber-400">سامانه جامع حمل و نقل بین المللی</h1>
             <p class="mt-2 text-center text-sm font-semibold text-white">انجمن بین المللی خراسان رضوی</p>
             <div class="mt-10 space-y-3 text-right text-sm leading-6 text-slate-100">
-                <a href="{{ route('training.index') }}" aria-label="مشاهده آموزش سامانه" class="block rounded-2xl border border-white/10 bg-white/10 p-4 transition hover:-translate-y-0.5 hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-amber-300">
+                <div class="rounded-2xl border border-white/10 bg-white/10 p-4">
                     <div class="font-bold text-amber-300">ورود مستقیم داخلی</div>
                     <div class="mt-1 text-xs text-slate-300">ورود شرکت‌ها با شناسه ملی و رمز عبور اختصاصی سامانه</div>
-                </a>
-                <a href="{{ route('training.index') }}" aria-label="مشاهده آموزش سامانه" class="block rounded-2xl border border-white/10 bg-white/10 p-4 transition hover:-translate-y-0.5 hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-sky-300">
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-white/10 p-4">
                     <div class="font-bold text-sky-200">امنیت چندمرحله‌ای</div>
                     <div class="mt-1 text-xs text-slate-300">کد امنیتی ورود و بازیابی رمز با موبایل ثبت‌شده مدیرعامل</div>
-                </a>
-                <a href="{{ route('training.index') }}" aria-label="مشاهده آموزش سامانه" class="block rounded-2xl border border-white/10 bg-white/10 p-4 transition hover:-translate-y-0.5 hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-emerald-300">
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-white/10 p-4">
                     <div class="font-bold text-emerald-200">دسترسی یکپارچه</div>
                     <div class="mt-1 text-xs text-slate-300">مدیریت دوزله، شرکت، ناوگان و درخواست‌ها در یک پنل</div>
+                </div>
+                <a href="{{ route('training.index') }}" aria-label="مشاهده آموزش سامانه" class="block rounded-2xl border border-amber-300/80 bg-amber-300/10 p-4 transition hover:-translate-y-0.5 hover:bg-amber-300/20 focus:outline-none focus:ring-2 focus:ring-amber-300">
+                    <div class="font-bold text-amber-300">آموزش سامانه</div>
+                    <div class="mt-1 text-xs text-slate-300">برای مشاهده ویدئوهای آموزشی کلیک کنید</div>
                 </a>
             </div>
         </aside>
