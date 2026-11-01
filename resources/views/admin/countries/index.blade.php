@@ -152,7 +152,7 @@
                 <button onclick="closeCountryModal()" class="text-slate-400 hover:text-white text-2xl">✕</button>
             </div>
             
-            <form action="{{ route('admin.countries.store') }}" method="POST" class="flex min-h-0 flex-col">
+            <form action="{{ route('admin.countries.store') }}" method="POST" class="flex min-h-0 flex-col" data-price-form>
                 @csrf
                 <div class="min-h-0 space-y-4 overflow-y-auto p-4 sm:p-5">
                     <div>
@@ -177,10 +177,12 @@
                         </div>
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <label class="rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-xs font-bold text-blue-800">عضو انجمن
-                                <input type="number" name="member_price" value="{{ old('member_price', 0) }}" required min="0" class="mt-2 w-full rounded-lg border border-blue-200 bg-white p-2.5 text-left font-mono text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" dir="ltr">
+                                <input type="text" id="member_price_display" value="{{ old('member_price', 0) }}" required inputmode="numeric" autocomplete="off" data-price-display data-raw-target="#member_price" class="mt-2 w-full rounded-lg border border-blue-200 bg-white p-2.5 text-left font-mono text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" dir="ltr">
+                                <input type="hidden" name="member_price" id="member_price" value="{{ old('member_price', 0) }}">
                             </label>
                             <label class="rounded-xl border border-violet-100 bg-violet-50/60 p-3 text-xs font-bold text-violet-800">غیرعضو انجمن
-                                <input type="number" name="non_member_price" value="{{ old('non_member_price', 0) }}" required min="0" class="mt-2 w-full rounded-lg border border-violet-200 bg-white p-2.5 text-left font-mono text-sm text-slate-800 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500" dir="ltr">
+                                <input type="text" id="non_member_price_display" value="{{ old('non_member_price', 0) }}" required inputmode="numeric" autocomplete="off" data-price-display data-raw-target="#non_member_price" class="mt-2 w-full rounded-lg border border-violet-200 bg-white p-2.5 text-left font-mono text-sm text-slate-800 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500" dir="ltr">
+                                <input type="hidden" name="non_member_price" id="non_member_price" value="{{ old('non_member_price', 0) }}">
                             </label>
                         </div>
                         <p class="mt-2 text-[10px] text-slate-500">اعمال این دو تعرفه در فرایند ثبت درخواست در مرحله بعد متصل خواهد شد.</p>
@@ -223,7 +225,7 @@
                 <button onclick="closeEditCountryModal()" class="text-slate-400 hover:text-white text-2xl">✕</button>
             </div>
             
-            <form id="edit_country_form" action="" method="POST" class="flex min-h-0 flex-col">
+            <form id="edit_country_form" action="" method="POST" class="flex min-h-0 flex-col" data-price-form>
                 @csrf
                 @method('PUT')
                 <div class="min-h-0 space-y-4 overflow-y-auto p-4 sm:p-5">
@@ -249,10 +251,12 @@
                         </div>
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <label class="rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-xs font-bold text-blue-800">عضو انجمن
-                                <input type="number" name="member_price" id="edit_member_price" required min="0" class="mt-2 w-full rounded-lg border border-blue-200 bg-white p-2.5 text-left font-mono text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" dir="ltr">
+                                <input type="text" id="edit_member_price_display" required inputmode="numeric" autocomplete="off" data-price-display data-raw-target="#edit_member_price" class="mt-2 w-full rounded-lg border border-blue-200 bg-white p-2.5 text-left font-mono text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" dir="ltr">
+                                <input type="hidden" name="member_price" id="edit_member_price" value="0">
                             </label>
                             <label class="rounded-xl border border-violet-100 bg-violet-50/60 p-3 text-xs font-bold text-violet-800">غیرعضو انجمن
-                                <input type="number" name="non_member_price" id="edit_non_member_price" required min="0" class="mt-2 w-full rounded-lg border border-violet-200 bg-white p-2.5 text-left font-mono text-sm text-slate-800 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500" dir="ltr">
+                                <input type="text" id="edit_non_member_price_display" required inputmode="numeric" autocomplete="off" data-price-display data-raw-target="#edit_non_member_price" class="mt-2 w-full rounded-lg border border-violet-200 bg-white p-2.5 text-left font-mono text-sm text-slate-800 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500" dir="ltr">
+                                <input type="hidden" name="non_member_price" id="edit_non_member_price" value="0">
                             </label>
                         </div>
                         <p class="mt-2 text-[10px] text-slate-500">اعمال این دو تعرفه در فرایند ثبت درخواست در مرحله بعد متصل خواهد شد.</p>
@@ -308,6 +312,63 @@
 <script src="{{ asset('assets/js/jquery.min.js') }}"></script>
 <script src="{{ asset('assets/js/sweetalert2.all.min.js') }}"></script>
 <script>
+    function normalizePriceDigits(value) {
+        return String(value ?? '')
+            .replace(/[۰-۹]/g, function (digit) { return String(digit.charCodeAt(0) - 1776); })
+            .replace(/[٠-٩]/g, function (digit) { return String(digit.charCodeAt(0) - 1632); });
+    }
+
+    function rawPriceValue(value) {
+        return normalizePriceDigits(value).replace(/[^0-9]/g, '');
+    }
+
+    function formattedPriceValue(value) {
+        const raw = rawPriceValue(value);
+        return raw.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+
+    function syncPriceInput(input, preserveCaret = true) {
+        const originalValue = input.value;
+        const originalCaret = input.selectionStart ?? originalValue.length;
+        const digitsBeforeCaret = rawPriceValue(originalValue.slice(0, originalCaret)).length;
+        const raw = rawPriceValue(originalValue);
+        const formatted = formattedPriceValue(raw);
+        input.value = formatted;
+
+        const rawTarget = document.querySelector(input.dataset.rawTarget);
+        if (rawTarget) rawTarget.value = raw || '0';
+
+        if (preserveCaret && document.activeElement === input && typeof input.setSelectionRange === 'function') {
+            let caret = 0;
+            let digits = 0;
+            while (caret < formatted.length && digits < digitsBeforeCaret) {
+                if (/\d/.test(formatted[caret])) digits += 1;
+                caret += 1;
+            }
+            input.setSelectionRange(caret, caret);
+        }
+    }
+
+    function setPriceInput(selector, value) {
+        const input = document.querySelector(selector);
+        if (!input) return;
+        input.value = normalizePriceDigits(value);
+        syncPriceInput(input, false);
+    }
+
+    document.querySelectorAll('[data-price-display]').forEach(function (input) {
+        syncPriceInput(input, false);
+        input.addEventListener('input', function () { syncPriceInput(input); });
+    });
+
+    document.querySelectorAll('[data-price-form]').forEach(function (form) {
+        form.addEventListener('submit', function () {
+            form.querySelectorAll('[data-price-display]').forEach(function (input) {
+                syncPriceInput(input, false);
+            });
+        });
+    });
+
     function openCountryModal() { 
         $('#country_modal').removeClass('hidden'); 
     }
@@ -319,8 +380,8 @@
         // پر کردن مقادیر داینامیک از دیتابیس در فرم مودال
         $('#edit_name').val($(btnElement).attr('data-name') || '');
         $('#edit_code').val($(btnElement).attr('data-code') || '');
-        $('#edit_member_price').val($(btnElement).attr('data-member-price') || 0);
-        $('#edit_non_member_price').val($(btnElement).attr('data-non-member-price') || 0);
+        setPriceInput('#edit_member_price_display', $(btnElement).attr('data-member-price') || 0);
+        setPriceInput('#edit_non_member_price_display', $(btnElement).attr('data-non-member-price') || 0);
         
         // 🟢 اصلاحیه قطعی: واکشی امن دیتا مستقیماً از دیتا-ویژگی المنت HTML دکمه جدول
         let validityDays = $(btnElement).data('validity');
