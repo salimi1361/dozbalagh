@@ -135,7 +135,8 @@
                         $types = $children->map(fn ($child) => $permitTypeLabels[$child->permit_type] ?? $child->permit_type)->filter()->unique()->values();
                         $groupStatus = $statuses->count() === 1 ? ($labels[$statuses->first()] ?? $statuses->first()) : 'بررسی چندمرحله‌ای';
                         $groupStatusClass = $hasPendingPickup ? 'bg-indigo-200 text-indigo-900' : ($hasAwaitingPickup ? 'bg-amber-200 text-amber-900' : ($hasReturned ? 'bg-amber-200 text-amber-900' : ($statuses->count() > 1 ? 'bg-violet-100 text-violet-800' : 'bg-sky-100 text-sky-700')));
-                        $groupRowClass = $hasRejected ? 'bg-rose-50 ring-1 ring-inset ring-rose-200 hover:bg-rose-100' : ($hasUnreadCitsResponse ? 'bg-emerald-50 ring-1 ring-inset ring-emerald-200' : ($hasPendingPickup ? 'bg-indigo-50 ring-1 ring-inset ring-indigo-200' : ($hasReturned ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-sky-50/40')));
+                        $neutralRowClass = $loop->odd ? 'bg-white hover:bg-sky-50/40' : 'bg-slate-50/70 hover:bg-sky-50/60';
+                        $groupRowClass = $hasRejected ? 'bg-rose-50 ring-1 ring-inset ring-rose-200 hover:bg-rose-100' : ($hasUnreadCitsResponse ? 'bg-emerald-50 ring-1 ring-inset ring-emerald-200' : ($hasPendingPickup ? 'bg-indigo-50 ring-1 ring-inset ring-indigo-200' : ($hasReturned ? 'bg-amber-50 hover:bg-amber-100' : $neutralRowClass)));
                         $canRejectAll = $scope === 'active' && ($bulkRejectableParentIds ?? collect())->has((int) $group->parent_id);
                     @endphp
                     @if($children->count() === 1)
@@ -143,7 +144,7 @@
                             $item = $parent;
                             $pickupCompleted = !empty($item->pickup_completed_at) && $item->item_status === 'issued';
                         @endphp
-                        <tr class="{{ $hasRejected ? 'bg-rose-50 ring-1 ring-inset ring-rose-200 hover:bg-rose-100' : ($hasUnreadCitsResponse ? 'bg-emerald-50 ring-1 ring-inset ring-emerald-200' : ($hasPendingPickup ? 'bg-indigo-50 ring-1 ring-inset ring-indigo-200' : ($item->item_status === 'company_returned' ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-sky-50/40'))) }}">
+                        <tr class="transition-colors {{ $hasRejected ? 'bg-rose-50 ring-1 ring-inset ring-rose-200 hover:bg-rose-100' : ($hasUnreadCitsResponse ? 'bg-emerald-50 ring-1 ring-inset ring-emerald-200' : ($hasPendingPickup ? 'bg-indigo-50 ring-1 ring-inset ring-indigo-200' : ($item->item_status === 'company_returned' ? 'bg-amber-50 hover:bg-amber-100' : $neutralRowClass))) }}">
                             <td class="p-4 text-center font-black text-slate-500">{{ number_format(($items->firstItem() ?? 1) + $loop->index) }}</td>
                             <td class="p-4">
                                 <strong class="block font-mono">{{ $item->d_code }}-{{ $item->id }}</strong>
@@ -182,7 +183,7 @@
                             <td class="p-4"><a href="{{ route('association.permits.show',$item->id) }}" class="rounded-xl px-4 py-2 text-xs font-black text-white {{ $hasUnreadCitsResponse ? 'bg-emerald-600 shadow-sm shadow-emerald-200' : ($hasPendingPickup ? 'bg-indigo-600 shadow-sm shadow-indigo-200' : 'bg-slate-900') }}">{{ $hasUnreadCitsResponse ? 'بررسی پاسخ شرکت' : ($hasPendingPickup ? 'ثبت تحویل به پیک' : 'باز کردن پرونده') }}</a></td>
                         </tr>
                     @else
-                    <tr data-permit-group-row="{{ $groupKey }}" tabindex="0" role="button" aria-expanded="false" aria-controls="{{ $groupKey }}" class="cursor-pointer {{ $groupRowClass }}">
+                    <tr data-permit-group-row="{{ $groupKey }}" tabindex="0" role="button" aria-expanded="false" aria-controls="{{ $groupKey }}" class="cursor-pointer transition-colors {{ $groupRowClass }}">
                         <td class="p-4 text-center font-black text-slate-500">{{ number_format(($items->firstItem() ?? 1) + $loop->index) }}</td>
                         <td class="p-4">
                             <div class="flex items-start gap-3">
@@ -265,7 +266,7 @@
                                                 $childUnread = $child->company_cits_responded_at && (!$child->association_cits_response_seen_at || $child->company_cits_responded_at > $child->association_cits_response_seen_at);
                                                 $childPickup = (int) ($child->pending_pickup_count ?? 0) > 0;
                                             @endphp
-                                            <tr class="hover:bg-sky-50/50">
+                                            <tr class="transition-colors {{ $loop->odd ? 'bg-white' : 'bg-slate-50/70' }} hover:bg-sky-50/50">
                                                 <td class="p-3"><strong class="block font-mono">{{ $child->d_code }}-{{ $child->id }}</strong><span class="text-[10px] text-slate-500">سریال: {{ $child->d_serial_number ?: 'تخصیص نیافته' }}</span></td>
                                                 <td class="p-3"><strong>{{ $child->country_name ?: 'نامشخص' }}</strong><span class="block text-[10px] text-slate-500">{{ $permitTypeLabels[$child->permit_type] ?? $child->permit_type }}</span></td>
                                                 <td class="p-3"><strong class="block">{{ trim(($child->first_name_fa ?? '').' '.($child->last_name_fa ?? '')) ?: 'ثبت نشده' }}</strong><span class="block text-[10px] text-slate-500">اسب: {{ $child->transit_horse ?: '—' }} | یدک: {{ $child->transit_trailer ?: '—' }}</span></td>
