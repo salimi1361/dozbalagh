@@ -158,7 +158,7 @@ class PermitWorkflowController extends Controller
             ->distinct()
             ->count('request.id');
 
-        $items = $this->groupedParentPage($query, 20);
+        $items = $this->groupedParentPage($query, 10);
         $bulkRejectableParentIds = collect();
         if ($scope === 'active') {
             $parentIds = $items->getCollection()

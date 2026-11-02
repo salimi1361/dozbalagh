@@ -107,7 +107,7 @@
         <div class="overflow-x-auto">
             <table class="w-full text-right text-sm">
                 <thead class="bg-slate-50 text-xs text-slate-500"><tr>
-                    <th class="p-4">پرونده مادر / درخواست‌ها</th><th class="p-4">شرکت / کشنده و بارگیر</th>
+                    <th class="p-4">ردیف</th><th class="p-4">پرونده مادر / درخواست‌ها</th><th class="p-4">شرکت / کشنده و بارگیر</th>
                     <th class="p-4">کشور / نوع</th><th class="p-4">وضعیت</th>
                     @if($scope === 'circulation')<th class="p-4">مهلت اعتبار</th>@endif
                     <th class="p-4">آخرین تغییر</th><th class="p-4">مسیرها / عملیات</th>
@@ -144,6 +144,7 @@
                             $pickupCompleted = !empty($item->pickup_completed_at) && $item->item_status === 'issued';
                         @endphp
                         <tr class="{{ $hasRejected ? 'bg-rose-50 ring-1 ring-inset ring-rose-200 hover:bg-rose-100' : ($hasUnreadCitsResponse ? 'bg-emerald-50 ring-1 ring-inset ring-emerald-200' : ($hasPendingPickup ? 'bg-indigo-50 ring-1 ring-inset ring-indigo-200' : ($item->item_status === 'company_returned' ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-sky-50/40'))) }}">
+                            <td class="p-4 text-center font-black text-slate-500">{{ number_format(($items->firstItem() ?? 1) + $loop->index) }}</td>
                             <td class="p-4">
                                 <strong class="block font-mono">{{ $item->d_code }}-{{ $item->id }}</strong>
                                 <span class="text-xs text-slate-500">سریال: {{ $item->d_serial_number ?: 'تخصیص نیافته' }}</span>
@@ -182,6 +183,7 @@
                         </tr>
                     @else
                     <tr data-permit-group-row="{{ $groupKey }}" tabindex="0" role="button" aria-expanded="false" aria-controls="{{ $groupKey }}" class="cursor-pointer {{ $groupRowClass }}">
+                        <td class="p-4 text-center font-black text-slate-500">{{ number_format(($items->firstItem() ?? 1) + $loop->index) }}</td>
                         <td class="p-4">
                             <div class="flex items-start gap-3">
                                 <button type="button" data-permit-group-toggle="{{ $groupKey }}" aria-expanded="false" aria-controls="{{ $groupKey }}" class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-lg font-black text-white transition hover:bg-blue-700" title="نمایش درخواست‌های این پرونده"><span>+</span></button>
@@ -248,7 +250,7 @@
                         </td>
                     </tr>
                     <tr id="{{ $groupKey }}" class="hidden bg-slate-50">
-                        <td colspan="{{ $scope === 'circulation' ? 7 : 6 }}" class="p-4">
+                        <td colspan="{{ $scope === 'circulation' ? 8 : 7 }}" class="p-4">
                             <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-inner">
                                 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
                                     <strong class="text-sm text-slate-800">درخواست‌های پرونده {{ $parent->d_code }}</strong>
@@ -280,7 +282,7 @@
                     </tr>
                     @endif
                 @empty
-                    <tr><td colspan="{{ $scope === 'circulation' ? 7 : 6 }}" class="p-16 text-center font-bold text-slate-400">موردی در این کارتابل وجود ندارد.</td></tr>
+                    <tr><td colspan="{{ $scope === 'circulation' ? 8 : 7 }}" class="p-16 text-center font-bold text-slate-400">موردی در این کارتابل وجود ندارد.</td></tr>
                 @endforelse
                 </tbody>
             </table>
