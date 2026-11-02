@@ -184,7 +184,7 @@
                                 {{ verta($scope === 'transferred' && $item->transferred_at ? $item->transferred_at : $item->updated_at)->format('Y/m/d H:i') }}
                                 @if($hasUnreadCitsResponse)<span class="mt-1 block font-bold text-emerald-700">پاسخ شرکت: {{ verta($item->company_cits_responded_at)->format('H:i') }}</span>@endif
                             </td>
-                            <td data-label="عملیات" class="p-4"><a href="{{ route('association.permits.show',$item->id) }}" class="rounded-xl px-4 py-2 text-xs font-black text-white {{ $hasUnreadCitsResponse ? 'bg-emerald-600 shadow-sm shadow-emerald-200' : ($hasPendingPickup ? 'bg-indigo-600 shadow-sm shadow-indigo-200' : 'bg-slate-900') }}">{{ $hasUnreadCitsResponse ? 'بررسی پاسخ شرکت' : ($hasPendingPickup ? 'ثبت تحویل به پیک' : 'باز کردن پرونده') }}</a></td>
+                            <td data-label="عملیات" class="p-4"><a href="{{ route('association.permits.show',$item->id) }}" class="whitespace-nowrap rounded-xl px-4 py-2 text-xs font-black text-white {{ $hasUnreadCitsResponse ? 'bg-emerald-600 shadow-sm shadow-emerald-200' : ($hasPendingPickup ? 'bg-indigo-600 shadow-sm shadow-indigo-200' : 'bg-slate-900') }}">{{ $hasUnreadCitsResponse ? 'بررسی پاسخ شرکت' : ($hasPendingPickup ? 'ثبت تحویل به پیک' : 'باز کردن پرونده') }}</a></td>
                         </tr>
                     @else
                     <tr data-permit-group-row="{{ $groupKey }}" tabindex="0" role="button" aria-expanded="false" aria-controls="{{ $groupKey }}" class="cursor-pointer transition-colors {{ $groupRowClass }}">
@@ -276,7 +276,7 @@
                                                 <td data-label="راننده / ناوگان" class="p-3"><strong class="block">{{ trim(($child->first_name_fa ?? '').' '.($child->last_name_fa ?? '')) ?: 'ثبت نشده' }}</strong><span class="block text-[10px] text-slate-500">اسب: {{ $child->transit_horse ?: '—' }} | یدک: {{ $child->transit_trailer ?: '—' }}</span></td>
                                                 <td data-label="وضعیت" class="p-3"><span class="rounded-full px-2.5 py-1 text-[10px] font-black {{ $childPickup ? 'bg-indigo-100 text-indigo-800' : ($child->item_status === 'company_returned' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-700') }}">{{ $childPickup ? 'در انتظار تحویل به پیک' : ($labels[$child->item_status] ?? $child->item_status) }}</span>@if($childUnread)<span class="mt-1 block font-bold text-emerald-700">پاسخ جدید شرکت</span>@endif</td>
                                                 <td data-label="آخرین تغییر" class="whitespace-nowrap p-3 text-slate-500">{{ verta($child->updated_at)->format('Y/m/d H:i') }}</td>
-                                                <td data-label="عملیات" class="p-3"><a href="{{ route('association.permits.show',$child->id) }}" class="rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-black text-white">باز کردن</a></td>
+                                                <td data-label="عملیات" class="p-3"><a href="{{ route('association.permits.show',$child->id) }}" class="whitespace-nowrap rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-black text-white">باز کردن</a></td>
                                             </tr>
                                         @endforeach
                                         </tbody>
@@ -296,11 +296,22 @@
     </div>
 </div>
 <style>
-@media (max-width: 767px) {
+@media (min-width: 1280px) {
+    .association-permit-table {
+        min-width: 1180px;
+    }
+
+    .association-permit-table td[data-label="عملیات"] {
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 1279px) {
     .association-permit-table,
     .association-permit-table > tbody,
     .association-permit-table > tbody > tr:not(.association-permit-detail-row) {
         display: block;
+        min-width: 0 !important;
         width: 100%;
     }
 
@@ -320,6 +331,7 @@
         justify-content: space-between;
         gap: .75rem;
         white-space: normal;
+        overflow-wrap: anywhere;
     }
 
     .association-permit-table > tbody > tr:not(.association-permit-detail-row) > td[data-mobile-hide] {
@@ -378,6 +390,7 @@
         justify-content: space-between;
         gap: .75rem;
         white-space: normal;
+        overflow-wrap: anywhere;
     }
 }
 </style>
