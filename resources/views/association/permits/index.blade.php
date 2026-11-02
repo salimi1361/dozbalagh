@@ -26,7 +26,7 @@
         'third_country' => 'کشور ثالث',
         'third_country_transit' => 'ترانزیت - ثالث',
     ];
-    $scopeLabels = ['active' => 'در حال اقدام', 'rejected' => 'رد شده‌ها', 'circulation' => 'در گردش', 'transferred' => 'انتقال‌یافته', 'archive' => 'بایگانی'];
+    $scopeLabels = ['active' => 'در حال اقدام', 'awaiting_pickup' => 'منتظر معرفی پیک', 'rejected' => 'رد شده‌ها', 'circulation' => 'در گردش', 'transferred' => 'انتقال‌یافته', 'archive' => 'بایگانی'];
 @endphp
 <div class="space-y-5">
     <span id="associationQueueMarker" data-latest-update="{{ strtotime((string) ($latestItemsUpdate ?? '')) ?: 0 }}" class="hidden"></span>
@@ -45,8 +45,9 @@
                 </div>
             </div>
 
-            <nav class="flex w-full rounded-xl border border-white border-opacity-10 bg-white bg-opacity-10 p-1 xl:w-auto" aria-label="محدوده کارتابل">
+            <nav class="flex w-full flex-wrap rounded-xl border border-white border-opacity-10 bg-white bg-opacity-10 p-1 xl:w-auto" aria-label="محدوده کارتابل">
                 <a href="{{ route('association.permits.index', ['scope'=>'active']) }}" class="flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition xl:flex-none {{ $scope === 'active' ? 'bg-white text-blue-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">در حال اقدام</a>
+                <a href="{{ route('association.permits.index', ['scope'=>'awaiting_pickup']) }}" class="flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition xl:flex-none {{ $scope === 'awaiting_pickup' ? 'bg-amber-100 text-amber-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">منتظر معرفی پیک</a>
                 <a href="{{ route('association.permits.index', ['scope'=>'rejected']) }}" class="inline-flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition xl:flex-none {{ $scope === 'rejected' ? 'bg-rose-100 text-rose-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">
                     رد شده‌ها
                     <span class="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] {{ ($rejectedCount ?? 0) > 0 ? 'bg-rose-500 text-white' : 'bg-white/15 text-blue-100' }}">{{ number_format($rejectedCount ?? 0) }}</span>
@@ -84,6 +85,9 @@
     @endif
     @if($scope === 'circulation')
         <div class="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900"><strong>دوزوله‌های در گردش</strong><span class="mr-2 text-xs text-sky-700">فقط مسیرهای صادرشده و تحویل‌شده به پیک شرکت در این بخش هستند؛ مسیرهای ردشده در تب «رد شده‌ها» نمایش داده می‌شوند.</span></div>
+    @endif
+    @if($scope === 'awaiting_pickup')
+        <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"><strong>منتظر معرفی پیک</strong><span class="mr-2 text-xs text-amber-700">دوزوله چاپ و صادر شده، اما شرکت هنوز پیک دریافت را معرفی نکرده است. پس از معرفی پیک، پرونده دوباره در «در حال اقدام» دیده می‌شود.</span></div>
     @endif
     @if($scope === 'transferred')
         <div class="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900"><strong>گزارش دوزوله‌های انتقال‌یافته</strong><span class="mr-2 text-xs text-violet-700">شرکت مبدأ و مقصد، شماره دوزوله، علت و زمان انتقال در این بخش نمایش داده می‌شود. این موارد از کارتابل «در حال اقدام» خارج شده‌اند.</span></div>
@@ -124,12 +128,13 @@
                         $hasUnreadCitsResponse = $children->contains(fn ($child) => $child->company_cits_responded_at
                             && (!$child->association_cits_response_seen_at || $child->company_cits_responded_at > $child->association_cits_response_seen_at));
                         $hasPendingPickup = $children->contains(fn ($child) => (int) ($child->pending_pickup_count ?? 0) > 0);
+                        $hasAwaitingPickup = $scope === 'awaiting_pickup';
                         $hasReturned = $children->contains(fn ($child) => $child->item_status === 'company_returned');
                         $latestChild = $children->sortByDesc('updated_at')->first();
                         $countries = $children->pluck('country_name')->filter()->unique()->values();
                         $types = $children->map(fn ($child) => $permitTypeLabels[$child->permit_type] ?? $child->permit_type)->filter()->unique()->values();
                         $groupStatus = $statuses->count() === 1 ? ($labels[$statuses->first()] ?? $statuses->first()) : 'بررسی چندمرحله‌ای';
-                        $groupStatusClass = $hasPendingPickup ? 'bg-indigo-200 text-indigo-900' : ($hasReturned ? 'bg-amber-200 text-amber-900' : ($statuses->count() > 1 ? 'bg-violet-100 text-violet-800' : 'bg-sky-100 text-sky-700'));
+                        $groupStatusClass = $hasPendingPickup ? 'bg-indigo-200 text-indigo-900' : ($hasAwaitingPickup ? 'bg-amber-200 text-amber-900' : ($hasReturned ? 'bg-amber-200 text-amber-900' : ($statuses->count() > 1 ? 'bg-violet-100 text-violet-800' : 'bg-sky-100 text-sky-700')));
                         $groupRowClass = $hasRejected ? 'bg-rose-50 ring-1 ring-inset ring-rose-200 hover:bg-rose-100' : ($hasUnreadCitsResponse ? 'bg-emerald-50 ring-1 ring-inset ring-emerald-200' : ($hasPendingPickup ? 'bg-indigo-50 ring-1 ring-inset ring-indigo-200' : ($hasReturned ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-sky-50/40')));
                         $canRejectAll = $scope === 'active' && ($bulkRejectableParentIds ?? collect())->has((int) $group->parent_id);
                     @endphp
@@ -155,7 +160,7 @@
                                 @endif
                             </td>
                             <td class="p-4"><strong>{{ $item->country_name ?: 'نامشخص' }}</strong><span class="block text-xs text-slate-500">{{ $permitTypeLabels[$item->permit_type] ?? $item->permit_type }}</span></td>
-                            <td class="p-4"><span class="rounded-full px-3 py-1 text-xs font-black {{ $hasPendingPickup ? 'bg-indigo-200 text-indigo-900' : ($pickupCompleted ? 'bg-emerald-100 text-emerald-800' : ($item->item_status === 'company_returned' ? 'bg-amber-200 text-amber-900' : 'bg-sky-100 text-sky-700')) }}">{{ $hasPendingPickup ? 'در انتظار تحویل به پیک' : ($pickupCompleted ? 'تحویل پیک شرکت شد' : ($item->item_status === 'company_returned' && $item->disposition_type === 'unused' ? 'برگشت بدون استفاده در انتظار دریافت' : ($labels[$item->item_status] ?? $item->item_status))) }}</span>@if($hasPendingPickup)<span class="mt-2 block text-[10px] font-bold text-indigo-700">{{ $item->pending_pickup_courier_name }} — {{ $item->pending_pickup_courier_mobile }}</span>@elseif($pickupCompleted)<span class="mt-2 block text-[10px] font-bold text-emerald-700">{{ $item->pickup_completed_courier_name ?: 'پیک معرفی‌شده' }} — {{ verta($item->pickup_completed_at)->format('Y/m/d H:i') }}</span>@elseif($item->item_status === 'company_returned')<span class="mt-2 block text-[10px] font-bold text-amber-700">{{ $item->disposition_type === 'unused' ? 'مسیر مستقل بدون CITS لاشه' : 'نیازمند کنترل کد پیک' }}</span>@endif</td>
+                            <td class="p-4"><span class="rounded-full px-3 py-1 text-xs font-black {{ $hasPendingPickup ? 'bg-indigo-200 text-indigo-900' : ($hasAwaitingPickup ? 'bg-amber-200 text-amber-900' : ($pickupCompleted ? 'bg-emerald-100 text-emerald-800' : ($item->item_status === 'company_returned' ? 'bg-amber-200 text-amber-900' : 'bg-sky-100 text-sky-700'))) }}">{{ $hasPendingPickup ? 'در انتظار تحویل به پیک' : ($hasAwaitingPickup ? 'چاپ‌شده؛ منتظر معرفی پیک' : ($pickupCompleted ? 'تحویل پیک شرکت شد' : ($item->item_status === 'company_returned' && $item->disposition_type === 'unused' ? 'برگشت بدون استفاده در انتظار دریافت' : ($labels[$item->item_status] ?? $item->item_status)))) }}</span>@if($hasPendingPickup)<span class="mt-2 block text-[10px] font-bold text-indigo-700">{{ $item->pending_pickup_courier_name }} — {{ $item->pending_pickup_courier_mobile }}</span>@elseif($pickupCompleted)<span class="mt-2 block text-[10px] font-bold text-emerald-700">{{ $item->pickup_completed_courier_name ?: 'پیک معرفی‌شده' }} — {{ verta($item->pickup_completed_at)->format('Y/m/d H:i') }}</span>@elseif($item->item_status === 'company_returned')<span class="mt-2 block text-[10px] font-bold text-amber-700">{{ $item->disposition_type === 'unused' ? 'مسیر مستقل بدون CITS لاشه' : 'نیازمند کنترل کد پیک' }}</span>@endif</td>
                             @if($scope === 'circulation')
                                 <td class="p-4">
                                     @if((int) ($item->validity_days ?? $item->country_validity_days) === 0)
@@ -200,7 +205,7 @@
                         </td>
                         <td class="p-4"><strong>{{ $countries->count() > 1 ? $countries->count().' مقصد' : ($countries->first() ?: 'نامشخص') }}</strong><span class="block text-xs text-slate-500">{{ $types->implode('، ') ?: 'نوع نامشخص' }}</span></td>
                         <td class="p-4">
-                            <span class="rounded-full px-3 py-1 text-xs font-black {{ $groupStatusClass }}">{{ $hasPendingPickup ? 'در انتظار تحویل به پیک' : $groupStatus }}</span>
+                            <span class="rounded-full px-3 py-1 text-xs font-black {{ $groupStatusClass }}">{{ $hasPendingPickup ? 'در انتظار تحویل به پیک' : ($hasAwaitingPickup ? 'چاپ‌شده؛ منتظر معرفی پیک' : $groupStatus) }}</span>
                             <div class="mt-2 flex flex-wrap gap-1.5">
                                 @foreach($statusSummary as $summary)
                                     <span class="inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black {{ $statusSummaryClasses[$summary->status] ?? 'border-slate-200 bg-slate-100 text-slate-700' }}">{{ number_format($summary->count) }} {{ $summary->label }}</span>
