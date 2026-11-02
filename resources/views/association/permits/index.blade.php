@@ -93,14 +93,69 @@
         <div class="rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900"><strong>گزارش دوزوله‌های انتقال‌یافته</strong><span class="mr-2 text-xs text-violet-700">شرکت مبدأ و مقصد، شماره دوزوله، علت و زمان انتقال در این بخش نمایش داده می‌شود. این موارد از کارتابل «در حال اقدام» خارج شده‌اند.</span></div>
     @endif
 
-    <form class="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 md:grid-cols-[1fr_220px_auto]">
+    @php
+        $hasFilters = request()->filled('search')
+            || request()->filled('status')
+            || request()->integer('country_id') > 0;
+        $selectedCountry = ($countries ?? collect())->first(
+            fn ($country) => (int) $country->id === request()->integer('country_id')
+        );
+    @endphp
+    <form method="GET" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <input type="hidden" name="scope" value="{{ $scope }}">
-        <input name="search" value="{{ request('search') }}" class="rounded-xl border-slate-200" placeholder="کد پرونده، سریال، شرکت، شماره کشنده یا بارگیر">
-        <select name="status" class="rounded-xl border-slate-200">
-            <option value="">همه وضعیت‌ها</option>
-            @foreach($labels as $value=>$label)<option value="{{ $value }}" @selected(request('status')===$value)>{{ $label }}</option>@endforeach
-        </select>
-        <button class="rounded-xl bg-slate-900 px-6 py-2 font-black text-white">جست‌وجو</button>
+        <div class="flex flex-col gap-3 border-b border-slate-100 bg-gradient-to-l from-slate-50 to-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <div class="flex items-center gap-3">
+                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m21 21-4.35-4.35m1.35-5.15a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/></svg>
+                </span>
+                <div>
+                    <strong class="block text-sm font-black text-slate-800">جست‌وجو و فیلتر کارتابل</strong>
+                    <span class="mt-1 block text-[11px] text-slate-500">پرونده را بر اساس کد، شرکت، کشور یا وضعیت پیدا کنید.</span>
+                </div>
+            </div>
+            @if($hasFilters)
+                <a href="{{ route('association.permits.index', ['scope' => $scope]) }}" class="inline-flex w-fit items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100">پاک‌کردن فیلترها <span aria-hidden="true">×</span></a>
+            @endif
+        </div>
+        <div class="grid gap-3 p-4 lg:grid-cols-[minmax(0,1.5fr)_220px_220px_auto] lg:items-end">
+            <label class="block">
+                <span class="mb-1.5 block text-[11px] font-black text-slate-600">جست‌وجوی سریع</span>
+                <span class="relative block">
+                    <svg class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m21 21-4.35-4.35m1.35-5.15a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/></svg>
+                    <input name="search" value="{{ request('search') }}" class="w-full rounded-xl border-slate-200 bg-slate-50 py-3 pr-10 text-sm transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100" placeholder="کد پرونده، سریال، شرکت، کشنده یا بارگیر">
+                </span>
+            </label>
+            <label class="block">
+                <span class="mb-1.5 block text-[11px] font-black text-slate-600">کشور مقصد</span>
+                <select name="country_id" class="w-full rounded-xl border-slate-200 bg-slate-50 py-3 text-sm transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100">
+                    <option value="">همه کشورها</option>
+                    @foreach(($countries ?? collect()) as $country)
+                        <option value="{{ $country->id }}" @selected((string) request('country_id') === (string) $country->id)>{{ $country->name }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <label class="block">
+                <span class="mb-1.5 block text-[11px] font-black text-slate-600">وضعیت پرونده</span>
+                <select name="status" class="w-full rounded-xl border-slate-200 bg-slate-50 py-3 text-sm transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100">
+                    <option value="">همه وضعیت‌ها</option>
+                    @foreach($labels as $value=>$label)
+                        <option value="{{ $value }}" @selected(request('status') === $value)>{{ $label }}</option>
+                    @endforeach
+                </select>
+            </label>
+            <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 hover:shadow-md">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m21 21-4.35-4.35m1.35-5.15a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/></svg>
+                اعمال فیلتر
+            </button>
+        </div>
+        @if($hasFilters)
+            <div class="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/70 px-4 py-3 text-[11px]">
+                <span class="font-black text-slate-500">فیلترهای فعال:</span>
+                @if(request('search'))<span class="rounded-full bg-blue-100 px-2.5 py-1 font-bold text-blue-800">جست‌وجو: {{ request('search') }}</span>@endif
+                @if($selectedCountry)<span class="rounded-full bg-emerald-100 px-2.5 py-1 font-bold text-emerald-800">کشور: {{ $selectedCountry->name }}</span>@endif
+                @if(request('status'))<span class="rounded-full bg-amber-100 px-2.5 py-1 font-bold text-amber-800">وضعیت: {{ $labels[request('status')] ?? request('status') }}</span>@endif
+            </div>
+        @endif
     </form>
 
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
