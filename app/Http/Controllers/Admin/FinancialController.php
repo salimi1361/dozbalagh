@@ -30,7 +30,9 @@ class FinancialController extends Controller
         $totalAvailable = $totalSystemBalance; 
         $totalBlocked = \Illuminate\Support\Facades\Schema::hasColumn('wallets', 'blocked_balance') ? Wallet::sum('blocked_balance') : 0;
 
-        $chargedThisMonth = WalletTransaction::whereIn('type', ['credit', 'wallet_charge'])
+        $chargedThisMonth = WalletTransaction::where('action_type', 'online_charge')
+            ->where('type', 'credit')
+            ->whereYear('created_at', now()->year)
             ->whereMonth('created_at', now()->month)
             ->sum('amount');
 
