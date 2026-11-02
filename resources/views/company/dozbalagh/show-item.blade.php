@@ -17,7 +17,7 @@
         'bilateral'=>'دوجانبه',
         'transit'=>'ترانزیت',
         'bilateral_transit'=>'دوجانبه ترانزیت',
-        'third_country_transit'=>'ترانزیت کشور ثالث',
+        'third_country_transit'=>'ترانزیت - ثالث',
         'third_country'=>'کشور ثالث',
     ];
     $citsLabels=[

@@ -33,7 +33,7 @@
         'processing'=>'bg-violet-50 text-violet-700 border-violet-200',
         'partially_issued'=>'bg-indigo-50 text-indigo-700 border-indigo-200',
     ];
-    $permitTypeLabels=['bilateral'=>'دوجانبه','transit'=>'ترانزیت','bilateral_transit'=>'دوجانبه ترانزیت','third_country_transit'=>'ترانزیت کشور ثالث','third_country'=>'کشور ثالث'];
+    $permitTypeLabels=['bilateral'=>'دوجانبه','transit'=>'ترانزیت','bilateral_transit'=>'دوجانبه ترانزیت','third_country_transit'=>'ترانزیت - ثالث','third_country'=>'کشور ثالث'];
     $statusSummaryClasses = [
         'rejected'=>'border-rose-200 bg-rose-100 text-rose-800', 'cancelled'=>'border-rose-200 bg-rose-100 text-rose-800',
         'lost'=>'border-rose-200 bg-rose-100 text-rose-800', 'lost_reported'=>'border-orange-200 bg-orange-100 text-orange-800',

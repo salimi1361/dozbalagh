@@ -7,7 +7,7 @@
     $permitTypeLabels = [
         'bilateral' => 'دوجانبه', 'transit' => 'ترانزیتی',
         'bilateral_transit' => 'دوجانبه ترانزیتی', 'third_country' => 'کشور ثالث',
-        'third_country_transit' => 'ترانزیت کشور ثالث',
+        'third_country_transit' => 'ترانزیت - ثالث',
     ];
     $headerStats = [
         'total' => (int) ($issuedStats['total'] ?? 0),

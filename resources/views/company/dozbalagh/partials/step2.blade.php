@@ -85,7 +85,7 @@
             </div>
             <div class="dynamic-field">
                 <label class="block text-xs font-bold text-slate-700 mb-1">مبلغ واریزی (ریال) <span class="text-rose-500">*</span></label>
-                <input type="text" name="receipt_amount" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono number-format" placeholder="50,000,000">
+                <input type="text" name="receipt_amount" class="w-full border border-slate-300 rounded-lg p-2 text-xs font-mono number-format" placeholder="1,500,000">
             </div>
             <div class="dynamic-field">
                 <label class="block text-xs font-bold text-slate-600 mb-1">تصویر فیش <span class="text-rose-500">*</span></label>

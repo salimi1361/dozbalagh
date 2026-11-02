@@ -24,7 +24,7 @@
         'transit' => 'ترانزیتی',
         'bilateral_transit' => 'دوجانبه ترانزیتی',
         'third_country' => 'کشور ثالث',
-        'third_country_transit' => 'ترانزیت کشور ثالث',
+        'third_country_transit' => 'ترانزیت - ثالث',
     ];
     $scopeLabels = ['active' => 'در حال اقدام', 'rejected' => 'رد شده‌ها', 'circulation' => 'در گردش', 'transferred' => 'انتقال‌یافته', 'archive' => 'بایگانی'];
 @endphp

@@ -80,7 +80,7 @@
                                                     'bilateral' => 'دوجانبه',
                                                     'transit' => 'ترانزیت',
                                                     'bilateral_transit' => 'دوجانبه ترانزیت',
-                                                    'third_country_transit' => 'ترانزیت ثالث',
+                                                    'third_country_transit' => 'ترانزیت - ثالث',
                                                     'third_country' => 'ثالث'
                                                 ];
                                                 $showLabel = $labels[$permit] ?? str_replace('_', ' ', $permit);
@@ -195,7 +195,7 @@
                                     'bilateral' => 'دوجانبه', 
                                     'transit' => 'ترانزیت', 
                                     'bilateral_transit' => 'دوجانبه ترانزیت',
-                                    'third_country_transit' => 'ترانزیت ثالث',
+                                    'third_country_transit' => 'ترانزیت - ثالث',
                                     'third_country' => 'ثالث'
                                 ];
                             @endphp
@@ -270,7 +270,7 @@
                                     'bilateral' => 'دوجانبه', 
                                     'transit' => 'ترانزیت', 
                                     'bilateral_transit' => 'دوجانبه ترانزیت',
-                                    'third_country_transit' => 'ترانزیت ثالث',
+                                    'third_country_transit' => 'ترانزیت - ثالث',
                                     'third_country' => 'ثالث'
                                 ];
                             @endphp

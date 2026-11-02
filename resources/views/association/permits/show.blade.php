@@ -8,7 +8,7 @@
     $isUnusedReturn=$permit->disposition_type === 'unused';
     if($permit->item_status === 'company_returned' && $isUnusedReturn) $statusLabels['company_returned']='دوزوله استفاده‌نشده در راه انجمن';
     $citsLabels=['not_started'=>'هنوز شروع نشده','processing'=>'در حال اقدام','success'=>'ثبت موفق','company_error'=>'خطای اطلاعات شرکت','system_error'=>'اختلال سامانه راهداری','other_error'=>'سایر خطاها'];
-    $permitTypeLabels=['bilateral'=>'دو جانبه','transit'=>'ترانزیت','bilateral_transit'=>'دو جانبه ترانزیت','third_country'=>'کشور ثالث','third_country_transit'=>'ترانزیت کشور ثالث'];
+    $permitTypeLabels=['bilateral'=>'دو جانبه','transit'=>'ترانزیت','bilateral_transit'=>'دو جانبه ترانزیت','third_country'=>'کشور ثالث','third_country_transit'=>'ترانزیت - ثالث'];
     $eventLabels=['request_submitted'=>'ثبت درخواست','item_approved'=>'تأیید انجمن','item_rejected'=>'رد کامل','association_edit'=>'ویرایش انجمن','cits_result'=>'نتیجه CITS','permit_issued'=>'چاپ و صدور','permit_serial_corrected'=>'اصلاح شماره دوزوله','disposition_changed'=>'تغییر تعیین تکلیف','outbound_courier_assigned'=>'معرفی پیک دریافت','outbound_courier_completed'=>'تحویل به پیک','lash_received'=>'دریافت لاشه از پیک','unused_permit_transferred'=>'انتقال دوزوله استفاده‌نشده','unused_return_received'=>'دریافت دوزوله استفاده‌نشده'];
     $eventLabels['company_cits_response']='پاسخ شرکت به خطای CITS';
     $citsConversation=$events->whereIn('event_type',['cits_result','company_cits_response'])->sortByDesc('id');
@@ -195,7 +195,7 @@
                         </label>
                         <label class="text-xs font-bold text-slate-600">نوع مجوز
                             <select name="permit_type" class="{{ $correctionControl }}">
-                                @foreach(['bilateral'=>'دوجانبه','transit'=>'ترانزیت','bilateral_transit'=>'دوجانبه ترانزیت','third_country'=>'کشور ثالث','third_country_transit'=>'ترانزیت کشور ثالث'] as $value=>$label)<option value="{{ $value }}" @selected($permit->permit_type === $value)>{{ $label }}</option>@endforeach
+                                @foreach(['bilateral'=>'دوجانبه','transit'=>'ترانزیت','bilateral_transit'=>'دوجانبه ترانزیت','third_country'=>'کشور ثالث','third_country_transit'=>'ترانزیت - ثالث'] as $value=>$label)<option value="{{ $value }}" @selected($permit->permit_type === $value)>{{ $label }}</option>@endforeach
                             </select>
                         </label>
                         <label class="text-xs font-bold text-slate-600">نوع عملیات/بار<input name="operation_type" value="{{ $permit->operation_type }}" class="{{ $correctionControl }}"></label>

@@ -55,12 +55,12 @@
         </div>
     </section>
 
-    <form method="GET" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <form id="company-filters-form" method="GET" class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div class="flex flex-col gap-3 lg:flex-row lg:items-end">
             <label class="min-w-0 flex-1 text-xs font-black text-slate-600">جستجو در شرکت‌ها
                 <span class="relative mt-2 block">
                     <svg class="absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m21 21-4.35-4.35m2.1-5.4a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"/></svg>
-                    <input name="q" value="{{ request('q') }}" class="w-full rounded-xl border border-slate-300 py-3 pl-4 pr-11 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="نام شرکت یا شناسه ملی را وارد کنید">
+                    <input id="company-search-input" name="q" value="{{ request('q') }}" class="w-full rounded-xl border border-slate-300 py-3 pl-4 pr-11 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="نام شرکت یا شناسه ملی را وارد کنید" autocomplete="off">
                 </span>
             </label>
             <label class="text-xs font-black text-slate-600 lg:w-48">نوع عضویت
@@ -159,5 +159,16 @@
 function confirmDelete(formId, companyName) {
     Swal.fire({title:'حذف شرکت',text:`آیا از حذف «${companyName}» مطمئن هستید؟`,icon:'warning',showCancelButton:true,confirmButtonColor:'#dc2626',confirmButtonText:'حذف',cancelButtonText:'انصراف'}).then((result)=>{if(result.isConfirmed)document.getElementById(formId).submit();});
 }
+
+const companyFiltersForm = document.getElementById('company-filters-form');
+const companySearchInput = document.getElementById('company-search-input');
+let companySearchTimer;
+
+companySearchInput?.addEventListener('input', () => {
+    window.clearTimeout(companySearchTimer);
+    companySearchTimer = window.setTimeout(() => {
+        companyFiltersForm?.submit();
+    }, 700);
+});
 </script>
 @endsection

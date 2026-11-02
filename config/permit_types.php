@@ -6,7 +6,7 @@ return [
         'transit' => 'ترانزیت',
         'bilateral_transit' => 'دوجانبه ترانزیت',
         'third_country' => 'کشور ثالث',
-        'third_country_transit' => 'ترانزیت کشور ثالث',
+        'third_country_transit' => 'ترانزیت - ثالث',
     ],
 
     'values' => [
