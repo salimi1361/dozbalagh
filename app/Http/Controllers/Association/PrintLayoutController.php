@@ -37,6 +37,8 @@ class PrintLayoutController extends Controller
             'driver_name_en' => 'نام راننده (لاتین)',
             'driver_passport' => 'شماره گذرنامه راننده',
             'vehicle_plate' => 'پلاک کشنده',
+            'transit_horse' => 'شماره ترانزیت اسب (کشنده)',
+            'transit_trailer' => 'شماره ترانزیت یدک (بارگیر)',
             'trailer_plate' => 'پلاک تریلر',
             'loading_origin' => 'مبدأ بارگیری',
             'loading_destination' => 'مقصد تخلیه',

@@ -32,12 +32,14 @@ class PermitPrintService
             'driver_name_en' => trim(($driver->first_name_en ?? '') . ' ' . ($driver->last_name_en ?? '')),
             'driver_passport' => $driver->passport_number ?? '',
             'vehicle_plate' => $fleet->transit_plate ?? '',
+            'transit_horse' => $fleet->transit_horse ?? '',
+            'transit_trailer' => $fleet->transit_trailer ?? '',
             'trailer_plate' => $item->trailer_plate ?? '',
             'loading_origin' => $item->loading_origin ?? '',
             'loading_destination' => $item->loading_destination ?? '',
             'permit_type' => $item->permit_type ?? '',
             'operation_type' => $item->operation_type ?? '',
-            'issued_date' => $this->jalali($item->issued_at ?: $permit->issued_at),
+            'issued_date' => $this->gregorian($item->issued_at ?: $permit->issued_at),
             'valid_until' => $this->jalali($item->permit_valid_until ?: $permit->permit_valid_until),
             'country_name' => $country->name ?? '',
             'cits_code' => $item->cits_code ?? '',
@@ -49,6 +51,12 @@ class PermitPrintService
     {
         if (!$date) return '';
         try { return Verta::instance($date)->format('Y/m/d'); } catch (\Throwable) { return (string)$date; }
+    }
+
+    private function gregorian($date): string
+    {
+        if (!$date) return '';
+        try { return \Illuminate\Support\Carbon::parse($date)->format('Y/m/d'); } catch (\Throwable) { return (string)$date; }
     }
 
     private function normalizePermitType($value): string
