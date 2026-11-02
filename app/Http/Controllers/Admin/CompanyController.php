@@ -34,7 +34,14 @@ class CompanyController extends Controller
                         ->orWhere('national_id', 'like', "%{$search}%");
                 });
             })
-            ->when(request()->filled('status'), fn ($query) => $query->where('status', request('status')))
+            ->when(request()->filled('status'), function ($query) {
+                $status = (string) request('status');
+
+                // `pending` is a legacy alias for the current incomplete-profile status.
+                return in_array($status, ['pending', 'profile_incomplete'], true)
+                    ? $query->whereIn('status', ['pending', 'profile_incomplete'])
+                    : $query->where('status', $status);
+            })
             ->when(in_array((string) request('membership'), ['0', '1'], true), function ($query) {
                 request('membership') === '1'
                     ? $query->where('is_association_member', true)

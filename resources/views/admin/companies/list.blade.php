@@ -14,6 +14,9 @@
         'shahbaz_correction' => ['اصلاح پرونده شحباز', 'bg-rose-50 text-rose-700 border-rose-200'],
         'approved' => ['تأییدشده', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
     ];
+    $selectedStatus = in_array(request('status'), ['pending', 'profile_incomplete'], true)
+        ? 'profile_incomplete'
+        : request('status');
 @endphp
 
 <div class="space-y-5" dir="rtl">
@@ -71,7 +74,9 @@
                 <select name="status" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
                     <option value="">همه وضعیت‌ها</option>
                     @foreach($statusLabels as $value => $meta)
-                        <option value="{{ $value }}" @selected(request('status') === $value)>{{ $meta[0] }}</option>
+                        @if($value !== 'pending')
+                            <option value="{{ $value }}" @selected($selectedStatus === $value)>{{ $meta[0] }}</option>
+                        @endif
                     @endforeach
                 </select>
             </label>
