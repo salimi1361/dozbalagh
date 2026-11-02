@@ -442,7 +442,7 @@
                     <span class="clock-hand clock-second" data-clock-second></span>
                     <span class="clock-pin"></span>
                 </div>
-                <div class="sidebar-version text-center text-[10px] font-bold text-sky-400">نسخه آزمایشی</div>
+                <div class="sidebar-version text-center text-[10px] font-bold text-sky-400">نسخه {{ config('app.release_version', '1.0.0') }}</div>
             </div>
         </footer>
     </aside>

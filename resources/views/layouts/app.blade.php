@@ -300,7 +300,7 @@
                     <svg class="clock-face" viewBox="0 0 100 100" aria-hidden="true"><g fill="#111827" font-family="Arial, sans-serif" font-size="11" text-anchor="middle"><text x="50" y="14">12</text><text x="70" y="20">1</text><text x="84" y="35">2</text><text x="90" y="54">3</text><text x="83" y="73">4</text><text x="68" y="87">5</text><text x="50" y="94">6</text><text x="31" y="87">7</text><text x="17" y="73">8</text><text x="10" y="54">9</text><text x="16" y="35">10</text><text x="30" y="20">11</text></g></svg>
                     <span class="clock-hand clock-hour" data-clock-hour></span><span class="clock-hand clock-minute" data-clock-minute></span><span class="clock-hand clock-second" data-clock-second></span><span class="clock-pin"></span>
                 </div>
-                <div class="sidebar-version text-center text-[10px] font-bold text-emerald-400">نسخه آزمایشی</div>
+                <div class="sidebar-version text-center text-[10px] font-bold text-emerald-400">نسخه {{ config('app.release_version', '1.0.0') }}</div>
             </div>
         </footer>
     </aside>
