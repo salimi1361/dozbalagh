@@ -37,6 +37,16 @@ class CompanyController extends Controller
             ->when(request()->filled('status'), function ($query) {
                 $status = (string) request('status');
 
+                if ($status === 'follow_up') {
+                    return $query->whereIn('status', [
+                        'pending_review',
+                        'correction_required',
+                        'shahbaz_required',
+                        'shahbaz_review',
+                        'shahbaz_correction',
+                    ]);
+                }
+
                 // `pending` is a legacy alias for the current incomplete-profile status.
                 return in_array($status, ['pending', 'profile_incomplete'], true)
                     ? $query->whereIn('status', ['pending', 'profile_incomplete'])

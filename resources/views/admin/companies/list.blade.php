@@ -12,6 +12,7 @@
         'shahbaz_required' => ['در حال تکمیل شحباز', 'bg-sky-50 text-sky-700 border-sky-200'],
         'shahbaz_review' => ['منتظر تأیید شحباز', 'bg-violet-50 text-violet-700 border-violet-200'],
         'shahbaz_correction' => ['اصلاح پرونده شحباز', 'bg-rose-50 text-rose-700 border-rose-200'],
+        'follow_up' => ['نیازمند پیگیری', 'bg-amber-50 text-amber-700 border-amber-200'],
         'approved' => ['تأییدشده', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
     ];
     $selectedStatus = in_array(request('status'), ['pending', 'profile_incomplete'], true)
@@ -51,7 +52,12 @@
             <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">اعضای انجمن</span><strong class="text-lg font-black text-cyan-200">{{ number_format((int) $companyStats->members) }}</strong></div>
             <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">شرکت‌های غیرعضو</span><strong class="text-lg font-black text-violet-200">{{ number_format((int) $companyStats->non_members) }}</strong></div>
             <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">تأییدشده</span><strong class="text-lg font-black text-emerald-300">{{ number_format((int) $companyStats->approved) }}</strong></div>
-            <div class="flex items-center justify-between gap-2 rounded-lg border border-white border-opacity-10 bg-white bg-opacity-10 px-3 py-2"><span class="text-[10px] font-bold text-blue-100">نیازمند پیگیری</span><strong class="text-lg font-black text-amber-300">{{ number_format((int) $companyStats->follow_up) }}</strong></div>
+            <a href="{{ route('admin.companies.index', ['status' => 'follow_up']) }}" aria-label="نمایش شرکت‌های نیازمند پیگیری" title="نمایش شرکت‌های نیازمند پیگیری" class="group flex items-center justify-between gap-2 rounded-lg border border-amber-200 border-opacity-30 bg-amber-300 bg-opacity-10 px-3 py-2 transition hover:bg-amber-300 hover:bg-opacity-20 focus:outline-none focus:ring-2 focus:ring-amber-200">
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-300 bg-opacity-20 text-amber-200 transition group-hover:bg-opacity-30">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.3 3.7 2.8 17a2 2 0 0 0 1.75 3h14.9a2 2 0 0 0 1.75-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
+                </span>
+                <span class="min-w-0 text-right"><span class="block text-[10px] font-bold text-amber-100">نیازمند پیگیری</span><strong class="text-lg font-black text-amber-300">{{ number_format((int) $companyStats->follow_up) }}</strong></span>
+            </a>
         </div>
     </section>
 
