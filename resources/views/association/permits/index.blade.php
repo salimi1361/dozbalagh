@@ -335,12 +335,26 @@
 
     const searchForm=document.getElementById('association-permit-search-form');
     const searchInput=document.getElementById('association-permit-search-input');
+    const searchFocusKey='associationPermitSearchFocus';
     let searchTimer;
+    const restoreSearchFocus=()=>{
+        if(sessionStorage.getItem(searchFocusKey)!=='1'||!searchInput)return;
+        sessionStorage.removeItem(searchFocusKey);
+        searchInput.focus();
+        const cursor=searchInput.value.length;
+        searchInput.setSelectionRange(cursor,cursor);
+    };
+    window.addEventListener('pageshow',restoreSearchFocus);
+    restoreSearchFocus();
     searchInput?.addEventListener('input',()=>{
         window.clearTimeout(searchTimer);
+        const value=searchInput.value.trim();
+        if(value.length===1)return;
         searchTimer=window.setTimeout(()=>{
-            searchForm?.requestSubmit();
-        },650);
+            if(!searchForm)return;
+            sessionStorage.setItem(searchFocusKey,'1');
+            searchForm.requestSubmit();
+        },1200);
     });
 
     const marker=document.getElementById('associationQueueMarker');
