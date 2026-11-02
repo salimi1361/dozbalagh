@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Company;
 use App\Http\Controllers\Controller;
 use App\Models\CompanyDriverMessage;
 use App\Models\Driver;
-use App\Models\MobileAppVersion;
 use App\Models\SystemSetting;
 use App\Notifications\CompanyDriverMessageNotification;
 use App\Services\CompanyAssetReleaseGuard;
@@ -47,23 +46,7 @@ class DriverController extends Controller
         return $parsed ?? ((int) $value === 1);
     }
 
-    private function driverAppDownloadUrl(): string
-    {
-        $version = MobileAppVersion::query()
-            ->where('platform', 'android')
-            ->where('is_active', true)
-            ->where(function ($query) {
-                $query->whereNull('published_at')
-                    ->orWhere('published_at', '<=', now());
-            })
-            ->orderByDesc('published_at')
-            ->orderByDesc('latest_build')
-            ->first();
-
-        return trim((string) $version?->download_url) ?: url('/driver/index.html');
-    }
-
-    private function sendDriverRegistrationAppSms(
+    private function sendDriverRegistrationSms(
         SmsService $sms,
         string $mobile,
         string $firstNameFa,
@@ -72,13 +55,11 @@ class DriverController extends Controller
     ): bool {
         try {
             $driverName = trim($firstNameFa . ' ' . $lastNameFa);
-            $message = "راننده گرامی {$driverName}، اطلاعات شما در شرکت {$companyName} با موفقیت ثبت گردید.\n"
-                . "جهت اطلاعات بیشتر اپلیکیشن را از لینک ذیل دانلود بکنید.\n"
-                . $this->driverAppDownloadUrl();
+            $message = "راننده گرامی {$driverName}، اطلاعات شما در شرکت {$companyName} با موفقیت ثبت گردید.";
 
-            return $sms->send($mobile, $message, 'driver_registration_app_link');
+            return $sms->send($mobile, $message, 'driver_registration');
         } catch (Throwable $e) {
-            Log::warning('Driver registration app link SMS failed: ' . $e->getMessage());
+            Log::warning('Driver registration SMS failed: ' . $e->getMessage());
 
             return false;
         }
@@ -482,7 +463,7 @@ class DriverController extends Controller
             $registrationSmsEnabled = $this->driverRegistrationSmsEnabled();
             $registrationSmsSent = false;
             if (!$isEdit && $registrationSmsEnabled) {
-                $registrationSmsSent = $this->sendDriverRegistrationAppSms(
+                $registrationSmsSent = $this->sendDriverRegistrationSms(
                     $sms,
                     $mobile,
                     $firstNameFa,
@@ -494,10 +475,10 @@ class DriverController extends Controller
             $message = 'اطلاعات راننده با موفقیت در سیستم ثبت و به کارتابل شما اضافه شد.';
             if (!$isEdit && $registrationSmsEnabled) {
                 $message .= $registrationSmsSent
-                    ? ' لینک نصب اپلیکیشن برای راننده پیامک شد.'
-                    : ' ثبت انجام شد، اما ارسال لینک نصب اپلیکیشن ناموفق بود.';
+                    ? ' پیامک اطلاع‌رسانی ثبت راننده برای او ارسال شد.'
+                    : ' ثبت انجام شد، اما ارسال پیامک اطلاع‌رسانی راننده ناموفق بود.';
             } elseif (!$isEdit) {
-                $message .= ' ارسال پیامک لینک نصب اپلیکیشن توسط مدیر غیرفعال است.';
+                $message .= ' ارسال پیامک اطلاع‌رسانی ثبت راننده توسط مدیر غیرفعال است.';
             }
 
             return response()->json([

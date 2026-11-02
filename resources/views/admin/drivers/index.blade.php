@@ -48,9 +48,9 @@
     @if(auth()->user()->role?->name === 'admin')
     <section class="flex flex-col gap-4 rounded-2xl border border-sky-200 bg-sky-50/70 p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <h2 class="text-sm font-black text-slate-900">ارسال لینک نصب اپلیکیشن برای راننده</h2>
+            <h2 class="text-sm font-black text-slate-900">ارسال پیامک ثبت راننده</h2>
             <p class="mt-1 text-xs font-semibold leading-6 text-slate-600">
-                پس از ثبت موفق راننده، آخرین لینک نصب اپلیکیشن راننده به شماره موبایل او پیامک می‌شود.
+                پس از ثبت موفق راننده، پیامک اطلاع‌رسانی ثبت اطلاعات به شماره موبایل او ارسال می‌شود.
             </p>
         </div>
         <form method="POST" action="{{ route('admin.drivers.registration_app_sms') }}" class="flex shrink-0 items-center gap-3">
