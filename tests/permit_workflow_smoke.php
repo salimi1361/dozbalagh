@@ -132,6 +132,69 @@ try {
     $assert(str_contains($indexHtml, 'کارتابل یکپارچه'), 'Unified workbench did not render');
     $assert(str_contains($showHtml, 'گردش کار و مکاتبات پرونده'), 'Permit dossier did not render');
 
+    $workflowItemId = $makeItem();
+    DB::table('permit_request_items')->where('id', $workflowItemId)->update([
+        'item_status' => 'issued',
+        'd_serial_number' => '88888888',
+    ]);
+    $workflowMarker = $request->d_code.'-'.$workflowItemId;
+
+    $activeBeforePickup = $controller->index($httpRequest)->render();
+    $awaitingPickupRequest = Request::create('/web/association/permits', 'GET', ['scope' => 'awaiting_pickup']);
+    app()->instance('request', $awaitingPickupRequest);
+    $awaitingPickupHtml = $controller->index($awaitingPickupRequest)->render();
+    $assert(!str_contains($activeBeforePickup, $workflowMarker), 'Printed permit without a courier stayed in active workbench');
+    $assert(str_contains($awaitingPickupHtml, $workflowMarker), 'Printed permit without a courier was not moved to awaiting pickup');
+
+    $missionId = DB::table('permit_courier_missions')->insertGetId([
+        'permit_request_item_id' => $workflowItemId,
+        'company_id' => $request->company_id,
+        'direction' => 'association_to_company',
+        'purpose' => 'issued_permit_pickup',
+        'status' => 'pending',
+        'courier_name' => 'پیک تست',
+        'courier_mobile' => '09120000000',
+        'courier_national_code' => '0000000000',
+        'otp_hash' => hash('sha256', '12345'),
+        'delivery_code' => '12345',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+    app()->instance('request', $httpRequest);
+    $activeWithPickup = $controller->index($httpRequest)->render();
+    $circulationBeforePickup = $controller->index(Request::create('/web/association/permits', 'GET', ['scope' => 'circulation']))->render();
+    $assert(str_contains($activeWithPickup, $workflowMarker), 'Courier nomination did not return permit to active workbench');
+    $assert(!str_contains($circulationBeforePickup, $workflowMarker), 'Permit with pending courier appeared in circulation');
+
+    DB::table('permit_courier_missions')->where('id', $missionId)->update([
+        'status' => 'completed',
+        'completed_at' => now(),
+        'updated_at' => now(),
+    ]);
+    $activeAfterPickup = $controller->index($httpRequest)->render();
+    $circulationAfterPickup = $controller->index(Request::create('/web/association/permits', 'GET', ['scope' => 'circulation']))->render();
+    $assert(!str_contains($activeAfterPickup, $workflowMarker), 'Delivered permit stayed in active workbench');
+    $assert(str_contains($circulationAfterPickup, $workflowMarker), 'Delivered permit did not move to circulation');
+
+    DB::table('permit_request_items')->where('id', $workflowItemId)->update([
+        'company_cits_responded_at' => now(),
+        'association_cits_response_seen_at' => null,
+        'updated_at' => now(),
+    ]);
+    $activeWithCompanyResponse = $controller->index($httpRequest)->render();
+    $circulationWithCompanyResponse = $controller->index(Request::create('/web/association/permits', 'GET', ['scope' => 'circulation']))->render();
+    $assert(str_contains($activeWithCompanyResponse, $workflowMarker), 'New company response did not return permit to active workbench');
+    $assert(!str_contains($circulationWithCompanyResponse, $workflowMarker), 'Permit with unread company response stayed in circulation');
+
+    DB::table('permit_request_items')->where('id', $workflowItemId)->update([
+        'association_cits_response_seen_at' => now()->addSecond(),
+        'updated_at' => now(),
+    ]);
+    $activeAfterResponse = $controller->index($httpRequest)->render();
+    $circulationAfterResponse = $controller->index(Request::create('/web/association/permits', 'GET', ['scope' => 'circulation']))->render();
+    $assert(!str_contains($activeAfterResponse, $workflowMarker), 'Handled company response stayed in active workbench');
+    $assert(str_contains($circulationAfterResponse, $workflowMarker), 'Handled company response did not return permit to circulation');
+
     $circulationRequest = Request::create('/web/association/permits', 'GET', ['scope' => 'circulation']);
     app()->instance('request', $circulationRequest);
     $circulationHtml = $controller->index($circulationRequest)->render();

@@ -16,11 +16,23 @@ use Illuminate\Validation\Rule;
 class PermitWorkflowController extends Controller
 {
     private const TERMINAL = ['rejected', 'archived', 'lost', 'returned_unused', 'extended', 'cancelled'];
+    private const ASSOCIATION_ACTIONABLE_STATUSES = [
+        'pending',
+        'under_review',
+        'approved',
+        'cits_processing',
+        'cits_company_error',
+        'cits_system_error',
+        'cits_other_error',
+        'ready_to_issue',
+        'company_returned',
+        'lost_reported',
+    ];
 
     public function index(Request $request)
     {
         $requestedScope = $request->string('scope')->toString();
-        $scope = in_array($requestedScope, ['active', 'rejected', 'circulation', 'transferred', 'archive'], true) ? $requestedScope : 'active';
+        $scope = in_array($requestedScope, ['active', 'awaiting_pickup', 'rejected', 'circulation', 'transferred', 'archive'], true) ? $requestedScope : 'active';
         $query = $this->baseQuery();
 
         if ($scope === 'transferred') {
@@ -30,6 +42,26 @@ class PermitWorkflowController extends Controller
             $query->where('item.item_status', 'rejected');
         } elseif ($scope === 'archive') {
             $query->whereIn('item.item_status', array_values(array_diff(self::TERMINAL, ['rejected'])));
+        } elseif ($scope === 'awaiting_pickup') {
+            $query->where('item.item_status', 'issued')
+                ->whereNotExists(function ($mission) {
+                    $mission->selectRaw('1')
+                        ->from('permit_courier_missions as pending_mission')
+                        ->whereColumn('pending_mission.permit_request_item_id', 'item.id')
+                        ->where('pending_mission.direction', 'association_to_company')
+                        ->where('pending_mission.status', 'pending');
+                })
+                ->whereNotExists(function ($mission) {
+                    $mission->selectRaw('1')
+                        ->from('permit_courier_missions as completed_mission')
+                        ->whereColumn('completed_mission.permit_request_item_id', 'item.id')
+                        ->where('completed_mission.direction', 'association_to_company')
+                        ->where('completed_mission.status', 'completed');
+                })
+                ->where(function ($response) {
+                    $response->whereNull('item.company_cits_responded_at')
+                        ->orWhereColumn('item.association_cits_response_seen_at', '>=', 'item.company_cits_responded_at');
+                });
         } elseif ($scope === 'circulation') {
             $query->where('item.item_status', 'issued')
                 ->whereExists(function ($mission) {
@@ -38,18 +70,39 @@ class PermitWorkflowController extends Controller
                         ->whereColumn('circulation_mission.permit_request_item_id', 'item.id')
                         ->where('circulation_mission.direction', 'association_to_company')
                         ->where('circulation_mission.status', 'completed');
+                })
+                ->whereNotExists(function ($mission) {
+                    $mission->selectRaw('1')
+                        ->from('permit_courier_missions as pending_mission')
+                        ->whereColumn('pending_mission.permit_request_item_id', 'item.id')
+                        ->where('pending_mission.direction', 'association_to_company')
+                        ->where('pending_mission.status', 'pending');
+                })
+                ->where(function ($response) {
+                    $response->whereNull('item.company_cits_responded_at')
+                        ->orWhereColumn('item.association_cits_response_seen_at', '>=', 'item.company_cits_responded_at');
                 });
         } else {
             $query->whereNotIn('item.item_status', self::TERMINAL)
                 ->where('item.item_status', '<>', 'transferred_in')
                 ->where(function ($active) {
-                    $active->where('item.item_status', '<>', 'issued')
-                        ->orWhereNotExists(function ($mission) {
-                            $mission->selectRaw('1')
-                                ->from('permit_courier_missions as completed_mission')
-                                ->whereColumn('completed_mission.permit_request_item_id', 'item.id')
-                                ->where('completed_mission.direction', 'association_to_company')
-                                ->where('completed_mission.status', 'completed');
+                    $active->whereIn('item.item_status', self::ASSOCIATION_ACTIONABLE_STATUSES)
+                        ->orWhere(function ($pickup) {
+                            $pickup->where('item.item_status', 'issued')
+                                ->whereExists(function ($mission) {
+                                    $mission->selectRaw('1')
+                                        ->from('permit_courier_missions as pending_mission')
+                                        ->whereColumn('pending_mission.permit_request_item_id', 'item.id')
+                                        ->where('pending_mission.direction', 'association_to_company')
+                                        ->where('pending_mission.status', 'pending');
+                                });
+                        })
+                        ->orWhere(function ($response) {
+                            $response->whereNotNull('item.company_cits_responded_at')
+                                ->where(function ($unread) {
+                                    $unread->whereNull('item.association_cits_response_seen_at')
+                                        ->orWhereColumn('item.company_cits_responded_at', '>', 'item.association_cits_response_seen_at');
+                                });
                         });
                 });
         }
@@ -167,14 +220,6 @@ class PermitWorkflowController extends Controller
                     'lost_reported',
                 );
             }
-        }
-        if ($permit->company_cits_responded_at
-            && (!$permit->association_cits_response_seen_at
-                || $permit->company_cits_responded_at > $permit->association_cits_response_seen_at)) {
-            DB::table('permit_request_items')->where('id', $item)->update([
-                'association_cits_response_seen_at' => now(),
-            ]);
-            $permit->association_cits_response_seen_at = now();
         }
         $issuance = null;
         if ($permit->item_status === 'ready_to_issue' && !$permit->d_serial_number) {
@@ -795,6 +840,11 @@ class PermitWorkflowController extends Controller
                 'item_status' => $newItemStatus,
                 'updated_at' => now(),
             ];
+            if ($row->company_cits_responded_at
+                && (!$row->association_cits_response_seen_at
+                    || $row->company_cits_responded_at > $row->association_cits_response_seen_at)) {
+                $update['association_cits_response_seen_at'] = now();
+            }
             if ($isReturnCits && $validated['status'] === 'success') {
                 $update['closed_at'] = $newItemStatus === 'collected_for_renewal' ? null : now();
                 $this->warehouseItemQuery($row->d_serial_number, $row->country_id, $row->permit_type)->update([
