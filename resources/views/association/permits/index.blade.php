@@ -98,7 +98,7 @@
         <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div class="relative min-w-0 flex-1">
                 <svg class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m21 21-4.35-4.35m1.35-5.15a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/></svg>
-                <input id="association-permit-search-input" name="search" value="{{ request('search') }}" autocomplete="off" class="w-full rounded-xl border-slate-200 bg-slate-50 py-3 pr-10 text-sm transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100" placeholder="جست‌وجو بر اساس کد پرونده، سریال، شرکت، کشنده یا بارگیر">
+                <input id="association-permit-search-input" name="search" value="{{ request('search') }}" autocomplete="off" class="w-full rounded-xl border-slate-200 bg-slate-50 py-3 pr-10 text-sm transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100" placeholder="جست‌وجو بر اساس کد پرونده، سریال، شرکت، کشور، کشنده یا بارگیر">
             </div>
             <button type="submit" class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 hover:shadow-md">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m21 21-4.35-4.35m1.35-5.15a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"/></svg>
