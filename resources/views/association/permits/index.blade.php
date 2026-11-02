@@ -45,16 +45,16 @@
                 </div>
             </div>
 
-            <nav class="flex w-full flex-wrap rounded-xl border border-white border-opacity-10 bg-white bg-opacity-10 p-1 xl:w-auto" aria-label="محدوده کارتابل">
-                <a href="{{ route('association.permits.index', ['scope'=>'active']) }}" class="flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition xl:flex-none {{ $scope === 'active' ? 'bg-white text-blue-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">در حال اقدام</a>
-                <a href="{{ route('association.permits.index', ['scope'=>'circulation']) }}" class="flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition xl:flex-none {{ $scope === 'circulation' ? 'bg-white text-blue-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">در گردش</a>
-                <a href="{{ route('association.permits.index', ['scope'=>'awaiting_pickup']) }}" class="flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition xl:flex-none {{ $scope === 'awaiting_pickup' ? 'bg-amber-100 text-amber-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">منتظر معرفی پیک</a>
-                <a href="{{ route('association.permits.index', ['scope'=>'transferred']) }}" class="flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition xl:flex-none {{ $scope === 'transferred' ? 'bg-white text-blue-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">انتقال‌یافته</a>
-                <a href="{{ route('association.permits.index', ['scope'=>'rejected']) }}" class="inline-flex flex-1 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition xl:flex-none {{ $scope === 'rejected' ? 'bg-rose-100 text-rose-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">
+            <nav class="flex w-full shrink-0 flex-nowrap gap-1 overflow-x-auto rounded-xl border border-white border-opacity-10 bg-white bg-opacity-10 p-1 xl:w-auto" aria-label="محدوده کارتابل">
+                <a href="{{ route('association.permits.index', ['scope'=>'active']) }}" class="shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition {{ $scope === 'active' ? 'bg-white text-blue-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">در حال اقدام</a>
+                <a href="{{ route('association.permits.index', ['scope'=>'circulation']) }}" class="shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition {{ $scope === 'circulation' ? 'bg-white text-blue-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">در گردش</a>
+                <a href="{{ route('association.permits.index', ['scope'=>'awaiting_pickup']) }}" class="shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition {{ $scope === 'awaiting_pickup' ? 'bg-amber-100 text-amber-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">منتظر معرفی پیک</a>
+                <a href="{{ route('association.permits.index', ['scope'=>'transferred']) }}" class="shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition {{ $scope === 'transferred' ? 'bg-white text-blue-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">انتقال‌یافته</a>
+                <a href="{{ route('association.permits.index', ['scope'=>'rejected']) }}" class="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition {{ $scope === 'rejected' ? 'bg-rose-100 text-rose-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">
                     رد شده‌ها
                     <span class="inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] {{ ($rejectedCount ?? 0) > 0 ? 'bg-rose-500 text-white' : 'bg-white/15 text-blue-100' }}">{{ number_format($rejectedCount ?? 0) }}</span>
                 </a>
-                <a href="{{ route('association.permits.index', ['scope'=>'archive']) }}" class="flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition xl:flex-none {{ $scope === 'archive' ? 'bg-white text-blue-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">بایگانی</a>
+                <a href="{{ route('association.permits.index', ['scope'=>'archive']) }}" class="shrink-0 whitespace-nowrap rounded-lg px-3 py-2 text-center text-xs font-black transition {{ $scope === 'archive' ? 'bg-white text-blue-800 shadow-sm' : 'text-blue-100 hover:bg-white hover:bg-opacity-10' }}">بایگانی</a>
             </nav>
         </div>
 
@@ -109,7 +109,7 @@
 
     <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="overflow-x-auto">
-            <table class="w-full text-right text-sm">
+            <table class="association-permit-table w-full text-right text-sm">
                 <thead class="bg-slate-50 text-xs text-slate-500"><tr>
                     <th class="p-4">ردیف</th><th class="p-4">پرونده مادر / درخواست‌ها</th><th class="p-4">شرکت / کشنده و بارگیر</th>
                     <th class="p-4">کشور / نوع</th><th class="p-4">وضعیت</th>
@@ -149,14 +149,14 @@
                             $pickupCompleted = !empty($item->pickup_completed_at) && $item->item_status === 'issued';
                         @endphp
                         <tr class="transition-colors {{ $hasRejected ? 'bg-rose-50 ring-1 ring-inset ring-rose-200 hover:bg-rose-100' : ($hasUnreadCitsResponse ? 'bg-emerald-50 ring-1 ring-inset ring-emerald-200' : ($hasPendingPickup ? 'bg-indigo-50 ring-1 ring-inset ring-indigo-200' : ($item->item_status === 'company_returned' ? 'bg-amber-50 hover:bg-amber-100' : $neutralRowClass))) }}">
-                            <td class="p-4 text-center font-black text-slate-500">{{ number_format(($items->firstItem() ?? 1) + $loop->index) }}</td>
-                            <td class="p-4">
+                            <td data-mobile-hide class="p-4 text-center font-black text-slate-500">{{ number_format(($items->firstItem() ?? 1) + $loop->index) }}</td>
+                            <td data-label="پرونده" class="p-4">
                                 <strong class="block font-mono">{{ $item->d_code }}-{{ $item->id }}</strong>
                                 <span class="text-xs text-slate-500">سریال: {{ $item->d_serial_number ?: 'تخصیص نیافته' }}</span>
                                 @if($hasUnreadCitsResponse)<span class="mt-2 block w-fit rounded-full bg-emerald-600 px-3 py-1 text-[10px] font-black text-white">پاسخ جدید شرکت</span>@endif
                                 @if($hasPendingPickup)<span class="mt-2 block w-fit rounded-full bg-indigo-600 px-3 py-1 text-[10px] font-black text-white">پیک در راه دریافت دوزوله</span>@endif
                             </td>
-                            <td class="p-4">
+                            <td data-label="شرکت / ناوگان" class="p-4">
                                 @if($scope === 'transferred')
                                     <strong class="block text-rose-700">از: {{ $item->transfer_source_company_name }}</strong>
                                     <strong class="mt-1 block text-emerald-700">به: {{ $item->transfer_destination_company_name }}</strong>
@@ -165,10 +165,10 @@
                                     <strong class="block">{{ $item->company_name }}</strong><span class="mt-1 block text-[10px] text-slate-400">شماره ترانزیت اسب (کشنده): <b class="font-mono text-slate-700">{{ $item->transit_horse ?: 'ثبت نشده' }}</b></span><span class="block text-[10px] text-slate-400">شماره ترانزیت یدک (بارگیر): <b class="font-mono text-slate-700">{{ $item->transit_trailer ?: 'ثبت نشده' }}</b></span>
                                 @endif
                             </td>
-                            <td class="p-4"><strong>{{ $item->country_name ?: 'نامشخص' }}</strong><span class="block text-xs text-slate-500">{{ $permitTypeLabels[$item->permit_type] ?? $item->permit_type }}</span></td>
-                            <td class="p-4"><span class="rounded-full px-3 py-1 text-xs font-black {{ $hasPendingPickup ? 'bg-indigo-200 text-indigo-900' : ($hasAwaitingPickup ? 'bg-amber-200 text-amber-900' : ($pickupCompleted ? 'bg-emerald-100 text-emerald-800' : ($item->item_status === 'company_returned' ? 'bg-amber-200 text-amber-900' : 'bg-sky-100 text-sky-700'))) }}">{{ $hasPendingPickup ? 'در انتظار تحویل به پیک' : ($hasAwaitingPickup ? 'چاپ‌شده؛ منتظر معرفی پیک' : ($pickupCompleted ? 'تحویل پیک شرکت شد' : ($item->item_status === 'company_returned' && $item->disposition_type === 'unused' ? 'برگشت بدون استفاده در انتظار دریافت' : ($labels[$item->item_status] ?? $item->item_status)))) }}</span>@if($hasPendingPickup)<span class="mt-2 block text-[10px] font-bold text-indigo-700">{{ $item->pending_pickup_courier_name }} — {{ $item->pending_pickup_courier_mobile }}</span>@elseif($pickupCompleted)<span class="mt-2 block text-[10px] font-bold text-emerald-700">{{ $item->pickup_completed_courier_name ?: 'پیک معرفی‌شده' }} — {{ verta($item->pickup_completed_at)->format('Y/m/d H:i') }}</span>@elseif($item->item_status === 'company_returned')<span class="mt-2 block text-[10px] font-bold text-amber-700">{{ $item->disposition_type === 'unused' ? 'مسیر مستقل بدون CITS لاشه' : 'نیازمند کنترل کد پیک' }}</span>@endif</td>
+                            <td data-label="کشور / نوع" class="p-4"><strong>{{ $item->country_name ?: 'نامشخص' }}</strong><span class="block text-xs text-slate-500">{{ $permitTypeLabels[$item->permit_type] ?? $item->permit_type }}</span></td>
+                            <td data-label="وضعیت" class="p-4"><span class="rounded-full px-3 py-1 text-xs font-black {{ $hasPendingPickup ? 'bg-indigo-200 text-indigo-900' : ($hasAwaitingPickup ? 'bg-amber-200 text-amber-900' : ($pickupCompleted ? 'bg-emerald-100 text-emerald-800' : ($item->item_status === 'company_returned' ? 'bg-amber-200 text-amber-900' : 'bg-sky-100 text-sky-700'))) }}">{{ $hasPendingPickup ? 'در انتظار تحویل به پیک' : ($hasAwaitingPickup ? 'چاپ‌شده؛ منتظر معرفی پیک' : ($pickupCompleted ? 'تحویل پیک شرکت شد' : ($item->item_status === 'company_returned' && $item->disposition_type === 'unused' ? 'برگشت بدون استفاده در انتظار دریافت' : ($labels[$item->item_status] ?? $item->item_status)))) }}</span>@if($hasPendingPickup)<span class="mt-2 block text-[10px] font-bold text-indigo-700">{{ $item->pending_pickup_courier_name }} — {{ $item->pending_pickup_courier_mobile }}</span>@elseif($pickupCompleted)<span class="mt-2 block text-[10px] font-bold text-emerald-700">{{ $item->pickup_completed_courier_name ?: 'پیک معرفی‌شده' }} — {{ verta($item->pickup_completed_at)->format('Y/m/d H:i') }}</span>@elseif($item->item_status === 'company_returned')<span class="mt-2 block text-[10px] font-bold text-amber-700">{{ $item->disposition_type === 'unused' ? 'مسیر مستقل بدون CITS لاشه' : 'نیازمند کنترل کد پیک' }}</span>@endif</td>
                             @if($scope === 'circulation')
-                                <td class="p-4">
+                                <td data-label="مهلت اعتبار" class="p-4">
                                     @if((int) ($item->validity_days ?? $item->country_validity_days) === 0)
                                         <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">بدون محدودیت</span>
                                     @elseif(!$item->permit_valid_until)
@@ -180,16 +180,16 @@
                                     @endif
                                 </td>
                             @endif
-                            <td class="whitespace-nowrap p-4 text-xs text-slate-500">
+                            <td data-label="آخرین تغییر" class="whitespace-nowrap p-4 text-xs text-slate-500">
                                 {{ verta($scope === 'transferred' && $item->transferred_at ? $item->transferred_at : $item->updated_at)->format('Y/m/d H:i') }}
                                 @if($hasUnreadCitsResponse)<span class="mt-1 block font-bold text-emerald-700">پاسخ شرکت: {{ verta($item->company_cits_responded_at)->format('H:i') }}</span>@endif
                             </td>
-                            <td class="p-4"><a href="{{ route('association.permits.show',$item->id) }}" class="rounded-xl px-4 py-2 text-xs font-black text-white {{ $hasUnreadCitsResponse ? 'bg-emerald-600 shadow-sm shadow-emerald-200' : ($hasPendingPickup ? 'bg-indigo-600 shadow-sm shadow-indigo-200' : 'bg-slate-900') }}">{{ $hasUnreadCitsResponse ? 'بررسی پاسخ شرکت' : ($hasPendingPickup ? 'ثبت تحویل به پیک' : 'باز کردن پرونده') }}</a></td>
+                            <td data-label="عملیات" class="p-4"><a href="{{ route('association.permits.show',$item->id) }}" class="rounded-xl px-4 py-2 text-xs font-black text-white {{ $hasUnreadCitsResponse ? 'bg-emerald-600 shadow-sm shadow-emerald-200' : ($hasPendingPickup ? 'bg-indigo-600 shadow-sm shadow-indigo-200' : 'bg-slate-900') }}">{{ $hasUnreadCitsResponse ? 'بررسی پاسخ شرکت' : ($hasPendingPickup ? 'ثبت تحویل به پیک' : 'باز کردن پرونده') }}</a></td>
                         </tr>
                     @else
                     <tr data-permit-group-row="{{ $groupKey }}" tabindex="0" role="button" aria-expanded="false" aria-controls="{{ $groupKey }}" class="cursor-pointer transition-colors {{ $groupRowClass }}">
-                        <td class="p-4 text-center font-black text-slate-500">{{ number_format(($items->firstItem() ?? 1) + $loop->index) }}</td>
-                        <td class="p-4">
+                        <td data-mobile-hide class="p-4 text-center font-black text-slate-500">{{ number_format(($items->firstItem() ?? 1) + $loop->index) }}</td>
+                        <td data-label="پرونده" class="p-4">
                             <div class="flex items-start gap-3">
                                 <button type="button" data-permit-group-toggle="{{ $groupKey }}" aria-expanded="false" aria-controls="{{ $groupKey }}" class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-lg font-black text-white transition hover:bg-blue-700" title="نمایش درخواست‌های این پرونده"><span>+</span></button>
                                 <div>
@@ -201,7 +201,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td class="p-4">
+                        <td data-label="شرکت / ناوگان" class="p-4">
                             @if($scope === 'transferred')
                                 <strong class="block text-rose-700">از: {{ $parent->transfer_source_company_name }}</strong>
                                 <strong class="mt-1 block text-emerald-700">به: {{ $parent->transfer_destination_company_name }}</strong>
@@ -210,8 +210,8 @@
                                 <strong class="block">{{ $parent->company_name }}</strong><span class="mt-1 block text-[10px] text-slate-400">شماره ترانزیت اسب (کشنده): <b class="font-mono text-slate-700">{{ $parent->transit_horse ?: 'ثبت نشده' }}</b></span><span class="block text-[10px] text-slate-400">شماره ترانزیت یدک (بارگیر): <b class="font-mono text-slate-700">{{ $parent->transit_trailer ?: 'ثبت نشده' }}</b></span>
                             @endif
                         </td>
-                        <td class="p-4"><strong>{{ $countries->count() > 1 ? $countries->count().' مقصد' : ($countries->first() ?: 'نامشخص') }}</strong><span class="block text-xs text-slate-500">{{ $types->implode('، ') ?: 'نوع نامشخص' }}</span></td>
-                        <td class="p-4">
+                        <td data-label="کشور / نوع" class="p-4"><strong>{{ $countries->count() > 1 ? $countries->count().' مقصد' : ($countries->first() ?: 'نامشخص') }}</strong><span class="block text-xs text-slate-500">{{ $types->implode('، ') ?: 'نوع نامشخص' }}</span></td>
+                        <td data-label="وضعیت" class="p-4">
                             <span class="rounded-full px-3 py-1 text-xs font-black {{ $groupStatusClass }}">{{ $hasPendingPickup ? 'در انتظار تحویل به پیک' : ($hasAwaitingPickup ? 'چاپ‌شده؛ منتظر معرفی پیک' : $groupStatus) }}</span>
                             <div class="mt-2 flex flex-wrap gap-1.5">
                                 @foreach($statusSummary as $summary)
@@ -221,7 +221,7 @@
                             <span class="mt-2 block text-[10px] font-bold text-slate-500">خلاصه وضعیت {{ $children->count() }} مسیر</span>
                         </td>
                         @if($scope === 'circulation')
-                            <td class="p-4">
+                            <td data-label="مهلت اعتبار" class="p-4">
                                 @if((int) ($parent->validity_days ?? $parent->country_validity_days) === 0)
                                     <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">بدون محدودیت</span>
                                 @elseif(!$parent->permit_valid_until)
@@ -233,11 +233,11 @@
                                 @endif
                             </td>
                         @endif
-                        <td class="whitespace-nowrap p-4 text-xs text-slate-500">
+                        <td data-label="آخرین تغییر" class="whitespace-nowrap p-4 text-xs text-slate-500">
                             {{ verta($scope === 'transferred' && $latestChild->transferred_at ? $latestChild->transferred_at : $latestChild->updated_at)->format('Y/m/d H:i') }}
                             @if($hasUnreadCitsResponse)<span class="mt-1 block font-bold text-emerald-700">پاسخ جدید در یکی از ردیف‌ها</span>@endif
                         </td>
-                        <td class="p-4">
+                        <td data-label="عملیات" class="p-4">
                             <div class="flex flex-col items-start gap-2">
                                 <span class="inline-flex rounded-xl bg-blue-50 px-4 py-2 text-xs font-black text-blue-700">درخواست در {{ number_format($children->count()) }} مسیر ثبت شده</span>
                                 @if($canRejectAll)
@@ -254,7 +254,7 @@
                             </div>
                         </td>
                     </tr>
-                    <tr id="{{ $groupKey }}" class="hidden bg-slate-50">
+                    <tr id="{{ $groupKey }}" class="association-permit-detail-row hidden bg-slate-50">
                         <td colspan="{{ $scope === 'circulation' ? 8 : 7 }}" class="p-4">
                             <div class="rounded-2xl border border-slate-200 bg-white p-3 shadow-inner">
                                 <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -262,7 +262,7 @@
                                     <span class="text-xs font-bold text-slate-500">تصمیم هر مسیر مستقل ثبت می‌شود.</span>
                                 </div>
                                 <div class="overflow-x-auto">
-                                    <table class="w-full min-w-[760px] text-right text-xs">
+                                    <table class="association-permit-detail-table w-full min-w-[760px] text-right text-xs">
                                         <thead class="border-b border-slate-200 text-slate-500"><tr><th class="p-3">ردیف / شماره</th><th class="p-3">کشور / نوع</th><th class="p-3">راننده / ناوگان</th><th class="p-3">وضعیت</th><th class="p-3">آخرین تغییر</th><th class="p-3"></th></tr></thead>
                                         <tbody class="divide-y divide-slate-100">
                                         @foreach($children as $child)
@@ -271,12 +271,12 @@
                                                 $childPickup = (int) ($child->pending_pickup_count ?? 0) > 0;
                                             @endphp
                                             <tr class="transition-colors {{ $loop->odd ? 'bg-white' : 'bg-slate-50' }} hover:bg-sky-50/50">
-                                                <td class="p-3"><strong class="block font-mono">{{ $child->d_code }}-{{ $child->id }}</strong><span class="text-[10px] text-slate-500">سریال: {{ $child->d_serial_number ?: 'تخصیص نیافته' }}</span></td>
-                                                <td class="p-3"><strong>{{ $child->country_name ?: 'نامشخص' }}</strong><span class="block text-[10px] text-slate-500">{{ $permitTypeLabels[$child->permit_type] ?? $child->permit_type }}</span></td>
-                                                <td class="p-3"><strong class="block">{{ trim(($child->first_name_fa ?? '').' '.($child->last_name_fa ?? '')) ?: 'ثبت نشده' }}</strong><span class="block text-[10px] text-slate-500">اسب: {{ $child->transit_horse ?: '—' }} | یدک: {{ $child->transit_trailer ?: '—' }}</span></td>
-                                                <td class="p-3"><span class="rounded-full px-2.5 py-1 text-[10px] font-black {{ $childPickup ? 'bg-indigo-100 text-indigo-800' : ($child->item_status === 'company_returned' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-700') }}">{{ $childPickup ? 'در انتظار تحویل به پیک' : ($labels[$child->item_status] ?? $child->item_status) }}</span>@if($childUnread)<span class="mt-1 block font-bold text-emerald-700">پاسخ جدید شرکت</span>@endif</td>
-                                                <td class="whitespace-nowrap p-3 text-slate-500">{{ verta($child->updated_at)->format('Y/m/d H:i') }}</td>
-                                                <td class="p-3"><a href="{{ route('association.permits.show',$child->id) }}" class="rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-black text-white">باز کردن</a></td>
+                                                <td data-label="پرونده" class="p-3"><strong class="block font-mono">{{ $child->d_code }}-{{ $child->id }}</strong><span class="text-[10px] text-slate-500">سریال: {{ $child->d_serial_number ?: 'تخصیص نیافته' }}</span></td>
+                                                <td data-label="کشور / نوع" class="p-3"><strong>{{ $child->country_name ?: 'نامشخص' }}</strong><span class="block text-[10px] text-slate-500">{{ $permitTypeLabels[$child->permit_type] ?? $child->permit_type }}</span></td>
+                                                <td data-label="راننده / ناوگان" class="p-3"><strong class="block">{{ trim(($child->first_name_fa ?? '').' '.($child->last_name_fa ?? '')) ?: 'ثبت نشده' }}</strong><span class="block text-[10px] text-slate-500">اسب: {{ $child->transit_horse ?: '—' }} | یدک: {{ $child->transit_trailer ?: '—' }}</span></td>
+                                                <td data-label="وضعیت" class="p-3"><span class="rounded-full px-2.5 py-1 text-[10px] font-black {{ $childPickup ? 'bg-indigo-100 text-indigo-800' : ($child->item_status === 'company_returned' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-700') }}">{{ $childPickup ? 'در انتظار تحویل به پیک' : ($labels[$child->item_status] ?? $child->item_status) }}</span>@if($childUnread)<span class="mt-1 block font-bold text-emerald-700">پاسخ جدید شرکت</span>@endif</td>
+                                                <td data-label="آخرین تغییر" class="whitespace-nowrap p-3 text-slate-500">{{ verta($child->updated_at)->format('Y/m/d H:i') }}</td>
+                                                <td data-label="عملیات" class="p-3"><a href="{{ route('association.permits.show',$child->id) }}" class="rounded-lg bg-slate-900 px-3 py-2 text-[10px] font-black text-white">باز کردن</a></td>
                                             </tr>
                                         @endforeach
                                         </tbody>
@@ -295,6 +295,92 @@
         <div class="border-t p-4">{{ $items->links() }}</div>
     </div>
 </div>
+<style>
+@media (max-width: 767px) {
+    .association-permit-table,
+    .association-permit-table > tbody,
+    .association-permit-table > tbody > tr:not(.association-permit-detail-row) {
+        display: block;
+        width: 100%;
+    }
+
+    .association-permit-table > thead {
+        display: none;
+    }
+
+    .association-permit-table > tbody > tr:not(.association-permit-detail-row) {
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .association-permit-table > tbody > tr:not(.association-permit-detail-row) > td[data-label] {
+        display: flex;
+        width: 100%;
+        min-width: 0;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: .75rem;
+        white-space: normal;
+    }
+
+    .association-permit-table > tbody > tr:not(.association-permit-detail-row) > td[data-mobile-hide] {
+        display: none;
+    }
+
+    .association-permit-table > tbody > tr:not(.association-permit-detail-row) > td[data-label]::before,
+    .association-permit-detail-table td[data-label]::before {
+        flex: 0 0 auto;
+        color: #64748b;
+        content: attr(data-label);
+        font-size: .68rem;
+        font-weight: 800;
+        line-height: 1.5rem;
+    }
+
+    .association-permit-table .overflow-x-auto {
+        overflow: visible;
+    }
+
+    .association-permit-table > tbody > tr.association-permit-detail-row:not(.hidden) {
+        display: block;
+        width: 100%;
+    }
+
+    .association-permit-table > tbody > tr.association-permit-detail-row > td {
+        display: block;
+        width: 100%;
+    }
+
+    .association-permit-detail-table {
+        display: block;
+        min-width: 0 !important;
+        width: 100%;
+    }
+
+    .association-permit-detail-table > thead {
+        display: none;
+    }
+
+    .association-permit-detail-table > tbody,
+    .association-permit-detail-table > tbody > tr {
+        display: block;
+        width: 100%;
+    }
+
+    .association-permit-detail-table > tbody > tr {
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .association-permit-detail-table td[data-label] {
+        display: flex;
+        width: 100%;
+        min-width: 0;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: .75rem;
+        white-space: normal;
+    }
+}
+</style>
 <script>
 (() => {
     const toggleGroup = (toggle) => {

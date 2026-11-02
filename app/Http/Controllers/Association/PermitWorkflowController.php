@@ -143,7 +143,8 @@ class PermitWorkflowController extends Controller
                         ->orWhere('transfer_source_company.name_fa', 'like', $term)
                         ->orWhere('transfer_destination_company.name_fa', 'like', $term)
                         ->orWhere('fleet.transit_horse', 'like', $term)
-                        ->orWhere('fleet.transit_trailer', 'like', $term);
+                        ->orWhere('fleet.transit_trailer', 'like', $term)
+                        ->orWhere('country.name', 'like', $term);
                 });
             });
 
