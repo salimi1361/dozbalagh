@@ -34,9 +34,6 @@ class PermitWorkflowController extends Controller
         $requestedScope = $request->string('scope')->toString();
         $scope = in_array($requestedScope, ['active', 'awaiting_pickup', 'rejected', 'circulation', 'transferred', 'archive'], true) ? $requestedScope : 'active';
         $query = $this->baseQuery();
-        $countries = DB::table('countries')
-            ->orderBy('name')
-            ->get(['id', 'name']);
 
         if ($scope === 'transferred') {
             $query->where('item.item_status', 'transferred_in')
@@ -192,7 +189,6 @@ class PermitWorkflowController extends Controller
         return view('association.permits.index', [
             'items' => $items,
             'scope' => $scope,
-            'countries' => $countries,
             'rejectedCount' => $rejectedCount,
             'unreadCitsResponses' => $unreadCitsResponses,
             'bulkRejectableParentIds' => $bulkRejectableParentIds,
