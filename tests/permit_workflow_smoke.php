@@ -41,14 +41,23 @@ try {
 
     $request = DB::table('permit_requests')->where('company_id', $wallet->company_id)->first();
     $assert((bool) $request, 'No permit request for smoke-test company');
-    $countryId = DB::table('countries')->value('id');
-    $assert((bool) $countryId, 'No country exists');
+    $country = DB::table('countries')
+        ->whereNotNull('allowed_permit_types')
+        ->orderBy('id')
+        ->get(['id', 'allowed_permit_types'])
+        ->first(function ($candidate) {
+            $allowedTypes = json_decode((string) $candidate->allowed_permit_types, true);
+            return is_array($allowedTypes) && $allowedTypes !== [];
+        });
+    $assert((bool) $country, 'No country with an allowed permit type exists');
+    $countryId = (int) $country->id;
+    $smokePermitType = json_decode((string) $country->allowed_permit_types, true)[0];
 
-    $makeItem = static function () use ($request, $countryId): int {
+    $makeItem = static function () use ($request, $countryId, $smokePermitType): int {
         return DB::table('permit_request_items')->insertGetId([
             'permit_request_id' => $request->id,
             'country_id' => $countryId,
-            'permit_type' => 'smoke-test',
+            'permit_type' => $smokePermitType,
             'operation_type' => 'smoke-test',
             'price' => 100,
             'allocation_status' => 'pending',
